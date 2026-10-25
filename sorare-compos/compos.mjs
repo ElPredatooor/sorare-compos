@@ -1,0 +1,449 @@
+// Compositions Sorare pour Elpredatooor : sections 8 a 12 de l'ancien core.mjs
+// (compos, meilleurs par jour, changements, cartes et calendrier NBA pour le dashboard).
+// calculeCompos(contexte de collecte.mjs, rows de modele.mjs, prev) -> { lineups, compRows, jours, changes, cartes, matchs }
+// evalueRentabilite(compRows, lineups, paliers, rows) : apres les paliers (core.mjs), colonnes v3 de competitions et choix
+// NBA entre In-Season en priorite 1 et l'option sans In-Season (modifie compRows et lineups en place).
+
+import { POS, round, day, cardLabel } from "./collecte.mjs";
+
+export function calculeCompos({ comps, currentSet, setName, fixtures, advRank }, rows, prev) {
+  // ---------- 8. Compositions ----------
+  const used = new Set();
+  const order = [...comps].sort((a, b) => rank(a) - rank(b));
+  // Option A : ordre de priorite actuel (In-Season NBA en priorite 1, decision de l'utilisateur du 24/10/2026)
+  const { lineups, compRows } = affecteCompetitions(order, rows, used);
+  // Option B (NBA seulement, choix de l'utilisateur du 25/10/2026 : « recommander la meilleure au lieu d'appliquer la
+  // priorite 1 aveuglement ») : memes competitions NBA sans les In-Season, les cartes In-Season restant disponibles pour
+  // Classic et Rooms. Le choix entre A et B demande les paliers (connus apres les compos) : evalueRentabilite().
+  // Football : jamais d'option B (cartes et competitions football non concernees).
+  const nbaOrder = order.filter((c) => c.sport === "NBA");
+  if (nbaOrder.some(estInSeasonNba)) OPTION_B.set(compRows, affecteCompetitions(nbaOrder, rows, new Set(), (c) => (estInSeasonNba(c) ? NON_RECOMMANDE : null)));
+  // Mode Set (cartes Common du set en cours) : regles non publiques -> compo generique G/D/M/A + extra
+  {
+    const pool = rows.filter((r) => r._inSet).flatMap((r) => r._cards.filter((k) => k.rarity === "common" && k.set === currentSet && !used.has(k.slug)).map((card) => ({ r, card, value: r.score_attendu * card.power * card.skinBonus })));
+    // meme regle que ci-dessus (proposition 2) : pas de compo Set si aucun joueur ne joue dans la gameweek ou si elle vaut 0
+    const jouent = pool.some((x) => x.r.matchs_gw > 0);
+    const sol0 = jouent ? optimise({ sport: "FOOTBALL", capitaine: 0 }, pool) : null;
+    const sol = sol0 && sol0.total > 0 ? sol0 : null;
+    const statutSet = sol ? "Compo proposée" : !pool.length ? "Aucune carte éligible" : !jouent ? "Aucun de tes joueurs du Set ne joue cette gameweek" : sol0 ? "Score attendu nul : " + SCORE_NUL : "Aucune carte éligible";
+    const nom = "Football Set " + setName + " (Common)";
+    compRows.push({ competition: nom, slug: "set-" + currentSet, sport: "Football", date_limite: fixtures.FOOTBALL.cutOffDate, joueurs_eligibles: new Set(pool.map((x) => x.r.slug)).size,
+      contraintes: "gardien, défenseur, milieu, attaquant + extra ; bonus de carte et de skin inclus", max_compos: 1, nb_compos: sol ? 1 : 0, scores_compos: sol ? String(round(sol.total)) : "", score_compo: sol ? round(sol.total) : null, statut: statutSet,
+      regles: "Règles du mode Set non lisibles via l'API publique : compo générique sur la gameweek football.", ...colonnesV3(0), type: "SET", rang: 9, cap_points: null, cap_etoiles: null, min_in_season: null, max_par_club: null, capitaine_pct: 0 });
+    if (sol) for (const x of sol.picks) lineups.push({ competition: nom, sport: "Football", numero: 1, slot: x.slot, joueur: x.r.joueur, slug: x.r.slug, carte_id: x.card.slug, carte: cardLabel(x.card), capitaine: "",
+      score_attendu: x.r.score_attendu, gain_etoiles: null, bonus: round((x.card.power * x.card.skinBonus - 1) * 100), score_final: round(x.value), etoiles: null, moyenne_cap: null, adversaire: x.r.adversaire, match: x.r.match, adv_attaque_rang: x.r.adv_attaque_rang, adv_defense_rang: x.r.adv_defense_rang, adv_nb_equipes: x.r.adv_nb_equipes });
+  }
+  // ---------- 9. Meilleurs joueurs par jour (modes Pro quotidiens) ----------
+  const jours = [];
+  const byDay = new Map();
+  for (const r of rows) for (const g of r._games.slice(0, 4)) {
+    if (g.pPlay <= 0) continue;
+    const mode = r.sport === "NBA" ? "NBA" : r._isJPL ? "Jupiler" : r._inSet ? "Set " + setName : null;
+    if (!mode) continue;
+    // NBA : jour = soiree americaine (heure de New York, UTC − 5), comme matchs.jour (section 12) ; correctif du 25/10/2026
+    // (un match a 01h00 UTC le 26/10 se joue le 25/10 au soir aux Etats-Unis). Football : date UTC, inchange.
+    const k = mode + "|" + (r.sport === "NBA" ? day(new Date(g.t - 5 * 3600e3).toISOString()) : day(g.date));
+    if (!byDay.has(k)) byDay.set(k, []);
+    const ar = advRank(g.adversaire, r.sport);
+    byDay.get(k).push({ joueur: r.joueur, v: (g.proj * g.pPlay), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, heure: g.date.slice(0, 16), poste: r.sport === "NBA" ? "" : r.poste, ar });
+  }
+  for (const [k, list] of byDay) {
+    const [mode, d] = k.split("|");
+    list.sort((a, b) => b.v - a.v).slice(0, 5).forEach((x, i) => jours.push({ mode, jour: d, rang: i + 1, joueur: x.joueur, poste: x.poste, adversaire: x.adversaire, match: x.heure, score_attendu: round(x.v), adv_attaque_rang: x.ar.adv_attaque_rang, adv_defense_rang: x.ar.adv_defense_rang, adv_nb_equipes: x.ar.adv_nb_equipes }));
+  }
+  jours.sort((a, b) => a.jour.localeCompare(b.jour) || a.mode.localeCompare(b.mode) || a.rang - b.rang);
+
+  // ---------- 10. Changements depuis la veille ----------
+  const changes = calculeChangements(rows, prev, fixtures);
+
+  // ---------- 11. Cartes (pour recalculer les compos dans le dashboard) ----------
+  const cartes = [];
+  for (const r of rows) for (const k of r._cards) {
+    const nba = r.sport === "NBA";
+    const ok = nba ? k.rarity === "limited" : (r._isJPL && k.rarity !== "common") || (r._inSet && k.rarity === "common" && k.set === currentSet);
+    if (!ok) continue;
+    cartes.push({ sport: nba ? "NBA" : "Football", slug: r.slug, joueur: r.joueur, carte_id: k.slug, label: cardLabel(k), rarete: k.rarity, saison: k.season, puissance: k.power, skin: k.skinBonus, in_season: k.inSeason, set_courant: k.rarity === "common" && k.set === currentSet });
+  }
+  // ---------- 12. Calendrier NBA : un match par ligne dans la gameweek ----------
+  const matchs = [];
+  for (const r of rows.filter((x) => x.sport === "NBA")) for (const g of r._games.filter((x) => x.inWindow)) {
+    const ar = advRank(g.adversaire, "NBA");
+    matchs.push({ sport: "NBA", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: day(new Date(g.t - 5 * 3600e3).toISOString()), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: g.b2b, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null });
+  }
+  return { lineups, compRows, jours, changes, cartes, matchs };
+}
+
+// NBA In-Season (slug in_season ou regle API "SeasonBonus")
+const estInSeasonNba = (c) => c.sport === "NBA" && !!(c.inSeason || c.minInSeason);
+const NON_RECOMMANDE = "non recommandé cette semaine";
+// compRows (option A) -> affectation de l'option B, lue par evalueRentabilite() (core.mjs n'a pas a la transmettre)
+const OPTION_B = new WeakMap();
+
+// Affectation des cartes aux competitions, dans l'ordre donne (section 8 de l'ancien core.mjs, code inchange).
+// sauter(c) -> texte : la competition n'a aucune compo et ce texte devient son statut (option B sans In-Season).
+export function affecteCompetitions(order, rows, used, sauter = null) {
+  const lineups = []; const compRows = [];
+  // carte -> competition qui l'a prise (pour expliquer un minimum In-Season impossible, proposition 11)
+  const prisPar = new Map();
+  // priorite affichee = position de la competition dans l'ordre d'affectation de son sport (1 = premiere servie)
+  const priorite = new Map(); for (const sp of ["NBA", "FOOTBALL"]) order.filter((x) => (x.sport === "NBA") === (sp === "NBA")).forEach((x, i) => priorite.set(x, i + 1));
+  for (const c of order) {
+    if (c.inSeason && !c.minInSeason) c.minInSeason = 4;
+    // nombre de compos a proposer : regle propre a l'utilisateur (NBA) sinon le maximum autorise par Sorare
+    const maxTeams = c.nbaDef?.compos ?? (c.equipes > 0 ? c.equipes : 1);
+    const contraintes = [c.capPoints ? "somme des moyennes ≤ " + c.capPoints : "", c.capStars ? "somme des étoiles ≤ " + c.capStars : "", c.minInSeason ? "min " + c.minInSeason + " cartes In-Season" : "", c.maxParClub ? "max " + c.maxParClub + " par équipe" : "", c.capitaine ? "capitaine +" + c.capitaine + " %" : "", c.nbaDef?.essences ? "inscription : " + c.nbaDef.essences + " essences Limited par compo" : ""].filter(Boolean).join(", ");
+    const scores = []; let raison = ""; let elig0 = null;
+    const saut = sauter ? sauter(c) : null;
+    for (let k = 1; k <= maxTeams; k++) {
+      const pool = [];
+      for (const r of rows) {
+        if (c.sport === "NBA" && r.sport !== "NBA") continue;
+        if (c.sport === "FOOTBALL" && !r._isJPL) continue;
+        for (const card of r._cards) {
+          if (used.has(card.slug)) continue;
+          if (c.sport === "NBA" ? card.rarity !== "limited" : !["limited", "rare", "super_rare", "unique"].includes(card.rarity)) continue;
+          pool.push({ r, card, value: r.score_attendu * card.power });
+        }
+      }
+      const elig = new Set(pool.map((x) => x.r.slug)).size;
+      if (elig0 == null) elig0 = elig;
+      if (saut) { raison = saut; break; }
+      const nIn = new Set(pool.filter((x) => x.card.inSeason).map((x) => x.r.slug)).size;
+      // Gameweek sans match (proposition 2, les deux sports ; choix de l'utilisateur du 25/10) : pas de compo si aucun
+      // joueur eligible n'a de match dans la gameweek (joueurs.matchs_gw), ni si la meilleure compo vaut 0 point.
+      if (pool.length && !pool.some((x) => x.r.matchs_gw > 0)) { raison = k === 1 ? SANS_MATCH : "aucun des joueurs restants ne joue cette gameweek"; break; }
+      const sol = c.minInSeason && nIn < c.minInSeason ? null : optimise(c, pool);
+      if (sol && !(sol.total > 0)) { raison = SCORE_NUL; break; }
+      if (!sol) {
+        raison = missingReason(c, pool, nIn);
+        // NBA seulement (les textes football ne changent pas) : cartes In-Season prises par une competition prioritaire
+        if (c.sport === "NBA" && c.minInSeason && nIn < c.minInSeason) raison = raisonInSeasonPrises(c, rows, used, prisPar, nIn) || raison;
+        break;
+      }
+      scores.push(round(sol.total));
+      for (const x of sol.picks) {
+        used.add(x.card.slug); prisPar.set(x.card.slug, { nom: c.nom, priorite: priorite.get(c) });
+        lineups.push({ competition: c.nom, sport: c.sport === "NBA" ? "NBA" : "Football", numero: k, slot: x.slot, joueur: x.r.joueur, slug: x.r.slug, carte_id: x.card.slug, carte: cardLabel(x.card), capitaine: c.capitaine && x === sol.captain ? "Oui" : "",
+          score_attendu: x.r.score_attendu, gain_etoiles: x.r.gain_etoiles, bonus: round((x.card.power - 1) * 100), score_final: round(x.value * (x === sol.captain ? 1 + (c.capitaine || 0) / 100 : 1)),
+          etoiles: x.r.etoiles, moyenne_cap: c.capPoints ? x.r._l15 : null, adversaire: x.r.adversaire, match: x.r.match, adv_attaque_rang: x.r.adv_attaque_rang, adv_defense_rang: x.r.adv_defense_rang, adv_nb_equipes: x.r.adv_nb_equipes });
+      }
+    }
+    compRows.push({ competition: c.nom, slug: c.slug, sport: c.sport === "NBA" ? "NBA" : "Football", date_limite: c.cutoff, joueurs_eligibles: elig0 ?? 0, contraintes,
+      max_compos: maxTeams, nb_compos: scores.length, scores_compos: scores.join(" "), score_compo: scores.length ? scores[0] : null,
+      statut: scores.length === maxTeams ? (maxTeams > 1 ? `${maxTeams} compos proposées` : "Compo proposée") : scores.length ? `${scores.length} compo${scores.length > 1 ? "s" : ""} sur ${maxTeams} possible${maxTeams > 1 ? "s" : ""} : ${raison}` : raison,
+      regles: c.regles, ...colonnesV3(c.nbaDef?.essences || 0), type: c.sport === "NBA" ? "NBA" : "JPL", rang: rank(c), cap_points: c.capPoints, cap_etoiles: c.capStars, min_in_season: c.minInSeason || null, max_par_club: c.maxParClub, capitaine_pct: c.capitaine || 0 });
+  }
+  return { lineups, compRows };
+}
+// Colonnes v3 de competitions (contrat-donnees.md), remplies par evalueRentabilite() une fois les paliers connus.
+// Cout d'inscription : Rooms NBA 150 essences Limited par compo (NBA_COMPS de collecte.mjs, releve sur sorare.com) ; 0 sinon.
+const colonnesV3 = (cout) => ({ cout_inscription: cout, gains_esperes: "", gain_net_espere: null, autres_recompenses: "", rentable: "", recommandation: "", alternative: "" });
+
+// Statuts sans compo (proposition 2) : textes communs aux deux sports
+const SANS_MATCH = "aucun de tes joueurs ne joue cette gameweek";
+const SCORE_NUL = "la meilleure compo possible vaut 0 point (joueurs absents, blessés ou sans match cette gameweek)";
+
+// Changements depuis la veille (section 10). prev = joueurs.json de la collecte precedente.
+// Projection en hausse / en baisse (proposition 6, les deux sports) : seulement si le joueur a des matchs dans la
+// gameweek des deux cotes (joueurs.matchs_gw > 0 ; veille sans matchs_gw : score_attendu > 0). Sinon le score attendu
+// tombe a 0 faute de match et ce n'est pas une baisse de projection (140 fausses baisses football le 24/10).
+// Meme gameweek (le match retenu de la veille et celui du jour sont dans la fenetre de la gameweek en cours) :
+// on compare score_attendu. Gameweek differente : le nombre de matchs et le match retenu changent, on compare la
+// projection par match (proj_match), et rien si la veille n'a pas cette colonne.
+export function calculeChangements(rows, prev, fixtures) {
+  const changes = [];
+  if (!prev || !Array.isArray(prev)) return changes;
+  const old = new Map(prev.map((r) => [r.slug, r]));
+  const joue = (x) => (x.matchs_gw != null ? x.matchs_gw > 0 : x.score_attendu > 0);
+  const tMatch = (m) => (m ? Date.parse(m.length === 16 ? m + ":00Z" : m) : NaN); // joueurs.match : UTC tronque a 16 caracteres
+  const dansGw = (sport, m) => {
+    const f = fixtures?.[sport === "NBA" ? "NBA" : "FOOTBALL"]; const t = tMatch(m);
+    return !!f && t >= Date.parse(f.startDate) && t <= Date.parse(f.endDate);
+  };
+  for (const r of rows) {
+    const o = old.get(r.slug); if (!o) continue;
+    if (r.blessure && !o.blessure) changes.push({ joueur: r.joueur, modes: r.modes, type: "Nouvelle blessure", detail: r.blessure });
+    if (!r.blessure && o.blessure) changes.push({ joueur: r.joueur, modes: r.modes, type: "Retour de blessure", detail: o.blessure });
+    if (r.suspension && !o.suspension) changes.push({ joueur: r.joueur, modes: r.modes, type: "Suspension", detail: r.suspension });
+    if (r.statut && o.statut && r.statut !== o.statut) changes.push({ joueur: r.joueur, modes: r.modes, type: "Statut modifié", detail: o.statut + " → " + r.statut });
+    if (!joue(r) || !joue(o)) continue;
+    const memeGw = dansGw(r.sport, o.match) && dansGw(r.sport, r.match);
+    const [a, b, quoi] = memeGw ? [o.score_attendu, r.score_attendu, ""] : [o.proj_match, r.proj_match, "par match, nouvelle gameweek : "];
+    if (a != null && b != null && Math.abs(b - a) >= 10) changes.push({ joueur: r.joueur, modes: r.modes, type: b > a ? "Projection en hausse" : "Projection en baisse", detail: quoi + a + " → " + b });
+  }
+  return changes;
+}
+
+// Minimum In-Season impossible parce que des competitions prioritaires ont pris les cartes In-Season (proposition 11, NBA).
+// Renvoie null si aucune carte In-Season n'a ete prise (le texte de missingReason s'applique alors).
+export function raisonInSeasonPrises(c, rows, used, prisPar, nIn) {
+  const libre = [], prises = [];
+  for (const r of rows) {
+    if (c.sport === "NBA" && r.sport !== "NBA") continue;
+    if (c.sport === "FOOTBALL" && !r._isJPL) continue;
+    for (const card of r._cards) {
+      if (c.sport === "NBA" ? card.rarity !== "limited" : !["limited", "rare", "super_rare", "unique"].includes(card.rarity)) continue;
+      const x = { r, card, value: r.score_attendu * card.power };
+      libre.push(x);
+      if (card.inSeason && used.has(card.slug)) prises.push(x);
+    }
+  }
+  if (!prises.length) return null;
+  const nTot = libre.filter((x) => x.card.inSeason).length;
+  const parComp = new Map(); for (const x of prises) { const p = prisPar.get(x.card.slug); const k = p ? `${p.nom} (priorité ${p.priorite})` : "une autre compo"; parComp.set(k, (parComp.get(k) || 0) + 1); }
+  const ou = [...parComp.keys()].join(" et ");
+  const dans = parComp.size > 1 ? "dans les compos " + ou : "dans la compo " + ou;
+  let txt = nIn === 0 && prises.length === nTot
+    ? (nTot === 1 ? `ta seule carte In-Season est ${dans}` : `tes ${nTot} cartes In-Season sont ${dans}`)
+    : `il ne reste que ${nIn} carte${nIn > 1 ? "s" : ""} In-Season (minimum ${c.minInSeason}) : ${prises.length} ${prises.length > 1 ? "sont" : "est"} ${dans}`;
+  // et meme libres, le plafond d'etoiles serait-il tenable ? (meme borne basse que missingReason)
+  const plafond = c.capStars ? plafondEtoiles(c, libre) : null;
+  if (plafond) txt += " ; même libres, " + plafond;
+  return txt;
+}
+
+export function rank(c) { // ordre de priorite d'affectation des cartes
+  if (c.sport === "FOOTBALL") return c.inSeason ? 0 : 1;
+  return c.nbaDef ? c.nbaDef.rang : 9;
+}
+
+// Etoiles comptees sous un plafond (NBA uniquement, seul sport avec capStars). Niveau inconnu (gameplayTier absent,
+// etoiles null) : compte comme DNP = 1 etoile, le plus petit niveau du bareme (regles-nba, table des etoiles),
+// et non 0, sinon un joueur sans niveau permettait une compo fictive (In-Season Contender a 10,5 + 0 etoile).
+const etoilesCap = (x) => x.r.etoiles ?? 1;
+
+// Choix de 5 cartes maximisant le score sous contraintes (recherche exhaustive sur les meilleurs candidats)
+export function optimise(c, pool) {
+  if (!pool.length) return null;
+  // une seule carte par joueur : garder la meilleure
+  const bestBy = new Map();
+  for (const x of pool) { const o = bestBy.get(x.r.slug); if (!o || x.value > o.value || (x.card.inSeason && !o.card.inSeason && x.value >= o.value * 0.97)) bestBy.set(x.r.slug, x); }
+  // Competition avec minimum In-Season (regle API displayedTypedRules "SeasonBonus" : NBA In-Season, Jupiler In-Season) :
+  // la carte In-Season d'un joueur doit rester disponible meme si une autre carte du meme joueur vaut plus
+  // (sinon bestBy l'ecarte des que l'autre carte vaut plus de 103 %). On garde donc aussi la meilleure carte
+  // In-Season de chaque joueur ; la boucle interdit ensuite deux cartes du meme joueur dans une compo.
+  // Sans minimum In-Season, rien ne change. Correctif du 24/10/2026 (bug In-Season Champion, collecte 22h05).
+  const bestIn = new Map();
+  if (c.minInSeason) for (const x of pool) { if (!x.card.inSeason) continue; const o = bestIn.get(x.r.slug); if (!o || x.value > o.value) bestIn.set(x.r.slug, x); }
+  let cand = [...bestBy.values()].sort((a, b) => b.value - a.value);
+  const nba = c.sport === "NBA";
+  if (nba && c.capStars) {
+    // garder aussi des joueurs peu etoiles pour pouvoir respecter le plafond
+    const byStar = new Map();
+    for (const x of cand) { const k = x.r.etoiles || 0; if (!byStar.has(k)) byStar.set(k, []); if (byStar.get(k).length < 7) byStar.get(k).push(x); }
+    cand = [...byStar.values()].flat().sort((a, b) => b.value - a.value);
+  } else if (nba) cand = cand.slice(0, 26);
+  else {
+    const byPos = (p) => {
+      const l = cand.filter((x) => x.r._pos === p);
+      if (!c.capPoints) return l.slice(0, 6);
+      // avec plafond : garder aussi les meilleurs rapports score / moyenne
+      const eff = l.slice().sort((a, b) => b.value / Math.max(1, b.r._l15) - a.value / Math.max(1, a.r._l15)).slice(0, 4);
+      const cheap = l.slice().sort((a, b) => a.r._l15 - b.r._l15).slice(0, 3);
+      return [...new Set([...l.slice(0, 6), ...eff, ...cheap])];
+    };
+    cand = [...new Set([...byPos("Goalkeeper"), ...byPos("Defender"), ...byPos("Midfielder"), ...byPos("Forward")])];
+  }
+  // minimum In-Season : tous les candidats In-Season sont gardes, en plus de la selection ci-dessus
+  // (sinon des cartes In-Season peu notees sont eliminees par le tri par etoiles / par poste avant le filtre minInSeason)
+  // (ajoutes a la fin, sans retrier, pour garder l'ordre de parcours actuel et donc le meme choix en cas d'egalite)
+  if (c.minInSeason) cand = [...new Set([...cand, ...bestIn.values()])];
+  if (cand.length < 5) return null;
+  let best = null;
+  const n = cand.length;
+  const capt = (c.capitaine || 0) / 100;
+  for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) for (let d = b + 1; d < n; d++) for (let e = d + 1; e < n; e++) for (let f = e + 1; f < n; f++) {
+    const t = [cand[a], cand[b], cand[d], cand[e], cand[f]];
+    if (c.capStars && t.reduce((s, x) => s + etoilesCap(x), 0) > c.capStars) continue;
+    if (c.capPoints && t.reduce((s, x) => s + (x.r._l15 || 0), 0) > c.capPoints) continue;
+    if (c.minInSeason && t.filter((x) => x.card.inSeason).length < Math.min(c.minInSeason, 5)) continue;
+    if (c.minInSeason && new Set(t.map((x) => x.r.slug)).size < 5) continue; // une seule carte par joueur
+    if (c.maxParClub) { const m = new Map(); let bad = false; for (const x of t) { const k = x.r._clubSlug; m.set(k, (m.get(k) || 0) + 1); if (m.get(k) > c.maxParClub) bad = true; } if (bad) continue; }
+    let slots = null;
+    if (!nba) { slots = assignFootball(t); if (!slots) continue; }
+    // capitaine : meilleur score ajuste du risque
+    const cap = t.slice().sort((x, y) => y.value * (1 - 0.3 * y.r._cv) - x.value * (1 - 0.3 * x.r._cv))[0];
+    const total = t.reduce((s, x) => s + x.value, 0) + cap.value * capt;
+    if (!best || total > best.total) best = { total, picks: t, captain: cap, slots };
+  }
+  if (!best) return null;
+  if (nba) best.picks.sort((a, b) => b.value - a.value).forEach((x, i) => (x.slot = "Joueur " + (i + 1)));
+  else best.picks.forEach((x) => (x.slot = best.slots.get(x)));
+  return best;
+}
+// Pourquoi on ne peut pas faire une compo de plus
+export function missingReason(c, pool, nIn) {
+  const players = new Map(); for (const x of pool) players.set(x.r.slug, x);
+  const list = [...players.values()];
+  if (!list.length) return "plus aucune carte disponible";
+  if (c.minInSeason && nIn < c.minInSeason) return `il ne reste que ${nIn} carte${nIn > 1 ? "s" : ""} In-Season (minimum ${c.minInSeason})`;
+  if (c.sport !== "NBA") {
+    const need = { Goalkeeper: "gardien", Defender: "défenseur", Midfielder: "milieu", Forward: "attaquant" };
+    const miss = Object.entries(need).filter(([p]) => !list.some((x) => x.r._pos === p)).map(([, n]) => n);
+    if (miss.length) return "il te manque " + miss.map((m) => "un " + m).join(" et ");
+    if (list.length < 5) return `il ne reste que ${list.length} joueurs disponibles`;
+    return "aucune combinaison des cartes restantes ne respecte les règles";
+  }
+  if (list.length < 5) return `il ne reste que ${list.length} joueurs disponibles`;
+  if (c.capStars && c.minInSeason) { const p = plafondEtoiles(c, pool); if (p) return p; }
+  return c.capStars ? `aucune combinaison des cartes restantes ne tient sous ${c.capStars} étoiles` : "aucune combinaison des cartes restantes ne respecte les règles";
+}
+// NBA In-Season : le plafond d'etoiles (displayedTypedRules "AverageScores") est-il tenable avec les cartes In-Season imposees ?
+// borne basse = les min In-Season joueurs In-Season les moins etoiles + les joueurs restants les moins etoiles.
+// Renvoie le texte d'explication si la borne depasse le plafond, sinon null.
+export function plafondEtoiles(c, pool) {
+  if (!c.capStars || !c.minInSeason) return null;
+  const players = new Map(); for (const x of pool) players.set(x.r.slug, x);
+  const list = [...players.values()];
+  const etoiles = etoilesCap;
+  const fmt = (v) => String(Math.round(v * 10) / 10).replace(".", ",") + "★";
+  const slugsIn = new Set(pool.filter((x) => x.card.inSeason).map((x) => x.r.slug));
+  const m = Math.min(c.minInSeason, 5);
+  const ins = list.filter((x) => slugsIn.has(x.r.slug)).sort((a, b) => etoiles(a) - etoiles(b)).slice(0, m);
+  const reste = list.filter((x) => !ins.includes(x)).sort((a, b) => etoiles(a) - etoiles(b)).slice(0, 5 - m);
+  const sIn = ins.reduce((s, x) => s + etoiles(x), 0), sReste = reste.reduce((s, x) => s + etoiles(x), 0);
+  if (ins.length === m && reste.length === 5 - m && sIn + sReste > c.capStars) {
+    const quoi = slugsIn.size === m ? `les ${m} cartes In-Season font` : `les ${m} cartes In-Season les moins étoilées font déjà`;
+    const autres = 5 - m === 1 ? "le 5e joueur" : `les ${5 - m} autres joueurs`;
+    return `${quoi} ${fmt(sIn)}, il ne reste que ${fmt(Math.max(0, c.capStars - sIn))} pour ${autres} (minimum ${fmt(sReste)}) sous le plafond de ${c.capStars} étoiles`;
+  }
+  return null;
+}
+export function assignFootball(t) {
+  const need = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
+  const m = new Map(); const rest = [...t];
+  for (const p of need) { const i = rest.findIndex((x) => x.r._pos === p); if (i < 0) return null; m.set(rest[i], POS[p]); rest.splice(i, 1); }
+  if (rest[0].r._pos === "Goalkeeper") return null;
+  m.set(rest[0], "Extra");
+  return m;
+}
+
+// ---------- 14. Rentabilite des competitions (contrat v3) et choix In-Season NBA ----------
+// Loi normale identique a celle de dashboard/index.html (fonctions erf, pAbove, dist et mkCand) pour que la page et
+// les donnees affichent les memes chances : moyenne = somme des score_final de la compo ; ecart-type de la compo =
+// racine de la somme des carres des ecarts-types des joueurs (capitaine : × (1 + bonus capitaine)) ; ecart-type
+// d'un joueur = sqrt(p × (proj × cv)² + p × (1 − p) × proj²), avec value = score_attendu × puissance de la carte
+// (× skin en Set), p = proba_titulaire / 100 bornee a [0,05 ; 1] (0,8 si absente), proj = value / p,
+// cv = regularite / 100 (40 % si absente), × 0,8 en NBA. Fourchette 10–90 % = moyenne ± 1,2816 écart-type.
+const erf = (x) => { const t = 1 / (1 + 0.3275911 * Math.abs(x)); const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; };
+export const pAbove = (m, s, t) => (s > 0 ? 0.5 * (1 - erf((t - m) / (s * Math.SQRT2))) : m >= t ? 1 : 0);
+export function ecartTypeJoueur(r, value) {
+  const p = Math.min(1, Math.max(0.05, r.proba_titulaire == null || r.proba_titulaire === "" ? 0.8 : Number(r.proba_titulaire) / 100));
+  const cv = (r.regularite == null || r.regularite === "" ? 40 : Number(r.regularite)) / 100 * (r.sport === "NBA" ? 0.8 : 1);
+  const proj = value / p;
+  return Math.sqrt(p * (proj * cv) ** 2 + p * (1 - p) * proj ** 2);
+}
+// Loi du score d'une compo (lignes de compos d'un meme numero). bySlug : joueurs (rows de modele.mjs, avec _cards).
+export function loiCompo(picks, comp, bySlug) {
+  const capt = (Number(comp.capitaine_pct) || 0) / 100; const set = comp.type === "SET";
+  const mean = picks.reduce((s, l) => s + (Number(l.score_final) || 0), 0);
+  const sd = Math.sqrt(picks.reduce((s, l) => {
+    const r = bySlug.get(l.slug); const k = r?._cards?.find((x) => x.slug === l.carte_id);
+    // comme la page : sans joueur ou sans carte connus, ecart-type = 40 % du score
+    const sdj = r && k ? ecartTypeJoueur(r, (Number(r.score_attendu) || 0) * (Number(k.power) || 1) * (set ? Number(k.skinBonus) || 1 : 1)) : (Number(l.score_final) || 0) * 0.4;
+    return s + (sdj * (l.capitaine ? 1 + capt : 1)) ** 2;
+  }, 0));
+  return { mean, sd };
+}
+// Recompenses d'un palier : seules les essences Limited ont une valeur (choix de l'utilisateur du 25/10/2026) ;
+// $, cartes, XP et coins sont decrits a part (autres_recompenses). Libelles : rewardLabel() de collecte.mjs.
+const essencesDe = (txt) => [...String(txt || "").matchAll(/(\d+)\s*essences?\s+Limited/gi)].reduce((s, m) => s + Number(m[1]), 0);
+const autresDe = (txt) => String(txt || "").split(" + ").map((x) => x.trim()).filter((x) => x && !/essences?\s+Limited/i.test(x));
+const genreAutre = (x) => (/\$/.test(x) ? "$" : /^carte/i.test(x) ? "carte" : /XP/i.test(x) ? "XP" : /coins/i.test(x) ? "coins" : x);
+const pctTxt = (p) => (p >= 0.995 ? "> 99 %" : p < 0.005 ? "< 1 %" : Math.round(p * 100) + " %"); // = pct() de la page
+const fr = (x, d = 0) => String(round(x, d)).replace(".", ",");
+// Gain espere d'une compo en essences Limited : somme sur les paliers de P(atteindre ce palier et pas le meilleur
+// suivant) × essences du palier. Classement : seul le palier le plus haut atteint compte (P(score ≥ seuil), en
+// remontant des meilleurs rangs). Salons (Rooms, Cap 260) : rangs 1 a 5 d'un salon de 10, meme calcul sur le score
+// median atteint a chaque rang. tiers : paliers d'une competition tries par rang croissant.
+export function gainCompo(mean, sd, tiers) {
+  let best = 0, gain = 0; const pTier = [];
+  for (const t of tiers) {
+    const p = pAbove(mean, sd, Number(t.score));
+    gain += Math.max(0, p - best) * essencesDe(t.recompense);
+    best = Math.max(best, p); pTier.push(best);
+  }
+  return { gain, pTier };
+}
+
+export function evalueRentabilite(compRows, lineups, paliers, rows, optionB = OPTION_B.get(compRows)) {
+  const bySlug = new Map((rows || []).map((r) => [r.slug, r]));
+  const tiersDe = (nom) => (paliers || []).filter((p) => p.competition === nom).sort((a, b) => Number(a.rang) - Number(b.rang));
+  const eco = (cr, lus) => evalueLigne(cr, lus.filter((l) => l.competition === cr.competition), tiersDe(cr.competition), bySlug);
+  const resA = compRows.map((cr) => ({ cr, e: eco(cr, lineups) }));
+  for (const { cr, e } of resA) Object.assign(cr, e);
+  if (!optionB) return { option: null };
+  // ---- NBA : In-Season en priorite 1 (A) ou sans In-Season (B) ? (choix de l'utilisateur du 25/10/2026) ----
+  const nbaA = compRows.filter((c) => c.sport === "NBA");
+  const nbaB = optionB.compRows.map((cr) => ({ ...cr, ...eco(cr, optionB.lineups) }));
+  const bilan = (list) => ({ net: list.reduce((s, c) => s + (c.gain_net_espere || 0), 0), pts: list.reduce((s, c) => s + String(c.scores_compos || "").split(" ").filter(Boolean).reduce((a, x) => a + Number(x), 0), 0) });
+  const A = bilan(nbaA), B = bilan(nbaB);
+  const isA = nbaA.filter((c) => c.min_in_season);
+  const joueIS = isA.some((c) => c.nb_compos > 0);
+  const paliersNba = nbaA.some((c) => tiersDe(c.competition).length);
+  // Sans compo In-Season possible, A et B sont identiques ; sans aucun palier NBA, on garde la priorite decidee (A).
+  if (!joueIS || !paliersNba) return { option: "A", A, B };
+  const dNet = Math.round(A.net) - Math.round(B.net), dPts = round(A.pts - B.pts);
+  const choixB = dNet < 0 || (dNet === 0 && dPts < 0);
+  const libres = [...new Set(lineups.filter((l) => isA.some((c) => c.competition === l.competition)).map((l) => l.joueur + " (" + l.carte + ")"))];
+  const parComp = nbaA.filter((c) => !c.min_in_season).map((c) => { const b = nbaB.find((x) => x.competition === c.competition); return b && b.scores_compos !== c.scores_compos ? `${c.competition.replace(/^NBA /, "")} ${c.scores_compos.replace(/\./g, ",") || "aucune"} → ${b.scores_compos.replace(/\./g, ",") || "aucune"}` : null; }).filter(Boolean);
+  const alternative = `Avec In-Season : ${fr(A.pts)} pts et ${fr(A.net)} essences nettes espérées sur l'ensemble NBA ; sans In-Season (cartes In-Season en Classic et Rooms) : ${fr(B.pts)} pts et ${fr(B.net)} essences`
+    + (parComp.length ? ` (${parComp.join(" ; ")})` : "") + `. Cartes prises par In-Season : ${libres.join(", ")}.`;
+  const ecart = (d, u) => (d > 0 ? "+" : "") + fr(d) + " " + u;
+  if (!choixB) {
+    for (const c of isA) {
+      c.alternative = alternative;
+      c.recommandation = c.nb_compos > 0 ? "Jouer In-Season : " + (dNet !== 0 ? ecart(dNet, "essences espérées") : "mêmes essences espérées, " + ecart(dPts, "pts")) + " par rapport à l'option sans In-Season" : "Aucune compo à inscrire (voir le statut)";
+    }
+    return { option: "A", A, B };
+  }
+  // B retenue : les competitions NBA prennent l'affectation sans In-Season
+  const pourquoi = dNet !== 0 ? `${ecart(-dNet, "essences nettes espérées")} sans In-Season (${fr(B.net)} contre ${fr(A.net)})` : `mêmes essences espérées, ${ecart(-dPts, "pts")} sans In-Season`;
+  for (const b of nbaB) {
+    if (b.min_in_season) {
+      b.statut = `${NON_RECOMMANDE} : ${pourquoi} ; tes cartes In-Season sont plus utiles en Classic et Rooms`;
+      b.recommandation = "Ne pas jouer In-Season cette semaine : " + pourquoi;
+      b.alternative = alternative;
+    }
+    const i = compRows.findIndex((c) => c.sport === "NBA" && c.competition === b.competition);
+    if (i >= 0) compRows[i] = b;
+  }
+  const debut = lineups.findIndex((l) => l.sport === "NBA");
+  const autres = lineups.filter((l) => l.sport !== "NBA");
+  const pos = debut < 0 ? autres.length : lineups.slice(0, debut).filter((l) => l.sport !== "NBA").length;
+  lineups.splice(0, lineups.length, ...autres.slice(0, pos), ...optionB.lineups, ...autres.slice(pos));
+  return { option: "B", A, B };
+}
+
+// Colonnes v3 d'une competition a partir de ses compos et de ses paliers
+function evalueLigne(cr, lus, tiers, bySlug) {
+  const cout = Number(cr.cout_inscription) || 0;
+  const nums = [...new Set(lus.map((l) => l.numero))].sort((a, b) => a - b);
+  const lois = nums.map((n) => loiCompo(lus.filter((l) => l.numero === n), cr, bySlug));
+  const out = { cout_inscription: cout, gains_esperes: "", gain_net_espere: null, autres_recompenses: "", rentable: "", recommandation: "", alternative: "" };
+  const n = nums.length;
+  const inscrire = n > 1 ? `Inscrire les ${n} compos` : "Inscrire la compo";
+  if (!n) { out.recommandation = cr.max_compos > 0 ? "Aucune compo à inscrire" : ""; if (tiers.length) out.gain_net_espere = 0; return out; }
+  if (!tiers.length) { out.recommandation = inscrire + (cout ? ` (${cout} essences chacune, aucun palier connu pour juger)` : ""); return out; }
+  const res = lois.map((d) => gainCompo(d.mean, d.sd, tiers));
+  const gains = res.map((x) => Math.round(x.gain));
+  out.gains_esperes = gains.join(" ");
+  out.gain_net_espere = gains.reduce((s, x) => s + x, 0) - cout * n;
+  // autres recompenses : pour chaque genre ($, carte, XP, coins), chance d'atteindre au moins le palier le plus bas de ce
+  // genre ; plusieurs compos : chance qu'au moins une y arrive (compos sans joueur commun, supposees independantes)
+  const genres = new Map();
+  tiers.forEach((t, i) => autresDe(t.recompense).forEach((x) => { const g = genreAutre(x); genres.set(g, { i, label: x }); }));
+  const parts = [...genres.values()].sort((a, b) => b.i - a.i).map(({ i, label }) => {
+    const p = 1 - res.reduce((q, x) => q * (1 - x.pTier[i]), 1);
+    return `${pctTxt(p)} d'au moins ${/^carte/i.test(label) ? "une " : ""}${label}`;
+  });
+  if (parts.length) out.autres_recompenses = (n > 1 ? `Sur les ${n} compos : ` : "") + parts.join(" ; ");
+  if (cout) {
+    const perdants = gains.map((g, i) => ({ g, k: nums[i] })).filter((x) => x.g < cout);
+    out.rentable = perdants.length ? "non" : "oui";
+    out.recommandation = !perdants.length ? `${inscrire} : ${gains.join(" et ")} essences espérées pour ${cout} payées chacune`
+      : perdants.length === n ? `Ne pas inscrire${n > 1 ? ` les ${n} compos` : ""} : ${gains.join(" et ")} essences espérées pour ${cout} payées chacune`
+      : `Inscrire ${nums.filter((k) => !perdants.some((x) => x.k === k)).map((k) => "la compo " + k).join(" et ")} ; ne pas inscrire ${perdants.map((x) => `la compo ${x.k} : ${x.g} essences espérées pour ${cout} payées`).join(" ; ")}`;
+  } else out.recommandation = `${inscrire} : ${gains.join(" + ")} essences espérées`;
+  return out;
+}

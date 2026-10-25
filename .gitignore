@@ -1,0 +1,10 @@
+# Site généré par site/build.mjs (publié par GitHub Pages, pas commité)
+site/dist/
+node_modules/
+.DS_Store
+# Jamais de clé dans le dépôt : les clés passent par les secrets GitHub
+.env
+.env.*
+*.rtf
+*.key
+*.pem

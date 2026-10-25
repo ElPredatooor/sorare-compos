@@ -1,0 +1,1917 @@
+<style>
+  .sx { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); min-width: 0; max-width: 100%; overflow-x: clip; overflow-wrap: break-word; }
+  .sx-head h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; }
+  .sx-head p { margin: var(--cds-gap-xs) 0 0; color: var(--color-fg-muted); max-width: 75ch; }
+  .sx-sport { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--color-border-line); border-radius: 999px; background: var(--color-panel); width: max-content; max-width: 100%; }
+  .sx-sport button { appearance: none; border: 0; background: none; font: inherit; color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-lg); border-radius: 999px; cursor: pointer; }
+  .sx-sport button[aria-selected="true"] { background: var(--color-fg); color: var(--color-bg); font-weight: var(--cds-font-weight-medium); }
+  .sx-tabs { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs); border-bottom: 1px solid var(--color-border-line); }
+  .sx-tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; padding: var(--cds-pad-sm) var(--cds-pad-md); font: inherit; color: var(--color-fg-muted); cursor: pointer; }
+  .sx-tab[aria-selected="true"] { color: var(--color-fg); border-bottom-color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+  .sx-tab:focus-visible, .sx-sport button:focus-visible, .sx-btn:focus-visible, .sx-seg button:focus-visible, .sx-alert:focus-visible, .sx summary:focus-visible, .sx input:focus-visible, .sx select:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+  .sx-page { display: grid; gap: var(--cds-gap-md); }
+  .sx-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--cds-gap-md); }
+  .sx-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--cds-gap-md); }
+  .sx-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+  .sx-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .sx-card h3 { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); margin: var(--cds-gap-md) 0 var(--cds-gap-xs); }
+  .sx-note { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); margin: var(--cds-gap-xs) 0 var(--cds-gap-md); max-width: 90ch; }
+  .sx-big { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; }
+  .sx-lbl { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .sx-comp-head { display: flex; justify-content: space-between; gap: var(--cds-gap-sm); align-items: baseline; flex-wrap: wrap; }
+  .sx-comp-score { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-heading); font-variant-numeric: tabular-nums; }
+  .sx-range { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  .sx-cnav { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; justify-content: space-between; margin-top: var(--cds-gap-xs); }
+  .sx-cnav-ctrl { display: flex; align-items: center; gap: var(--cds-gap-xs); }
+  .sx-cbadge { font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); }
+  .sx-arrow { appearance: none; border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); font: inherit; font-size: var(--cds-font-size-heading); line-height: 1; width: 2rem; height: 2rem; border-radius: 999px; cursor: pointer; }
+  .sx-arrow:disabled { opacity: .35; cursor: default; }
+  .sx-dots { display: inline-flex; gap: 4px; }
+  .sx-dot { appearance: none; border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg-muted); font: inherit; font-size: var(--cds-font-size-caption); min-width: 1.6rem; height: 1.6rem; border-radius: 999px; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .sx-dot.on { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+  .sx-arrow:focus-visible, .sx-dot:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+  .sx-tools { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-md); align-items: center; margin-bottom: var(--cds-gap-sm); }
+  .sx-tools input[type=search], .sx-tools select, .sx-sel { padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); font: inherit; }
+  .sx-tools input[type=search] { flex: 1 1 14rem; min-width: 0; }
+  .sx-tools label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); display: flex; gap: 4px; align-items: center; }
+  .sx-wrap { overflow: auto; }
+  .sx-wrap.tall { max-height: 38rem; }
+  .sx-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  .sx-table th { position: sticky; top: 0; background: var(--color-panel); text-align: left; font-weight: var(--cds-font-weight-medium); border-bottom: 1px solid var(--color-border-line); padding: 0; white-space: nowrap; z-index: 1; }
+  .sx-table th button, .sx-table th span { all: unset; cursor: pointer; display: block; padding: var(--cds-pad-xs) var(--cds-pad-sm); }
+  .sx-table th span { cursor: default; }
+  .sx-table td { padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); vertical-align: top; }
+  .sx-table .num { text-align: right; }
+  .sx-table tr.sx-locked td { background: color-mix(in srgb, var(--color-ok) 8%, transparent); }
+  .sx-pill { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: var(--cds-font-size-caption); border: 1px solid currentColor; white-space: nowrap; margin: 1px 2px 1px 0; }
+  .sx-ok { color: var(--color-ok); } .sx-warn { color: var(--color-warn); } .sx-bad { color: var(--color-bad); } .sx-mut { color: var(--color-fg-muted); }
+  .sx-cap { font-weight: var(--cds-font-weight-medium); }
+  .sx-spark { display: block; }
+  .sx-chart { min-height: 240px; position: relative; }
+  .sx-method { font-size: var(--cds-font-size-body); line-height: 1.55; }
+  .sx-method p, .sx-method li { max-width: 80ch; }
+  .sx-method h3 { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); margin: var(--cds-gap-md) 0 var(--cds-gap-xs); }
+  /* Boutons d'action dans les compos */
+  .sx-btn { appearance: none; border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); font: inherit; font-size: var(--cds-font-size-caption); padding: 0 8px; min-height: 1.6rem; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .sx-btn[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+  .sx-btn.sx-strong { font-weight: var(--cds-font-weight-medium); }
+  .sx-acts { display: flex; gap: 4px; justify-content: flex-end; }
+  .sx-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: 999px; overflow: hidden; }
+  .sx-seg button { appearance: none; border: 0; background: var(--color-bg); color: var(--color-fg-muted); font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-md); cursor: pointer; }
+  .sx-seg button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); }
+  .sx-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .sx-banner { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; justify-content: space-between; padding: var(--cds-pad-sm) var(--cds-pad-md); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); font-size: var(--cds-font-size-caption); }
+  /* Barre de date limite */
+  .sx-bar { display: grid; gap: var(--cds-gap-sm); }
+  .sx-bar-top { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); align-items: baseline; justify-content: space-between; }
+  .sx-count { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; }
+  .sx-alerts { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .sx-alert { all: unset; display: flex; flex-wrap: wrap; gap: 2px var(--cds-gap-sm); align-items: baseline; padding: var(--cds-pad-xs) var(--cds-pad-sm); border-radius: var(--cds-radius); border: 1px solid var(--color-border-line); background: var(--color-bg); cursor: pointer; font-size: var(--cds-font-size-caption); }
+  .sx-alert:hover { border-color: var(--color-fg-muted); }
+  /* Objectifs de score */
+  .sx-goal { margin-top: var(--cds-gap-sm); }
+  .sx-goal summary { cursor: pointer; font-size: var(--cds-font-size-caption); }
+  .sx-goal-keys { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs) var(--cds-gap-md); margin: var(--cds-gap-xs) 0; font-size: var(--cds-font-size-caption); }
+  .sx-prob { font-variant-numeric: tabular-nums; font-weight: var(--cds-font-weight-medium); }
+  .sx-sub { display: block; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  /* Calendrier NBA */
+  .sx-tl td.sx-g { min-width: 6.5rem; }
+  .sx-tl .sx-gm { display: block; white-space: nowrap; }
+  .sx-tl .sx-gs { display: block; color: var(--color-fg-muted); }
+  /* Gameweek football sans Jupiler ou sans match */
+  .sx-empty-gw { border-left: 4px solid var(--color-warn); }
+  .sx-empty-gw h2 { margin: 2px 0 0; }
+  .sx-empty-gw .sx-note { margin-bottom: 0; }
+  .sx-reason { margin: var(--cds-gap-xs) 0 0; font-size: var(--cds-font-size-body); max-width: 90ch; }
+  .sx-offgw { color: var(--color-fg-muted); }
+  .sx-mline { display: block; white-space: nowrap; }
+  .sx-table td .sx-pill { white-space: normal; }
+  /* KPIs en tête de chaque sport */
+  .sx-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr)); gap: var(--cds-gap-md); }
+  .sx-kpi { background: var(--color-panel); border: 1px solid var(--color-border-line); border-top: 3px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md) var(--cds-pad-lg); display: grid; gap: 2px; align-content: start; min-width: 0; }
+  .sx-kpi-v { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .sx-kpi-x { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .sx-kpi[data-tone=ok] { border-top-color: var(--color-ok); } .sx-kpi[data-tone=warn] { border-top-color: var(--color-warn); } .sx-kpi[data-tone=bad] { border-top-color: var(--color-bad); } .sx-kpi[data-tone=mut] { border-top-color: var(--color-fg-muted); }
+  [data-tone=ok] > .sx-kpi-v { color: var(--color-ok); } [data-tone=warn] > .sx-kpi-v { color: var(--color-warn); } [data-tone=bad] > .sx-kpi-v { color: var(--color-bad); } [data-tone=mut] > .sx-kpi-v { color: var(--color-fg-muted); }
+  /* Cartes de décision */
+  .sx-dec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: var(--cds-gap-md); margin-top: var(--cds-gap-sm); }
+  .sx-dec { display: grid; gap: var(--cds-gap-xs); align-content: start; background: var(--color-bg); border: 1px solid var(--color-border-line); border-left: 4px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); min-width: 0; }
+  .sx-dec[data-tone=ok] { border-left-color: var(--color-ok); } .sx-dec[data-tone=warn] { border-left-color: var(--color-warn); } .sx-dec[data-tone=bad] { border-left-color: var(--color-bad); } .sx-dec[data-tone=mut] { border-left-color: var(--color-fg-muted); }
+  .sx-dec h3 { margin: 0; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); }
+  .sx-tag { display: inline-block; padding: 0 8px; border-radius: 999px; border: 1px solid currentColor; background: color-mix(in srgb, currentColor 12%, transparent); font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); width: max-content; max-width: 100%; }
+  .sx-reco { font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .sx-dec-num { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs) var(--cds-gap-lg); }
+  .sx-dec-num > div { display: grid; }
+  .sx-dec-num .sx-v { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-heading); font-variant-numeric: tabular-nums; }
+  .sx-dec-lines { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  .sx-dec p { margin: 0; font-size: var(--cds-font-size-caption); }
+  .sx-legend { margin-top: var(--cds-gap-md); font-size: var(--cds-font-size-caption); }
+  .sx-legend ul { margin: var(--cds-gap-xs) 0 0; padding-left: 1.2rem; display: grid; gap: 2px; }
+  .sx-sec-head h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: var(--cds-gap-sm) 0 0; }
+  .sx-sec-head .sx-note { margin-bottom: 0; }
+  /* Blocs repliables */
+  details.sx-card > summary { cursor: pointer; }
+  details.sx-card > summary h2 { display: inline; }
+  details.sx-card > summary > .sx-comp-head { display: inline-flex; width: calc(100% - 1.5rem); vertical-align: baseline; }
+  details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
+  .sx-fold > summary { cursor: pointer; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: var(--cds-gap-xs) 0; }
+  .sx-day td { background: color-mix(in srgb, var(--color-fg) 5%, transparent); font-weight: var(--cds-font-weight-medium); }
+  .sx-pos { color: var(--color-ok); } .sx-neg { color: var(--color-bad); }
+  @media (max-width: 720px) { .sx-hide-narrow { display: none; } }
+  /* Téléphone : une carte par ligne au lieu des tableaux larges, aucune barre de défilement horizontale */
+  @media (max-width: 600px) {
+    .sx-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cds-gap-sm); }
+    .sx-kpi { padding: var(--cds-pad-sm) var(--cds-pad-md); }
+    .sx-kpi-v { font-size: var(--cds-font-size-heading); }
+    .sx-card { padding: var(--cds-pad-md); }
+    .sx-wrap { overflow-x: hidden; overflow-y: auto; }
+    .sx-table.sx-cards, .sx-table.sx-cards tbody { display: block; width: 100%; }
+    .sx-table.sx-cards thead { display: none; }
+    .sx-table.sx-cards tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cds-gap-xs) var(--cds-gap-sm); padding: var(--cds-pad-sm); margin-bottom: var(--cds-gap-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); }
+    .sx-table.sx-cards td { display: block; border: 0; padding: 0; min-width: 0; text-align: left; }
+    .sx-table.sx-cards td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+    .sx-table.sx-cards td.sx-c-main, .sx-table.sx-cards td.sx-c-wide { grid-column: 1 / -1; }
+    .sx-table.sx-cards td.sx-c-main { font-size: var(--cds-font-size-body); }
+    .sx-table.sx-cards td.sx-c-empty { display: none; }
+    .sx-table.sx-cards tr.sx-day { display: block; padding: var(--cds-pad-xs) var(--cds-pad-sm); }
+    .sx-acts { justify-content: flex-start; }
+    .sx-btn { white-space: normal; text-align: left; }
+    .sx-table.sx-cards td.sx-hide-phone { display: none; }
+    .sx-pill, .sx-mline, .sx-tl .sx-gm { white-space: normal; }
+    .sx-tabs { gap: 0; }
+    .sx-tab { padding: var(--cds-pad-xs) var(--cds-pad-sm); }
+  }
+  /* Les sections, filtres et cartes masqués doivent vraiment disparaître, même quand une règle leur donne un display */
+  .sx [hidden] { display: none !important; }
+  [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+  [data-dash-source-state=empty] { color: transparent; }
+</style>
+
+<div class="sx">
+  <header class="sx-head" id="haut">
+    <h1>Compos Sorare · Elpredatooor</h1>
+    <p id="lead" data-source="resume">—</p>
+  </header>
+
+  <div class="sx-sport" role="tablist" aria-label="Sport">
+    <button role="tab" id="football" data-sport="FOOTBALL" aria-selected="true">Football</button>
+    <button role="tab" id="nba" data-sport="NBA" aria-selected="false">NBA</button>
+  </div>
+
+  <section class="sx-kpis" id="kpis" aria-label="Indicateurs clés de la gameweek">
+    <div class="sx-kpi" id="k-time"><div class="sx-lbl">Temps restant</div><div class="sx-kpi-v" id="k-time-v" data-source="resume">—</div><div class="sx-kpi-x" id="k-time-x"></div></div>
+    <div class="sx-kpi" id="k-compos"><div class="sx-lbl">Compos à inscrire</div><div class="sx-kpi-v" id="k-compos-v" data-source="nb_compos competitions" data-field="n">—</div><div class="sx-kpi-x" id="k-compos-x"></div></div>
+    <div class="sx-kpi" id="k-gain"><div class="sx-lbl">Gain net espéré</div><div class="sx-kpi-v" id="k-gain-v" data-source="gain_net competitions paliers" data-field="n">—</div><div class="sx-kpi-x" id="k-gain-x"></div></div>
+    <div class="sx-kpi" id="k-risk"><div class="sx-lbl">Joueurs à risque dans les compos</div><div class="sx-kpi-v" id="k-risk-v" data-source="compos joueurs matchs">—</div><div class="sx-kpi-x" id="k-risk-x"></div></div>
+    <div class="sx-kpi" id="k-fresh"><div class="sx-lbl">Fraîcheur des données</div><div class="sx-kpi-v" id="k-fresh-v" data-source="resume" data-row="0" data-field="maj">—</div><div class="sx-kpi-x" id="k-fresh-x"></div></div>
+  </section>
+
+  <nav class="sx-tabs" role="tablist" aria-label="Sections">
+    <button class="sx-tab" role="tab" id="t-compos" data-page="p-compos" aria-controls="p-compos" aria-selected="true">Décider</button>
+    <button class="sx-tab" role="tab" id="t-joueurs" data-page="p-joueurs" aria-controls="p-joueurs" aria-selected="false">Joueurs</button>
+    <button class="sx-tab" role="tab" id="t-jours" data-page="p-jours" aria-controls="p-jours" aria-selected="false">Par jour</button>
+    <button class="sx-tab" role="tab" id="t-bilan" data-page="p-bilan" aria-controls="p-bilan" aria-selected="false">Bilan</button>
+    <button class="sx-tab" role="tab" id="t-fiab" data-page="p-fiab" aria-controls="p-fiab" aria-selected="false">Fiabilité</button>
+    <button class="sx-tab" role="tab" id="t-meth" data-page="p-meth" aria-controls="p-meth" aria-selected="false">Méthode</button>
+  </nav>
+
+  <!-- DECIDER (compos) -->
+  <section class="sx-page" id="p-compos" role="tabpanel" aria-labelledby="t-compos">
+    <div class="sx-card sx-empty-gw" id="gw-vide" data-sport-only="FOOTBALL" data-source="resume competitions joueurs" role="status" hidden>
+      <div class="sx-lbl" id="gw-vide-dates"></div>
+      <h2 id="gw-vide-titre"></h2>
+      <p class="sx-note" id="gw-vide-txt"></p>
+      <p class="sx-note" id="gw-vide-next" hidden></p>
+    </div>
+
+    <div class="sx-banner" id="rg-banner" role="status" hidden>
+      <span id="rg-banner-txt"></span>
+      <span class="sx-chips" id="rg-chips"></span>
+      <button class="sx-btn sx-strong" id="rg-reset">Revenir aux compos proposées</button>
+    </div>
+
+    <div class="sx-card" id="decisions" data-source="competitions compos paliers">
+      <h2>Que faire pour chaque compétition</h2>
+      <p class="sx-note" id="dec-note"></p>
+      <div class="sx-dec-grid" id="dec-grid"></div>
+      <details class="sx-legend">
+        <summary class="sx-lbl">Légende des couleurs</summary>
+        <ul>
+          <li><span class="sx-tag sx-ok">Inscrire</span> la compo est prête et rapporte plus qu’elle ne coûte.</li>
+          <li><span class="sx-tag sx-warn">À surveiller</span> un joueur de la compo est blessé, incertain ou ne joue qu’une partie de ses matchs : vérifie avant la date limite.</li>
+          <li><span class="sx-tag sx-mut">Rien à jouer</span> aucune compo possible cette gameweek (la raison est écrite).</li>
+          <li><span class="sx-tag sx-bad">Non rentable</span> le gain espéré est inférieur au coût d’inscription.</li>
+          <li>Pastilles des joueurs : rouge = absent ou ne joue pas, orange = incertain ou absent une partie de la gameweek.</li>
+          <li>Rang de l’adversaire : vert = favorable à ton joueur (adversaire faible), rouge = défavorable.</li>
+          <li>Chances d’atteindre un palier : vert à partir de 50 %, orange de 20 à 50 %, rouge en dessous.</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="sx-card sx-bar" id="avant-limite" data-source="resume compos joueurs matchs">
+      <h2>À vérifier avant la date limite</h2>
+      <p class="sx-note" id="bar-ok" hidden>Aucun joueur à risque dans les compos proposées.</p>
+      <ul class="sx-alerts" id="bar-alerts"></ul>
+    </div>
+
+    <div class="sx-sec-head">
+      <h2>Détail des compos</h2>
+      <p class="sx-note">Joueurs, cartes, matchs et remplaçants de chaque compo. Les boutons Garder et Exclure recalculent toutes les compos du sport. Pts = points Sorare attendus ; ★ = étoiles (NBA).</p>
+    </div>
+    <div id="comp-list" class="sx-grid" data-source="competitions compos cartes joueurs paliers"></div>
+
+    <details class="sx-card" id="reglages">
+      <summary><h2>Régler les compos</h2> <span class="sx-lbl">profil, incertains, matchs minimum</span></summary>
+      <p class="sx-note" id="rg-note">Change les réglages ci-dessous, ou garde et exclus un joueur directement dans une compo : toutes les compos du sport sont recalculées aussitôt, dans l’ordre de priorité des compétitions. Réglages mémorisés dans ce navigateur.</p>
+      <div class="sx-tools">
+        <span class="sx-lbl">Profil</span>
+        <span class="sx-seg" id="rg-style" role="group" aria-label="Profil de compo">
+          <button data-v="equilibre" aria-pressed="true" title="Maximise le score attendu">Équilibrée</button>
+          <button data-v="sure" aria-pressed="false" title="Favorise les joueurs réguliers et sûrs de jouer : plancher plus haut">Sûre</button>
+          <button data-v="explosive" aria-pressed="false" title="Favorise les joueurs capables de gros scores : plafond plus haut">Explosive</button>
+        </span>
+        <label><input type="checkbox" id="rg-doubt"> Retirer les incertains</label>
+        <label data-sport-only="NBA">Matchs minimum dans la GW
+          <select id="rg-games" class="sx-sel"><option value="0">aucun</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+        </label>
+        <label data-sport-only="FOOTBALL">Titulaire au moins
+          <select id="rg-start" class="sx-sel"><option value="0">peu importe</option><option value="50">50 %</option><option value="70">70 %</option><option value="85">85 %</option></select>
+        </label>
+      </div>
+    </details>
+
+    <details class="sx-card" id="calendrier" data-sport-only="NBA" open>
+      <summary><h2>Calendrier de la gameweek</h2></summary>
+      <p class="sx-note">Un match par case, avec le score attendu. Couleur = défense adverse (vert : parmi les plus faibles, rouge : parmi les meilleures). « 2e soir » : second match de deux soirs de suite, risque de repos. Jours à l’heure de New York (soirée américaine).</p>
+      <div class="sx-tools">
+        <select id="tl-mode" class="sx-sel" aria-label="Joueurs affichés">
+          <option value="compos">Joueurs des compos proposées</option>
+          <option value="tous">Tous mes joueurs avec un match</option>
+        </select>
+      </div>
+      <div class="sx-wrap tall"><table class="sx-table sx-tl sx-cards" id="t-tl" data-source="matchs"><thead><tr></tr></thead><tbody></tbody></table></div>
+      <p class="sx-note" id="tl-empty" hidden>Le calendrier jour par jour arrivera avec la prochaine collecte.</p>
+    </details>
+
+    <details class="sx-card" id="etoiles" data-sport-only="NBA">
+      <summary><h2>Étoiles qui vont bouger</h2></summary>
+      <p class="sx-note">Les étoiles suivent la moyenne des 10 derniers matchs joués (L10) : 50 = 5★, 45 = 4,5★, 40 = 4★, 35 = 3,5★, 30 = 3★, 25 = 2,5★, 20 = 2★, 15 = 1,5★. Si chaque joueur joue ses matchs prévus avec son score attendu par match, voici sa L10 après la gameweek. Un joueur qui perd une étoile coûte moins cher sous le plafond la semaine suivante.</p>
+      <div class="sx-wrap" style="max-height: 26rem">
+        <table class="sx-table sx-cards" id="t-et" data-source="progression_l10" data-row-key="slug">
+          <thead><tr><th data-field="joueur"><span>Joueur</span></th><th data-field="etoiles" class="num"><span>★ actuelles</span></th><th data-field="l10" class="num"><span>L10 (pts)</span></th><th data-field="matchs_prevus" class="num"><span>Matchs prévus</span></th><th data-field="score_par_match" class="num"><span>Pts par match</span></th><th data-field="l10_projete" class="num"><span>L10 après GW</span></th><th data-field="etoiles_apres"><span>★ après GW</span></th><th data-field="ecart"><span>Marge</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="sx-note" id="et-empty" hidden>Aucun changement d’étoiles en vue cette gameweek.</p>
+    </details>
+
+    <details class="sx-card" id="role" data-sport-only="NBA">
+      <summary><h2>Rôle élargi probable</h2></summary>
+      <p class="sx-note">Joueurs dont des coéquipiers importants sont déclarés Out par ESPN : les minutes libérées (moyenne des 5 derniers matchs des absents) profitent souvent aux remplaçants et aux joueurs du même poste. Ce signal n’est pas ajouté au score attendu : à toi de juger.</p>
+      <div class="sx-wrap">
+        <table class="sx-table sx-cards" id="t-role" data-source="joueurs" data-row-key="slug">
+          <thead><tr><th data-field="joueur"><span>Joueur</span></th><th data-field="etoiles" class="num"><span>Étoiles</span></th><th data-field="coequipiers_absents"><span>Coéquipiers absents</span></th><th data-field="minutes_liberees" class="num"><span>Minutes libérées</span></th><th data-field="minutes_5" class="num"><span>Ses minutes (5 m.)</span></th><th data-field="minutes_tendance"><span>Tendance</span></th><th data-field="score_attendu" class="num"><span>Attendu (pts)</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="sx-note" id="role-empty" hidden>Aucun joueur concerné dans cette collecte.</p>
+    </details>
+
+    <details class="sx-card" id="bonnes-affaires" data-sport-only="NBA">
+      <summary><h2>Les bonnes affaires en étoiles</h2></summary>
+      <p class="sx-note">Joueurs à 3 étoiles ou moins dont le score attendu dépasse le plus le score habituel de leur niveau. Les aligner libère des étoiles pour tes joueurs à 4 ou 5 étoiles.</p>
+      <div class="sx-wrap">
+        <table class="sx-table sx-cards" id="t-ba" data-source="joueurs" data-row-key="slug">
+          <thead><tr><th data-field="joueur"><span>Joueur</span></th><th data-field="etoiles" class="num"><span>Étoiles</span></th><th data-field="matchs_gw" class="num"><span>Matchs GW</span></th><th data-field="score_attendu" class="num"><span>Attendu (pts)</span></th><th data-field="gain_etoiles" class="num"><span>Gain / ★ (pts)</span></th><th data-field="gain_sorare" class="num"><span>Gain Sorare (pts)</span></th><th data-field="minutes_tendance"><span>Minutes</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="sx-card" id="a-revoir" open>
+      <summary><h2>À revoir depuis hier</h2> <span class="sx-lbl" id="st-ch" data-source="nb_changements" data-field="n"></span></summary>
+      <p class="sx-note" id="ch-note">—</p>
+      <div class="sx-wrap" style="max-height: 16rem">
+        <table class="sx-table sx-cards" id="t-ch" data-source="changements" data-row-key="joueur,type">
+          <thead><tr><th data-field="joueur"><span>Joueur</span></th><th data-field="type"><span>Changement</span></th><th data-field="detail"><span>Détail</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="sx-note" id="ch-empty" hidden>Rien de nouveau depuis la dernière mise à jour.</p>
+      <div class="sx-tools" id="ch-more-box" hidden><button class="sx-btn" id="ch-more" aria-expanded="false" aria-controls="t-ch"></button></div>
+    </details>
+  </section>
+
+  <!-- JOUEURS -->
+  <section class="sx-page" id="p-joueurs" role="tabpanel" aria-labelledby="t-joueurs" hidden>
+    <div class="sx-card" id="liste">
+      <h2 id="j-title">Tes joueurs</h2>
+      <p class="sx-note" id="j-note">—</p>
+      <p class="sx-reason" id="j-flags" data-sport-only="NBA" data-source="joueurs" hidden></p>
+      <div class="sx-tools" id="j-tools">
+        <select id="f-mode" class="sx-sel" aria-label="Mode">
+          <option value="JPL">Jupiler Pro League</option>
+          <option value="SET">Set HyperGlitch (Common)</option>
+          <option value="">Tous</option>
+        </select>
+        <input type="search" id="f-q" placeholder="Joueur, équipe, adversaire" aria-label="Chercher">
+        <label><input type="checkbox" id="f-gw" checked> Avec un match cette gameweek</label>
+        <label data-sport-only="FOOTBALL"><input type="checkbox" id="f-na" checked> Masquer les non alignés</label>
+        <label><input type="checkbox" id="f-inj" checked> Masquer les blessés</label>
+        <label data-sport-only="FOOTBALL"><input type="checkbox" id="f-sus" checked> Masquer les suspendus</label>
+        <label><input type="checkbox" id="f-doubt"> Masquer les incertains</label>
+        <label data-sport-only="NBA"><input type="checkbox" id="f-min"> Masquer les minutes en baisse</label>
+      </div>
+      <div class="sx-wrap tall">
+        <table class="sx-table sx-cards" id="t-j" data-source="joueurs" data-row-key="slug">
+          <thead><tr></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAR JOUR -->
+  <section class="sx-page" id="p-jours" role="tabpanel" aria-labelledby="t-jours" hidden>
+    <div class="sx-card" id="par-jour">
+      <h2>Les 5 meilleurs par jour de match</h2>
+      <p class="sx-note" id="jr-note">Pour choisir tes joueurs match par match. Score attendu = projection × probabilité de jouer.</p>
+      <div class="sx-tools">
+        <select id="j-mode" class="sx-sel" aria-label="Mode" data-source="jours"></select>
+        <label><input type="checkbox" id="j-all"> Voir aussi les jours hors gameweek</label>
+      </div>
+      <div class="sx-wrap tall">
+        <table class="sx-table sx-cards" id="t-jours" data-source="jours" data-row-key="mode,jour,rang">
+          <thead><tr>
+            <th data-field="rang" class="num"><span>Rang</span></th><th data-field="joueur"><span>Joueur</span></th>
+            <th data-field="poste" id="th-poste"><span>Poste</span></th><th data-field="adversaire"><span>Match</span></th><th data-field="adv_defense_rang"><span>Adv. att. / déf.</span></th><th data-field="match"><span>Heure (Bruxelles)</span></th><th data-field="score_attendu" class="num"><span>Attendu (pts)</span></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="sx-note" id="jr-empty" hidden></p>
+    </div>
+  </section>
+
+  <!-- BILAN -->
+  <section class="sx-page" id="p-bilan" role="tabpanel" aria-labelledby="t-bilan" hidden>
+    <div class="sx-card" id="bilan" data-source="bilan bilan_synthese">
+      <h2 id="bi-title">Bilan de la gameweek passée</h2>
+      <p class="sx-note">Chaque compo proposée avant la date limite, comparée à son score réel (calculé avec les vrais scores des joueurs). Écart = réel − prévu : négatif si le modèle a été trop optimiste.</p>
+      <div class="sx-kpis" id="bi-kpis" hidden>
+        <div class="sx-kpi" id="bi-k1"><div class="sx-lbl">Écart moyen par compo</div><div class="sx-kpi-v" id="bi-k1-v" data-source="bilan_synthese" data-field="ecart_moyen">—</div><div class="sx-kpi-x" id="bi-k1-x"></div></div>
+        <div class="sx-kpi" id="bi-k2"><div class="sx-lbl">Palier visé atteint</div><div class="sx-kpi-v" id="bi-k2-v" data-source="bilan_synthese" data-field="paliers_atteints">—</div><div class="sx-kpi-x" id="bi-k2-x"></div></div>
+        <div class="sx-kpi" id="bi-k3"><div class="sx-lbl">Total prévu → réel</div><div class="sx-kpi-v" id="bi-k3-v" data-source="bilan_synthese" data-field="total_reel">—</div><div class="sx-kpi-x" id="bi-k3-x"></div></div>
+      </div>
+      <p class="sx-reason" id="bi-synth" hidden></p>
+      <div class="sx-wrap" id="bi-wrap">
+        <table class="sx-table sx-cards" id="t-bi" data-source="bilan" data-row-key="sport,competition,numero,gw">
+          <thead><tr><th data-field="competition"><span>Compétition</span></th><th data-field="numero" class="num"><span>Compo</span></th><th data-field="score_prevu" class="num"><span>Prévu (pts)</span></th><th data-field="score_reel" class="num"><span>Réel (pts)</span></th><th data-field="ecart" class="num"><span>Écart (pts)</span></th><th data-field="palier_vise"><span>Palier visé</span></th><th data-field="palier_atteint"><span>Palier atteint</span></th><th data-field="joueurs"><span>Joueurs (prévu → réel)</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="sx-reason" id="bi-empty" role="status" hidden></p>
+    </div>
+  </section>
+
+  <!-- FIABILITE -->
+  <section class="sx-page" id="p-fiab" role="tabpanel" aria-labelledby="t-fiab" hidden>
+    <div class="sx-card" id="fiab-sum" data-source="calibration">
+      <h2>Qui prédit le mieux les scores ?</h2>
+      <p class="sx-note">Erreur moyenne, en points par joueur et par match, entre chaque projection et le score réel. Plus bas = plus fiable. Le modèle mélange la projection Sorare et la forme récente selon ces erreurs.</p>
+      <div class="sx-kpis" id="fi-kpis">
+        <div class="sx-kpi" id="fi-mod"><div class="sx-lbl">Erreur du modèle</div><div class="sx-kpi-v" id="fi-mod-v" data-source="calibration" data-field="erreur_modele">—</div><div class="sx-kpi-x" id="fi-mod-x"></div></div>
+        <div class="sx-kpi" id="fi-sor"><div class="sx-lbl">Erreur de Sorare</div><div class="sx-kpi-v" id="fi-sor-v" data-source="calibration" data-field="erreur_sorare">—</div><div class="sx-kpi-x" id="fi-sor-x"></div></div>
+        <div class="sx-kpi" id="fi-for"><div class="sx-lbl">Erreur de la forme</div><div class="sx-kpi-v" id="fi-for-v" data-source="calibration" data-field="erreur_forme">—</div><div class="sx-kpi-x" id="fi-for-x"></div></div>
+        <div class="sx-kpi" id="fi-poids"><div class="sx-lbl">Poids de Sorare</div><div class="sx-kpi-v" id="fi-poids-v" data-source="calibration" data-field="poids_sorare">—</div><div class="sx-kpi-x" id="fi-poids-x"></div></div>
+      </div>
+      <p class="sx-reason" id="fi-txt"></p>
+    </div>
+    <div class="sx-card" id="calib">
+      <h2>Évolution jour par jour</h2>
+      <div class="sx-chart" id="calib-chart" data-source="calibration"></div>
+      <div class="sx-wrap">
+        <table class="sx-table sx-cards" id="t-fi" data-source="calibration" data-row-key="date,sport">
+          <thead><tr><th data-field="date"><span>Date</span></th><th data-field="matchs" class="num"><span>Matchs</span></th><th data-field="erreur_modele" class="num"><span>Modèle (pts)</span></th><th data-field="erreur_sorare" class="num"><span>Sorare (pts)</span></th><th data-field="erreur_forme" class="num"><span>Forme (pts)</span></th><th data-field="poids_sorare" class="num"><span>Poids Sorare</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="sx-note" id="calib-empty" hidden>Pas encore de mesure pour ce sport : les erreurs apparaîtront après quelques jours de collecte.</p>
+    </div>
+  </section>
+
+  <!-- METHODE -->
+  <section class="sx-page" id="p-meth" role="tabpanel" aria-labelledby="t-meth" hidden>
+    <div class="sx-card sx-method" id="meth-FOOTBALL">
+      <h2>Comment les compos football sont calculées</h2>
+      <h3>Lire la page</h3>
+      <p>En tête : le temps restant avant la date limite, les compos à inscrire, le gain net espéré en essences, les joueurs à risque dans les compos et la fraîcheur des données (orange après 12 h, rouge après 24 h ou si des matchs de football ont été joués depuis la collecte : des blessures ont pu changer). Puis une carte de décision par compétition : vert = inscrire, orange = à surveiller (un joueur à risque), gris = rien à jouer, rouge = non rentable. Le détail des joueurs vient ensuite. Heures de Bruxelles.</p>
+      <h3>Score attendu d’un joueur</h3>
+      <p><span id="mf-poids">La projection du match vient de Sorare et de la forme récente (60 % de la moyenne L5 + 40 % de la L15).</span> Le poids de chacune est réajusté chaque jour selon ce qui a le mieux prédit les scores réels (onglet Fiabilité). Elle est multipliée par la probabilité d’être titulaire : cote de titularisation de Sorare quand elle existe, sinon le statut Sorare (titulaire 90 %, régulier 75 %, super-sub 50 %, remplaçant 35 %). Quand la collecte l’indique, la source est écrite à côté du pourcentage, par exemple « 90 % (statut) ». Blessé ou suspendu à la date du match : 0 ; quand une date de retour est annoncée, le joueur est compté absent jusqu’à ce jour inclus et présent à partir du lendemain. Incertain : moitié. Match hors de la gameweek : 0.</p>
+      <h3>Changements depuis hier</h3>
+      <p>Une variation de projection n’est signalée que si le joueur a des matchs dans la gameweek des deux côtés (hier et aujourd’hui). Entre deux gameweeks différentes, la comparaison se fait par match (détail « par match, nouvelle gameweek : … »). Les joueurs de tes compos passent en premier ; les variations de projection des autres joueurs sont repliées.</p>
+      <h3>Cotes</h3>
+      <p>La probabilité de victoire vient de Sorare, complétée par The Odds API. Le nombre de buts attendus et la probabilité de clean sheet sont tirés des cotes « plus/moins de buts » et « victoire/nul/défaite » (Jupiler, Premier League, LaLiga, Bundesliga, Ligue 1).</p>
+      <h3>Niveau de l’adversaire</h3>
+      <p>Pour chaque match, le rang de l’adversaire dans son championnat : en attaque (buts marqués par match, 1er = meilleure attaque) et en défense (buts encaissés par match, 1er = meilleure défense). En vert, ce qui est favorable à ton joueur (adversaire dans le dernier tiers), en rouge ce qui est défavorable (premier tiers). Source : classements ESPN.</p>
+      <h3>Bonus et capitaine</h3>
+      <p>Le score final multiplie le score attendu par le bonus de la carte (niveau, collection, saison), et en Set par le bonus de skin (shiny, holo). Le capitaine est le joueur au meilleur score attendu corrigé de sa variabilité ; son bonus vient des règles de la compétition (+50 % en In-Season, +20 % en Cap 260).</p>
+      <h3>Règles respectées et ordre de priorité</h3>
+      <p>Ordre de priorité : Jupiler In-Season Limited, puis Jupiler Cap 260, puis Set ; une carte n’est utilisée que dans une seule compo, dans cet ordre. <span id="mf-ordre"></span></p>
+      <p>Jupiler In-Season Limited : jusqu’à 4 compos (limite Sorare), chacune avec au moins 4 cartes In-Season. Les cartes In-Season restent toujours candidates, même quand le joueur a une autre carte mieux notée ; un joueur n’a qu’une carte par compo. Jupiler Cap 260 : somme des moyennes L15 ≤ 260. Si une compo de plus est impossible, le dashboard dit pourquoi. Pas de compo si aucun de tes joueurs ne joue dans la gameweek, ou si la meilleure compo possible vaut 0 point : la raison est affichée à la place (par exemple « Aucun de tes joueurs du Set ne joue cette gameweek »).</p>
+      <h3>Objectifs de score et chances</h3>
+      <p>Pour chaque compétition, les scores réellement atteints à chaque palier de récompense lors de la dernière gameweek terminée. <span id="mf-ref"></span> La chance d’atteindre un palier suppose que le score de la compo suit une loi normale : moyenne = somme des scores attendus, écart-type tiré de la variabilité de chaque joueur et du risque qu’il ne soit pas titulaire. La fourchette 10–90 % donne le plancher et le plafond probables.</p>
+      <h3>Gain espéré et rentabilité</h3>
+      <p>Pour chaque compo, la chance d’atteindre chaque palier suit une loi normale (moyenne = score de la compo, écart-type tiré de la fourchette 10–90 %). Le gain espéré additionne, palier par palier, la chance de finir dans ce palier multipliée par sa récompense en essences Limited. Les récompenses en dollars ou en cartes ne sont pas converties : elles sont données à part (« autres récompenses »). Gain net = gains espérés − coût d’inscription × nombre de compos. Une compo est non rentable si son gain espéré est inférieur à son coût d’inscription. Quand la collecte ne fournit pas encore ces chiffres, la page les estime avec la même méthode à partir des paliers. <span id="mf-cout"></span></p>
+      <h3>Bilan</h3>
+      <p>Après chaque gameweek, l’onglet Bilan compare le score prévu de chaque compo proposée (dernière collecte avant la date limite) à son score réel, et le palier visé (le meilleur à plus de 50 % de chances) au palier réellement atteint. L’écart moyen dit si le modèle a tendance à surestimer ou à sous-estimer.</p>
+      <h3>Profils Sûre et Explosive</h3>
+      <p>Équilibrée maximise le score attendu. Sûre retire à chaque joueur 0,84 écart-type (son score à 20 % de chances) : les titulaires réguliers passent devant. Explosive en ajoute 0,84 : utile quand il faut un gros score pour atteindre un palier. Le score affiché reste toujours le score attendu.</p>
+      <h3>Remplaçants</h3>
+      <p>Pour chaque poste, le meilleur joueur encore libre (carte non utilisée ailleurs) qui respecte les règles de la compo, avec l’écart de points. Utile si un joueur est annoncé forfait juste avant la date limite.</p>
+      <h3>Limites</h3>
+      <ul>
+        <li>Les règles du mode Set dépendent de ton compte : la compo Set est une compo générique gardien, défenseur, milieu, attaquant + extra. Pas de classement public pour ce mode, donc pas d’objectif de score.</li>
+        <li>Si un joueur a deux matchs dans la gameweek, seul le premier (de Jupiler pour les joueurs belges) est compté.</li>
+        <li>Certaines gameweeks n’ont pas de compétition Jupiler, ou aucun de tes joueurs n’y joue (trêve, gameweek courte de milieu de semaine). L’onglet Compos le dit alors en tête, avec les dates de la gameweek ; les matchs affichés « hors GW » sont en dehors de la gameweek et ne comptent pas.</li>
+      </ul>
+    </div>
+    <div class="sx-card sx-method" id="meth-NBA" hidden>
+      <h2>Comment les compos NBA sont calculées</h2>
+      <h3>Lire la page</h3>
+      <p>En tête : le temps restant avant la date limite, les compos à inscrire, le gain net espéré en essences, les joueurs à risque dans les compos et la fraîcheur des données (orange après 12 h, rouge après 24 h ou si des matchs NBA ont été joués depuis la collecte : des blessures ont pu changer). Puis une carte de décision par compétition : vert = inscrire, orange = à surveiller (un joueur à risque), gris = rien à jouer, rouge = non rentable. Le détail des joueurs vient ensuite. Heures de Bruxelles.</p>
+      <h3>Score attendu d’un joueur</h3>
+      <p><span id="mn-poids">La projection de chaque match vient de Sorare et de la forme récente (60 % de la L5 + 40 % de la L15).</span> Le poids est réajusté chaque jour selon ce qui a le mieux prédit les scores réels (onglet Fiabilité). En NBA, Sorare garde le meilleur match de la gameweek : plus un joueur joue de matchs, plus il a de chances de sortir un gros score. Le score attendu ajoute donc à la projection moyenne un bonus qui grandit avec le nombre de matchs et la variabilité du joueur.</p>
+      <h3>Probabilité de jouer</h3>
+      <p>Calculée match par match. Base : 95 % si le joueur a une L10 supérieure à 3 (il joue vraiment), sinon 40 %. Statut ESPN : Out = 0 jusqu’au jour de retour estimé par ESPN inclus, puis la base à partir du lendemain ; Doubtful = 25 %, Questionable ou Day-To-Day = 60 %. Le second match d’une série de deux soirs de suite est réduit de 10 % (risque de repos). Les minutes des 5 derniers matchs et leur tendance viennent d’ESPN.</p>
+      <p>Dans les compos, un joueur Out a une pastille rouge seulement s’il ne joue aucun de ses matchs de la gameweek. S’il en manque une partie, la pastille est orange et dit quels jours il est absent et quels jours il joue : son score attendu tient déjà compte des matchs manqués.</p>
+      <h3>Niveau de l’adversaire</h3>
+      <p>Pour chaque match, le rang de l’adversaire parmi les 30 équipes : en attaque (points marqués par match) et en défense (points encaissés par match, 1er = meilleure défense). Une défense dans le dernier tiers (en vert) est favorable à ton joueur. En début de saison, les moyennes mêlent la saison en cours et la précédente. Source : classements ESPN.</p>
+      <h3>Étoiles, gain et progression</h3>
+      <p>Les étoiles vont par demi-points selon la L10 : 5★ dès 50, 4,5★ dès 45, 4★ dès 40, 3,5★ dès 35, 3★ dès 30, 2,5★ dès 25, 2★ dès 20, 1,5★ dès 15, 1★ en dessous. Une carte sans niveau connu compte 1★ sous le plafond. Le gain est l’écart entre le score attendu et ce seuil. La L10 après la gameweek remplace autant d’anciens matchs que de matchs prévus (supposés valoir la L10 actuelle) par le score attendu par match ; c’est une estimation, Sorare recalcule les étoiles à chaque gameweek.</p>
+      <h3>Compétitions et ordre de priorité</h3>
+      <p>Ordre de priorité (ton choix du 24/10) : <span id="mn-ordre">In-Season Champion puis In-Season Contender (16 et 11 étoiles, min 4 cartes In-Season, une compo chacune), puis jusqu’à 3 compos en Classic Champion (16 étoiles), 3 en Classic Contender (11 étoiles) et 2 en Rooms Champion (16 étoiles, 150 essences Limited par compo).</span></p>
+      <p>Cartes Limited uniquement. Une carte n’est utilisée qu’une fois, au maximum 4 joueurs de la même équipe, pas de capitaine. Dans les compétitions In-Season, toutes tes cartes In-Season restent candidates, même quand le joueur a une autre carte mieux notée ; un joueur n’a qu’une carte par compo. Le score final multiplie le score attendu par le bonus de la carte.</p>
+      <h3>In-Season : choix automatique</h3>
+      <p>Tes cartes In-Season ne vont en In-Season que si c’est la meilleure option chiffrée (ton choix du 25/10) : le modèle compare les essences espérées avec ces cartes en In-Season et avec les mêmes cartes laissées en Classic et Rooms, et garde l’option qui rapporte le plus. La carte de décision In-Season affiche cette comparaison quand la collecte la fournit.</p>
+      <h3>Objectifs de score et chances</h3>
+      <p>Scores réellement atteints à chaque palier lors de la dernière gameweek terminée. <span id="mn-ref"></span> La chance d’atteindre un palier suppose un score de compo de loi normale, avec la variabilité de chaque joueur et son risque de ne pas jouer.</p>
+      <h3>Gain espéré et rentabilité</h3>
+      <p>Pour chaque compo, la chance d’atteindre chaque palier suit une loi normale (moyenne = score de la compo, écart-type tiré de la fourchette 10–90 %). Le gain espéré additionne, palier par palier, la chance de finir dans ce palier multipliée par sa récompense en essences Limited. Les récompenses en dollars ou en cartes ne sont pas converties : elles sont données à part (« autres récompenses »). Gain net = gains espérés − coût d’inscription × nombre de compos. Une compo est non rentable si son gain espéré est inférieur à son coût d’inscription. Quand la collecte ne fournit pas encore ces chiffres, la page les estime avec la même méthode à partir des paliers. <span id="mn-cout"></span></p>
+      <h3>Bilan</h3>
+      <p>Après chaque gameweek, l’onglet Bilan compare le score prévu de chaque compo proposée (dernière collecte avant la date limite) à son score réel, et le palier visé (le meilleur à plus de 50 % de chances) au palier réellement atteint. L’écart moyen dit si le modèle a tendance à surestimer ou à sous-estimer.</p>
+      <h3>Profils, remplaçants et calendrier</h3>
+      <p>Sûre favorise les joueurs réguliers et sûrs de jouer, Explosive ceux capables de gros scores (± 0,84 écart-type). Le remplaçant proposé pour chaque joueur est le meilleur encore libre qui tient sous le plafond d’étoiles et la limite par équipe. Le calendrier montre, jour par jour, les matchs de chaque joueur et la défense adverse.</p>
+      <h3>Rôle élargi</h3>
+      <p>Coéquipiers déclarés Out par ESPN et leurs minutes moyennes : un indice de temps de jeu supplémentaire, affiché sans modifier le score attendu.</p>
+      <h3>Changements depuis hier</h3>
+      <p>Une variation de projection n’est signalée que si le joueur a des matchs dans la gameweek des deux côtés (hier et aujourd’hui). Entre deux gameweeks différentes, la comparaison se fait par match (détail « par match, nouvelle gameweek : … »). Les joueurs de tes compos passent en premier ; les variations de projection des autres joueurs sont repliées.</p>
+      <h3>Cotes</h3>
+      <p>The Odds API : probabilité de victoire et total de points attendu du match. <span id="mn-cotes"></span></p>
+    </div>
+  </section>
+</div>
+
+<script>
+  // ---------- Outils communs (aussi utilisés par les calculs déclarés) ----------
+  const SX_TIERS = [[50, 5], [45, 4.5], [40, 4], [35, 3.5], [30, 3], [25, 2.5], [20, 2], [15, 1.5], [0, 1]];
+  const sxStarOf = (l10) => SX_TIERS.find(([f]) => l10 >= f)[1];
+  // L10 apres la gameweek : les plus anciens matchs joues sortent, les matchs prevus entrent au score attendu par match
+  function sxProgression(r) {
+    if (r.sport !== 'NBA' || r.l10 == null || r.l10 === '') return null;
+    const l10 = Number(r.l10);
+    // Les scores de forme incluent la présaison : on suppose que les matchs qui sortent de la L10 valaient la L10 actuelle
+    const k = Math.min(10, Number(r.matchs_probables != null && r.matchs_probables !== '' ? r.matchs_probables : (Number(r.proba_titulaire) >= 50 ? r.matchs_gw : 0)) || 0);
+    const pm = Number(r.proj_match != null && r.proj_match !== '' ? r.proj_match : r.proj_forme != null ? r.proj_forme : l10);
+    const l10p = (l10 * (10 - k) + pm * k) / 10;
+    const star = r.etoiles != null && r.etoiles !== '' ? Number(r.etoiles) : sxStarOf(l10);
+    const starp = sxStarOf(l10p);
+    const i = SX_TIERS.findIndex(([, s]) => s === starp);
+    const up = i > 0 ? SX_TIERS[i - 1][0] - l10p : null;
+    const down = SX_TIERS[i][0] > 0 ? l10p - SX_TIERS[i][0] : null;
+    return { l10, l10p: Math.round(l10p * 10) / 10, k, pm: Math.round(pm * 10) / 10, star, starp, up, down };
+  }
+
+  // Loi normale : chance de dépasser un score t (moyenne m, écart-type sd)
+  const sxErf = (x) => { const t = 1 / (1 + 0.3275911 * Math.abs(x)); const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; };
+  const sxPAbove = (m, sd, t) => (sd > 0 ? 0.5 * (1 - sxErf((t - m) / (sd * Math.SQRT2))) : m >= t ? 1 : 0);
+  const sxHas = (v) => v != null && v !== '';
+  // Essences Limited d'une récompense (« 2000 essences Limited ») ; 0 si la récompense est en dollars ou en cartes
+  const sxEss = (txt) => { const m = /(\d[\d\s. ]*)\s*essences?\s+limited/i.exec(String(txt || '')); return m ? Number(m[1].replace(/[\s. ]/g, '')) || 0 : 0; };
+  // Gain espéré en essences : somme, palier par palier (du plus haut score au plus bas), de la chance de finir exactement dans ce palier × sa récompense en essences
+  function sxGainEspere(tiers, mean, sd) {
+    let prev = 0, g = 0;
+    for (const t of tiers.slice().sort((a, b) => Number(b.score) - Number(a.score))) {
+      const p = sxPAbove(mean, sd, Number(t.score));
+      g += Math.max(0, p - prev) * sxEss(t.recompense);
+      prev = Math.max(prev, p);
+    }
+    return g;
+  }
+  // Coût d'inscription d'une compo : colonne cout_inscription (contrat v3), sinon « inscription : N essences » dans les contraintes
+  const sxCout = (c) => { if (sxHas(c.cout_inscription)) return Number(c.cout_inscription) || 0; const m = /inscription\s*:\s*(\d+)\s*essences/i.exec(String(c.contraintes || '')); return m ? Number(m[1]) : 0; };
+  // Rang d'un palier (« Top 1000 » → 1000, « 3e du salon » → 3) ; Infinity si aucun palier
+  const sxPalierRang = (txt) => { const s = String(txt || ''); if (!s || /aucun|rien|^[—-]$/i.test(s)) return Infinity; const m = /(\d[\d\s ]*)/.exec(s); return m ? Number(m[1].replace(/[\s ]/g, '')) : Infinity; };
+  const sxSport = (r) => (r.sport === 'NBA' ? 'NBA' : 'FOOTBALL');
+
+  dash.calc('gain_net', {
+    inputs: ['competitions'],
+    title: 'Gain net espéré par sport (essences Limited)',
+    description: 'Somme de competitions.gain_net_espere pour chaque sport (gains espérés moins coûts d’inscription). Vide (null) si la collecte ne fournit pas cette colonne : la page l’estime alors à partir des paliers.',
+    fn: (competitions) => ['FOOTBALL', 'NBA'].map((sport) => {
+      const rows = competitions.filter((c) => sxSport(c) === sport && sxHas(c.gain_net_espere));
+      return { sport, n: rows.length ? Math.round(rows.reduce((s, c) => s + Number(c.gain_net_espere), 0)) : null, competitions: rows.length };
+    }),
+  });
+
+  dash.calc('bilan_synthese', {
+    inputs: ['bilan'],
+    title: 'Synthèse du bilan de la gameweek passée',
+    description: 'Pour chaque sport : nombre de compos, écart moyen (score réel − score prévu), total prévu et réel, et nombre de compos qui ont atteint ou dépassé leur palier visé.',
+    fn: (bilan) => ['FOOTBALL', 'NBA'].map((sport) => {
+      const rows = bilan.filter((b) => sxSport(b) === sport && sxHas(b.score_prevu) && sxHas(b.score_reel));
+      const n = rows.length;
+      const prevu = rows.reduce((s, b) => s + Number(b.score_prevu), 0), reel = rows.reduce((s, b) => s + Number(b.score_reel), 0);
+      const vises = rows.filter((b) => sxHas(b.palier_vise) && Number.isFinite(sxPalierRang(b.palier_vise)));
+      return {
+        sport, compos: n, gw: rows[0] ? rows[0].gw : null,
+        ecart_moyen: n ? Math.round((reel - prevu) / n * 10) / 10 : null,
+        ecart_abs_moyen: n ? Math.round(rows.reduce((s, b) => s + Math.abs(Number(b.score_reel) - Number(b.score_prevu)), 0) / n * 10) / 10 : null,
+        total_prevu: Math.round(prevu * 10) / 10, total_reel: Math.round(reel * 10) / 10,
+        paliers_vises: vises.length, paliers_atteints: vises.filter((b) => sxPalierRang(b.palier_atteint) <= sxPalierRang(b.palier_vise)).length,
+      };
+    }),
+  });
+
+  dash.calc('nb_changements', {
+    inputs: ['changements'],
+    title: 'Nombre de changements par sport',
+    description: 'Lignes du tableau des changements, réparties en football (modes JPL ou SET) et NBA.',
+    fn: (changements) => ['FOOTBALL', 'NBA'].map((sport) => ({
+      sport,
+      n: changements.filter((c) => (String(c.modes).split(' ').includes('NBA') ? 'NBA' : 'FOOTBALL') === sport).length,
+    })),
+  });
+
+  dash.calc('nb_compos', {
+    inputs: ['competitions'],
+    title: 'Compos à inscrire par sport',
+    description: 'Somme des compos proposées pour chaque compétition, séparée en football et NBA.',
+    fn: (competitions) => ['FOOTBALL', 'NBA'].map((sport) => ({
+      sport,
+      n: competitions.filter((c) => (c.sport === 'NBA' ? 'NBA' : 'FOOTBALL') === sport).reduce((s, c) => s + (Number(c.nb_compos) || 0), 0),
+    })),
+  });
+
+  dash.calc('progression_l10', {
+    inputs: ['joueurs'],
+    title: 'Progression de la L10 et des étoiles (NBA)',
+    description: 'Pour chaque joueur NBA : L10 actuelle, L10 estimée après la gameweek (chaque match prévu, au score attendu par match, remplace un ancien match supposé valoir la L10 actuelle), étoiles correspondantes et marge avant le seuil voisin.',
+    fn: (joueurs) => joueurs.map((r) => {
+      const p = sxProgression(r);
+      if (!p) return null;
+      const marge = p.starp > p.star ? 'monte' : p.starp < p.star ? 'descend' : (p.up != null && p.up < 2 ? 'à ' + p.up.toFixed(1).replace('.', ',') + ' pt de ' + String(sxStarOf(p.l10p + p.up + 0.01)).replace('.', ',') + '★' : p.down != null && p.down < 2 ? 'à ' + p.down.toFixed(1).replace('.', ',') + ' pt de perdre une demi-étoile' : '');
+      return { slug: r.slug, joueur: r.joueur, etoiles: p.star, l10: p.l10, matchs_prevus: p.k, score_par_match: p.pm, l10_projete: p.l10p, etoiles_apres: p.starp, ecart: marge };
+    }).filter(Boolean),
+  });
+
+  (() => {
+    const $ = (s) => document.querySelector(s);
+    // Dates en heure de Bruxelles : « lun. 26/10 à 00h00 »
+    const toDate = (s) => new Date(String(s).length <= 16 ? s + 'Z' : s);
+    const BXL = new Intl.DateTimeFormat('fr-BE', { timeZone: 'Europe/Brussels', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    const fmtDate = (s) => { if (!s) return ''; const d = toDate(s); if (Number.isNaN(d.getTime())) return String(s); const p = {}; BXL.formatToParts(d).forEach((x) => (p[x.type] = x.value)); return p.weekday + ' ' + p.day + '/' + p.month + ' à ' + p.hour + 'h' + p.minute; };
+    const fmtWhen = (s) => (s ? fmtDate(s) + ' (Bruxelles)' : '');
+    const ess = (v) => Math.round(Number(v)).toLocaleString('fr-BE') + ' essence' + (Math.abs(Math.round(Number(v))) > 1 ? 's' : '');
+    const plural = (n, one, many) => n + ' ' + (n > 1 ? many : one);
+    const fmtDay = (s) => new Date(s + 'T12:00:00Z').toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' });
+    const fmtDayShort = (s) => new Date(s + 'T12:00:00Z').toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' });
+    // 'AAAA-MM-JJ' (ou date ISO) → '26/10' ; avec jour de la semaine → 'lun. 26/10'
+    const fmtDM = (s) => { if (!s) return ''; const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s)); return m ? m[3] + '/' + m[2] : String(s); };
+    const fmtWDM = (s) => { if (!s) return ''; const d = new Date(String(s).slice(0, 10) + 'T12:00:00Z'); return Number.isNaN(d.getTime()) ? String(s) : d.toLocaleDateString('fr-BE', { weekday: 'short', timeZone: 'UTC' }) + ' ' + fmtDM(s); };
+    const joinFr = (a) => (a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1]);
+    // Dates de la gameweek : resume.gw_debut_<sport> / gw_fin_<sport> si présents (pas encore au contrat), sinon lues dans le slug (ex. football-27-30-oct-2026, nba-31-oct-3-nov-2026)
+    const MOIS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+    const MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+    function gwSlugDates(slug) {
+      const m = /(\d{1,2})(?:-([a-z]{3}))?(?:-(\d{4}))?-(\d{1,2})-([a-z]{3})-(\d{4})/.exec(String(slug || '').toLowerCase());
+      if (!m || !MOIS[m[5]] || (m[2] && !MOIS[m[2]])) return null;
+      const y2 = Number(m[6]), m2 = MOIS[m[5]], m1 = m[2] ? MOIS[m[2]] : m2, y1 = m[3] ? Number(m[3]) : (m1 > m2 ? y2 - 1 : y2);
+      const iso = (y, mo, d) => y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      return { debut: iso(y1, m1, Number(m[1])), fin: iso(y2, m2, Number(m[4])) };
+    }
+    const gwText = (slug) => { const g = gwSlugDates(slug); if (!g) return String(slug || '').replace(/^(football|nba)-/, ''); const [y1, m1, d1] = g.debut.split('-').map(Number), [y2, m2, d2] = g.fin.split('-').map(Number); return 'du ' + d1 + (m1 !== m2 || y1 !== y2 ? ' ' + MOIS_FR[m1 - 1] + (y1 !== y2 ? ' ' + y1 : '') : '') + ' au ' + d2 + ' ' + MOIS_FR[m2 - 1] + ' ' + y2; };
+    // Jour d'un instant pour la gameweek : soirée américaine (UTC − 5 h) en NBA, jour de Bruxelles en football
+    function gwDay(sp, iso) {
+      const s = String(iso || ''); if (s.length <= 10) return s;
+      const d = toDate(s); if (Number.isNaN(d.getTime())) return s.slice(0, 10);
+      if (sp === 'NBA') return new Date(d.getTime() - 5 * 36e5).toISOString().slice(0, 10);
+      return d.toLocaleDateString('fr-CA', { timeZone: 'Europe/Brussels' });
+    }
+    function gwOf(sp) {
+      const x = (ok('resume') || [])[0]; if (!x) return null;
+      const slug = sp === 'NBA' ? x.gw_nba : x.gw_football;
+      const deb = sp === 'NBA' ? x.gw_debut_nba : x.gw_debut_football;
+      const fin = sp === 'NBA' ? x.gw_fin_nba : x.gw_fin_football;
+      const g = deb && fin ? { debut: gwDay(sp, deb), fin: gwDay(sp, fin) } : gwSlugDates(slug);
+      return g ? { ...g, slug } : { slug };
+    }
+    const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = String(txt); return e; };
+    const pill = (txt, cls) => el('span', 'sx-pill ' + cls, txt);
+    // Téléphone : chaque cellule porte le libellé de sa colonne (affiché au-dessus de la valeur sous 600 px)
+    const labelRow = (tr, labels) => { [...tr.children].forEach((td, i) => { if (labels[i] && !td.classList.contains('sx-c-main')) td.dataset.label = labels[i]; else if (!labels[i] && !td.textContent) td.classList.add('sx-c-empty'); }); };
+    const foldState = new Map();
+    const headLabels = (sel) => [...document.querySelectorAll(sel + ' thead th')].map((th) => th.textContent.trim());
+    const mainFirst = (tr, labels) => { tr.children[0].classList.add('sx-c-main'); labelRow(tr, labels); };
+    const num = (v) => (v == null || v === '' ? '' : String(v));
+    const dec = (v, d = 1) => (v == null || v === '' || Number.isNaN(Number(v)) ? '' : (Math.round(Number(v) * 10 ** d) / 10 ** d).toLocaleString('fr-BE'));
+    const signed = (v) => (v == null || v === '' ? '' : (Number(v) > 0 ? '+' : '') + dec(v));
+    const stars = (v) => (v == null || v === '' ? '' : String(v).replace('.', ',') + '★');
+    const yes = (v) => v === true || v === 'true' || v === 1 || v === '1';
+    const STAT = { STARTER: ['Titulaire', 'sx-ok'], REGULAR: ['Régulier', 'sx-ok'], SUPER_SUBSTITUTE: ['Super-sub', 'sx-warn'], SUBSTITUTE: ['Remplaçant', 'sx-warn'], RESERVE: ['Réserve', 'sx-bad'], NOT_PLAYING: ['Non aligné', 'sx-bad'] };
+    const ord = (n) => (n == null || n === '' ? '' : Number(n) === 1 ? '1er' : n + 'e');
+    const rankCls = (rank, n) => { if (rank == null || !n) return ''; const r = Number(rank) / Number(n); return r > 2 / 3 ? 'sx-ok' : r <= 1 / 3 ? 'sx-bad' : ''; };
+    const advCell = (r, colorAtt) => {
+      const td = el('td');
+      if (r.adv_attaque_rang == null || r.adv_attaque_rang === '') { td.append(el('span', 'sx-mut', '')); return td; }
+      const line = el('div');
+      line.append(el('span', colorAtt ? rankCls(r.adv_attaque_rang, r.adv_nb_equipes) : '', ord(r.adv_attaque_rang) + ' att.'), ' · ', el('span', rankCls(r.adv_defense_rang, r.adv_nb_equipes), ord(r.adv_defense_rang) + ' déf.'));
+      td.append(line, el('div', 'sx-mut', 'sur ' + r.adv_nb_equipes + (r.adv_ligue && r.adv_ligue !== 'NBA' ? ' · ' + r.adv_ligue : '')));
+      td.title = r.adv_ligue === 'NBA' || r.sport === 'NBA'
+        ? `Points marqués par match : ${r.adv_attaque_val ?? '?'} · encaissés : ${r.adv_defense_val ?? '?'}`
+        : `Buts marqués par match : ${r.adv_attaque_val ?? '?'} · encaissés : ${r.adv_defense_val ?? '?'}`;
+      return td;
+    };
+    const sportOfRow = (r) => (r.sport === 'NBA' ? 'NBA' : 'FOOTBALL');
+    const sportOfChange = (c) => (String(c.modes).split(' ').includes('NBA') ? 'NBA' : 'FOOTBALL');
+    const doubt = (r) => /GTD|questionable|day|doubt/i.test((r.blessure || '') + ' ' + (r.espn_statut || ''));
+    const injured = (r) => (r.blessure && !doubt(r)) || /^out/i.test(r.espn_statut || '');
+    const shortComp = (name) => String(name || '').replace('Jupiler Jupiler Pro League – Limited (In-Season)', 'Jupiler In-Season').replace(/^NBA /, '').replace(/^Football /, '');
+    const has = (v) => v != null && v !== '';
+    // Match retenu en dehors de la gameweek (il ne compte pas).
+    // Football : le joueur n'a aucun match dans la gameweek. NBA : le match n'est pas dans la liste des matchs de la gameweek (jeu matchs).
+    const offGw = (r) => {
+      if (!r || !has(r.match)) return false;
+      if (sportOfRow(r) === 'NBA') { const g = gwGames(r.slug); if (g.length) return !g.some((m) => String(m.date).slice(0, 16) === String(r.match).slice(0, 16)); }
+      return Number(r.matchs_gw) === 0;
+    };
+    // Football : probabilité de titularisation, avec sa source si la collecte la fournit (joueurs.source_titulaire)
+    const titu = (r) => (has(r.proba_titulaire) ? r.proba_titulaire + ' %' + (has(r.source_titulaire) ? ' (' + r.source_titulaire + ')' : '') : '');
+    // NBA : matchs de la gameweek d'un joueur (jeu matchs), dans l'ordre
+    const gwGames = (slug) => (ok('matchs') || []).filter((m) => m.slug === slug && m.sport !== 'FOOTBALL' && m.sport !== 'Football').sort((a, b) => String(a.date || a.jour).localeCompare(String(b.date || b.jour)));
+    // NBA : joueur Out (ESPN). Rouge seulement s'il ne joue aucun de ses matchs de la gameweek ; orange s'il en manque une partie.
+    function nbaOut(r) {
+      if (!r || !/^out/i.test(r.espn_statut || '')) return null;
+      const retour = has(r.espn_retour) ? 'retour estimé le ' + fmtDM(r.espn_retour) : '';
+      const title = [r.espn_info, retour].filter(Boolean).join(' · ');
+      const games = gwGames(r.slug);
+      if (!games.length) return { text: 'Out (ESPN)' + (retour ? ', ' + retour : ''), cls: 'sx-bad', title };
+      const played = games.filter((m) => Number(m.proba) > 0);
+      const missed = games.filter((m) => !(Number(m.proba) > 0));
+      const n = games.length;
+      if (!played.length) return { text: 'Out (ESPN) : ' + (n > 1 ? 'aucun de ses ' + n + ' matchs' : 'son seul match') + ' de la gameweek' + (retour ? ', ' + retour : ''), cls: 'sx-bad', title };
+      const days = (l) => l.map((m) => fmtDM(m.jour || m.date) + (Number(m.proba) > 0 && Number(m.proba) < 60 ? ' à ' + m.proba + ' %' : ''));
+      const text = 'Absent ' + (missed.length > 1 ? 'les ' : 'le ') + joinFr(days(missed)) + ' · joue ' + (played.length > 1 ? 'les ' : 'le ') + joinFr(days(played)) + ' (' + played.length + ' match' + (played.length > 1 ? 's' : '') + ' sur ' + n + ')';
+      return { text, cls: 'sx-warn', title: (title ? title + ' · ' : '') + 'Le score attendu tient déjà compte des matchs manqués.' };
+    }
+
+    let sport = 'FOOTBALL';
+    const compoIdx = new Map();
+    let current = 'p-compos';
+
+    // ---------- Réglages des compos (mémorisés dans ce navigateur) ----------
+    const DEF = () => ({ style: 'equilibre', noDoubt: false, minGames: 0, minStart: 0, excl: [], locks: {} });
+    let RG = { FOOTBALL: DEF(), NBA: DEF() };
+    try { const s = JSON.parse(localStorage.getItem('sx-reglages-v1') || 'null'); if (s && s.FOOTBALL && s.NBA) RG = { FOOTBALL: { ...DEF(), ...s.FOOTBALL }, NBA: { ...DEF(), ...s.NBA } }; } catch (e) { /* stockage indisponible */ }
+    const saveRG = () => { try { localStorage.setItem('sx-reglages-v1', JSON.stringify(RG)); } catch (e) { /* stockage indisponible */ } };
+    const isCustom = (sp) => { const g = RG[sp]; return g.style !== 'equilibre' || g.noDoubt || g.minGames > 0 || g.minStart > 0 || g.excl.length > 0 || Object.values(g.locks).some((l) => l.length); };
+    let cache = { key: '', res: null };
+
+    // ---------- Données de base ----------
+    const ok = (id) => { const d = dash.data(id); return d.status === 'ok' ? d.data : null; };
+    const jMap = () => new Map((ok('joueurs') || []).map((r) => [r.slug, r]));
+    const compType = (c) => c.type || (c.sport === 'NBA' ? 'NBA' : /set/i.test(c.slug || c.competition) ? 'SET' : 'JPL');
+    const compsOf = (sp) => (ok('competitions') || []).filter((c) => sportOfRow(c) === sp).slice().sort((a, b) => (Number(a.rang) || 0) - (Number(b.rang) || 0));
+
+    // Candidat = une carte d'un joueur, valorisée pour une compétition
+    function mkCand(r, k, c, style) {
+      const set = compType(c) === 'SET';
+      const power = Number(k.puissance) || 1, skin = set ? Number(k.skin) || 1 : 1;
+      const value = (Number(r.score_attendu) || 0) * power * skin;
+      const p = Math.min(1, Math.max(0.05, r.proba_titulaire == null || r.proba_titulaire === '' ? 0.8 : Number(r.proba_titulaire) / 100));
+      const cv = (r.regularite == null || r.regularite === '' ? 40 : Number(r.regularite)) / 100 * (r.sport === 'NBA' ? 0.8 : 1);
+      const proj = value / p;
+      const sd = Math.sqrt(p * (proj * cv) ** 2 + p * (1 - p) * proj ** 2);
+      const adj = style === 'sure' ? value - 0.84 * sd : style === 'explosive' ? value + 0.84 * sd : value;
+      return { r, k, slug: r.slug, id: k.carte_id, value, sd, adj, cv, stars: r.sport === 'NBA' ? Number(r.etoiles) || 1 : 0, l15: Number(r.l15) || 0, club: r.club || '', pos: r.poste || '', ins: yes(k.in_season), bonus: Math.round((power * skin - 1) * 100) };
+    }
+    function eligibleCard(k, r, c) {
+      const t = compType(c);
+      if (t === 'NBA') return r.sport === 'NBA' && k.rarete === 'limited';
+      if (t === 'JPL') return r.sport !== 'NBA' && k.rarete !== 'common' && String(r.modes).split(' ').includes('JPL');
+      return r.sport !== 'NBA' && yes(k.set_courant);
+    }
+    function passes(r, g, sp) {
+      if (g.excl.includes(r.slug)) return false;
+      if (g.noDoubt && doubt(r)) return false;
+      if (sp === 'NBA' && g.minGames > 0 && Number(r.matchs_gw) < g.minGames) return false;
+      if (sp === 'FOOTBALL' && g.minStart > 0 && Number(r.proba_titulaire ?? 0) < g.minStart) return false;
+      return true;
+    }
+    function poolFor(c, sp, g, J) {
+      const out = [];
+      for (const k of ok('cartes') || []) {
+        const r = J.get(k.slug); if (!r || sportOfRow(r) !== sp) continue;
+        if (!eligibleCard(k, r, c) || !passes(r, g, sp)) continue;
+        out.push(mkCand(r, k, c, g.style));
+      }
+      return out;
+    }
+
+    // ---------- Règles d'une compo ----------
+    const POSN = ['Gardien', 'Défenseur', 'Milieu', 'Attaquant'];
+    function assignFoot(team) {
+      const m = new Map(); const rest = [...team];
+      for (const p of POSN) { const i = rest.findIndex((x) => x.pos === p); if (i < 0) return null; m.set(rest[i], p); rest.splice(i, 1); }
+      if (!rest[0] || rest[0].pos === 'Gardien') return null;
+      m.set(rest[0], 'Extra');
+      return m;
+    }
+    function valid(c, team) {
+      const capS = Number(c.cap_etoiles) || 0, capP = Number(c.cap_points) || 0, minIn = Number(c.min_in_season) || 0, maxClub = Number(c.max_par_club) || 0;
+      if (capS && team.reduce((s, x) => s + x.stars, 0) > capS) return false;
+      if (capP && team.reduce((s, x) => s + x.l15, 0) > capP) return false;
+      if (minIn && team.filter((x) => x.ins).length < Math.min(minIn, 5)) return false;
+      if (new Set(team.map((x) => x.slug)).size < team.length) return false;
+      if (maxClub) { const m = new Map(); for (const x of team) { m.set(x.club, (m.get(x.club) || 0) + 1); if (m.get(x.club) > maxClub) return false; } }
+      if (compType(c) !== 'NBA' && !assignFoot(team)) return false;
+      return true;
+    }
+    const captainOf = (team) => team.slice().sort((x, y) => y.value * (1 - 0.3 * y.cv) - x.value * (1 - 0.3 * x.cv))[0];
+
+    // Recherche exhaustive avec élagage (bornes sur le score restant, le plafond d'étoiles et de moyennes)
+    function optimise(c, pool, forced) {
+      const nba = compType(c) === 'NBA';
+      const capt = (Number(c.capitaine_pct) || 0) / 100;
+      const capS = Number(c.cap_etoiles) || 0, capP = Number(c.cap_points) || 0, minIn = Number(c.min_in_season) || 0, maxClub = Number(c.max_par_club) || 0;
+      const fs = new Set(forced.map((x) => x.slug));
+      // Une carte par joueur, choisie sans dépendre de l'ordre des cartes :
+      // - compétition In-Season (min_in_season) : la carte In-Season du joueur est toujours préférée ;
+      // - sinon : la meilleure carte, ou la carte In-Season si elle vaut au moins 97 % de la meilleure.
+      const cardsBy = new Map();
+      for (const x of pool) { if (fs.has(x.slug)) continue; if (!cardsBy.has(x.slug)) cardsBy.set(x.slug, []); cardsBy.get(x.slug).push(x); }
+      const bestBy = new Map();
+      for (const [s, l] of cardsBy) {
+        const top = l.reduce((m, x) => (x.adj > m.adj ? x : m));
+        const ins = l.filter((x) => x.ins).reduce((m, x) => (!m || x.adj > m.adj ? x : m), null);
+        bestBy.set(s, ins && (minIn || ins.adj >= top.adj * 0.97) ? ins : top);
+      }
+      let cand = [...bestBy.values()].sort((a, b) => b.adj - a.adj);
+      let keep = null;
+      if (nba) {
+        const by = new Map(); for (const x of cand) { const k = x.stars; if (!by.has(k)) by.set(k, []); if (by.get(k).length < 6) by.get(k).push(x); }
+        keep = new Set([...by.values()].flat()); cand.slice(0, 16).forEach((x) => keep.add(x));
+      } else if (compType(c) === 'SET') {
+        keep = new Set(); for (const p of POSN) cand.filter((x) => x.pos === p).slice(0, 8).forEach((x) => keep.add(x));
+      } else if (capP) {
+        keep = new Set(); for (const p of POSN) { const l = cand.filter((x) => x.pos === p); l.slice(0, 6).forEach((x) => keep.add(x)); l.slice().sort((a, b) => a.l15 - b.l15).slice(0, 3).forEach((x) => keep.add(x)); }
+      }
+      if (keep) {
+        // L'élagage ne doit jamais retirer une carte In-Season quand un minimum est exigé (contrôlé après, dans valid)
+        if (minIn) cand.filter((x) => x.ins).forEach((x) => keep.add(x));
+        cand = cand.filter((x) => keep.has(x));
+      }
+      const need = 5 - forced.length;
+      if (need < 0 || cand.length < need) return null;
+      const n = cand.length;
+      const pre = [0]; cand.forEach((x, i) => pre.push(pre[i] + x.adj));
+      const minStar = cand.reduce((m, x) => Math.min(m, x.stars), 99), minL = cand.reduce((m, x) => Math.min(m, x.l15), 999);
+      const team = [...forced];
+      const clubs = new Map(); forced.forEach((x) => clubs.set(x.club, (clubs.get(x.club) || 0) + 1));
+      let best = null, iter = 0;
+      const base = forced.reduce((s, x) => s + x.adj, 0);
+      function rec(start, depth, sum, st, l15, ins) {
+        if (++iter > 4e6) return;
+        if (depth === need) {
+          if (!valid(c, team)) return;
+          const cap = capt ? captainOf(team) : null;
+          const score = sum + (cap ? cap.adj * capt : 0);
+          if (!best || score > best.score) best = { score, picks: team.slice(), cap };
+          return;
+        }
+        const left = need - depth;
+        if (minIn && ins + left < Math.min(minIn, 5)) return;
+        for (let i = start; i <= n - left; i++) {
+          const ub = sum + (pre[i + left] - pre[i]);
+          if (best && ub * (1 + capt) <= best.score) break;
+          const x = cand[i];
+          if (capS && st + x.stars + (left - 1) * minStar > capS) continue;
+          if (capP && l15 + x.l15 + (left - 1) * minL > capP) continue;
+          if (maxClub && (clubs.get(x.club) || 0) >= maxClub) continue;
+          team.push(x); clubs.set(x.club, (clubs.get(x.club) || 0) + 1);
+          rec(i + 1, depth + 1, sum + x.adj, st + x.stars, l15 + x.l15, ins + (x.ins ? 1 : 0));
+          team.pop(); clubs.set(x.club, clubs.get(x.club) - 1);
+        }
+      }
+      rec(0, 0, base, forced.reduce((s, x) => s + x.stars, 0), forced.reduce((s, x) => s + x.l15, 0), forced.filter((x) => x.ins).length);
+      return best;
+    }
+    // Raison d'une compo impossible (recalcul de la page), alignée sur le statut écrit par compos.mjs
+    // full = toutes les cartes éligibles (avant les compos déjà faites), done = compos des compétitions précédentes
+    function whyNot(c, pool, full = pool, done = []) {
+      const players = new Set(pool.map((x) => x.slug));
+      if (!players.size) return 'plus aucune carte disponible avec ces réglages';
+      const minIn = Number(c.min_in_season) || 0, capS = Number(c.cap_etoiles) || 0;
+      const parts = [];
+      if (minIn) {
+        const freeIn = new Set(pool.filter((x) => x.ins).map((x) => x.slug));
+        const allIn = new Map(); for (const x of full) if (x.ins && (!allIn.has(x.slug) || x.stars < allIn.get(x.slug).stars)) allIn.set(x.slug, x);
+        if (freeIn.size < minIn) {
+          const where = done.filter((L) => L.list.some((lu) => lu.picks.some((p) => p.cand?.ins && allIn.has(p.slug))));
+          const whereTxt = where.map((L) => (() => { const k = compsOf(sportOfRow(c)).findIndex((x) => x.competition === L.c.competition); return 'la compo ' + L.c.competition + (k >= 0 ? ' (priorité ' + (k + 1) + ')' : ''); })()).join(' et ');
+          if (!allIn.size) parts.push('tu n’as aucune carte In-Season (minimum ' + minIn + ')');
+          else if (whereTxt && !freeIn.size) parts.push('tes ' + allIn.size + ' cartes In-Season sont dans ' + whereTxt);
+          else parts.push('il ne reste que ' + freeIn.size + ' carte' + (freeIn.size > 1 ? 's' : '') + ' In-Season libre' + (freeIn.size > 1 ? 's' : '') + ' (minimum ' + minIn + ')' + (whereTxt ? ', les autres sont dans ' + whereTxt : ''));
+        }
+        // Même libres : les cartes In-Season les moins chères tiennent-elles sous le plafond avec les autres joueurs (1★ minimum chacun) ?
+        if (capS && allIn.size >= minIn) {
+          const cheap = [...allIn.values()].map((x) => x.stars).sort((a, b) => a - b).slice(0, minIn).reduce((a, b) => a + b, 0);
+          const rest = capS - cheap, need = 5 - minIn;
+          if (rest < need * 1) parts.push((parts.length ? 'même libres, l' : 'l') + 'es ' + minIn + ' cartes In-Season font ' + stars(cheap) + ', il ne reste que ' + stars(Math.max(0, rest)) + ' pour ' + (need > 1 ? 'les ' + need + ' autres joueurs' : 'le 5e joueur') + ' (1★ minimum chacun, plafond ' + capS + '★)');
+        }
+        if (parts.length) return parts.join(' ; ');
+      }
+      if (compType(c) !== 'NBA') { const miss = POSN.filter((p) => !pool.some((x) => x.pos === p)); if (miss.length) return 'il te manque : ' + miss.join(', ').toLowerCase(); }
+      if (players.size < 5) return `il ne reste que ${players.size} joueurs disponibles`;
+      if (capS) { const minSum = [...new Set(pool.map((x) => x.slug))].map((sl) => Math.min(...pool.filter((x) => x.slug === sl).map((x) => x.stars))).sort((a, b) => a - b).slice(0, 5).reduce((a, b) => a + b, 0); if (minSum > capS) return 'les 5 joueurs les moins chers encore libres font ' + stars(minSum) + ', au-dessus du plafond de ' + capS + '★'; }
+      return 'aucune combinaison des cartes restantes ne respecte les règles';
+    }
+
+    // ---------- Compos affichées : proposées (données) ou recalculées (réglages) ----------
+    function lineupsFor(sp) {
+      const J = jMap();
+      const comps = compsOf(sp);
+      const cardMap = new Map((ok('cartes') || []).map((k) => [k.carte_id, k]));
+      const custom = isCustom(sp);
+      const key = sp + '|' + JSON.stringify(RG[sp]) + '|' + (ok('compos') || []).length + '|' + (ok('cartes') || []).length + '|' + J.size + '|' + comps.length;
+      if (custom && cache.key === key) return cache.res;
+      const out = [];
+      if (!custom) {
+        const lus = ok('compos') || [];
+        for (const c of comps) {
+          const all = lus.filter((l) => l.competition === c.competition);
+          const nums = [...new Set(all.map((l) => Number(l.numero) || 1))].sort((a, b) => a - b);
+          const list = nums.map((n) => {
+            const picks = all.filter((l) => (Number(l.numero) || 1) === n).map((l) => {
+              const r = J.get(l.slug) || [...J.values()].find((x) => x.joueur === l.joueur);
+              const k = cardMap.get(l.carte_id);
+              const cand = r && k ? mkCand(r, k, c, 'equilibre') : null;
+              return { row: l, cand, slug: l.slug || r?.slug, id: l.carte_id, slot: l.slot, captain: !!l.capitaine, final: Number(l.score_final) || 0 };
+            });
+            return { numero: n, picks };
+          });
+          let shown = list, reason = list.length < (Number(c.max_compos) || 1) ? c.statut : '';
+          // Football : une compo à 0 point n'est pas une compo à inscrire (personne ne joue dans la gameweek)
+          if (sp === 'FOOTBALL') {
+            shown = list.filter((lu) => lu.picks.reduce((s, p) => s + p.final, 0) > 0);
+            if (shown.length < list.length) reason = zeroReason(c);
+          }
+          out.push({ c, list: shown, reason });
+        }
+        return out;
+      }
+      // Recalcul complet du sport, dans l'ordre de priorité, une carte par compo
+      const g = RG[sp]; const used = new Set();
+      for (const c of comps) {
+        const max = Number(c.max_compos) || 0; const list = []; let reason = '';
+        if (!max) { out.push({ c, list, reason: c.statut }); continue; }
+        const full = poolFor(c, sp, g, J);
+        for (let n = 1; n <= max; n++) {
+          const pool = full.filter((x) => !used.has(x.id));
+          const forcedSlugs = (g.locks[c.competition + '|' + n] || []);
+          const forced = [];
+          for (const s of forcedSlugs) {
+            const r = J.get(s); if (!r) continue;
+            const ks = (ok('cartes') || []).filter((k) => k.slug === s && !used.has(k.carte_id) && eligibleCard(k, r, c)).map((k) => mkCand(r, k, c, g.style)).sort((a, b) => (Number(c.min_in_season) > 0 && a.ins !== b.ins ? (b.ins ? 1 : -1) : b.adj - a.adj));
+            if (ks[0]) forced.push(ks[0]);
+          }
+          const sol = optimise(c, pool.filter((x) => !forced.some((f) => f.slug === x.slug)), forced);
+          if (!sol) { reason = whyNot(c, pool, full, out); break; }
+          if (sp === 'FOOTBALL' && !(sol.picks.reduce((s, x) => s + x.value, 0) > 0)) { reason = zeroReason(c, true); break; }
+          const capt = (Number(c.capitaine_pct) || 0) / 100;
+          const slots = compType(c) === 'NBA' ? null : assignFoot(sol.picks);
+          const picks = sol.picks.slice().sort((a, b) => b.value - a.value).map((x, i) => ({ row: null, cand: x, slug: x.slug, id: x.id, slot: slots ? slots.get(x) : 'Joueur ' + (i + 1), captain: x === sol.cap, final: x.value * (x === sol.cap ? 1 + capt : 1) }));
+          if (slots) picks.sort((a, b) => ['Gardien', 'Défenseur', 'Milieu', 'Attaquant', 'Extra'].indexOf(a.slot) - ['Gardien', 'Défenseur', 'Milieu', 'Attaquant', 'Extra'].indexOf(b.slot));
+          sol.picks.forEach((x) => used.add(x.id));
+          list.push({ numero: n, picks });
+        }
+        out.push({ c, list, reason: list.length < max ? reason : '' });
+      }
+      cache = { key, res: out };
+      return out;
+    }
+    // Raison affichée quand la seule compo possible vaudrait 0 point (football)
+    function zeroReason(c, recalc) {
+      const st = String(c.statut || '');
+      if (!recalc && st && !/propos/i.test(st)) return st;
+      return 'aucun de tes joueurs ne joue dans cette gameweek : une compo à 0 point n’est pas proposée';
+    }
+    const usedIds = (lineups) => new Set(lineups.flatMap((L) => L.list.flatMap((x) => x.picks.map((p) => p.id))));
+
+    // Meilleurs remplaçants d'un joueur, à règles constantes
+    function swaps(c, lineup, pick, used, sp) {
+      const J = jMap(); const g = RG[sp];
+      const team = lineup.picks.map((p) => p.cand).filter(Boolean);
+      if (team.length < 5 || !pick.cand) return [];
+      const others = team.filter((x) => x !== pick.cand);
+      const inTeam = new Set(team.map((x) => x.slug));
+      const pool = poolFor(c, sp, { ...g, excl: g.excl }, J).filter((x) => !inTeam.has(x.slug) && !used.has(x.id)).sort((a, b) => b.value - a.value);
+      const res = []; const seen = new Set();
+      for (const q of pool) {
+        if (seen.has(q.slug)) continue;
+        if (!valid(c, [...others, q])) continue;
+        seen.add(q.slug); res.push({ q, delta: q.value - pick.cand.value });
+        if (res.length >= 3) break;
+      }
+      return res;
+    }
+
+    // Loi normale : chance de dépasser un score
+    const pAbove = sxPAbove;
+    function dist(c, picks) {
+      const capt = (Number(c.capitaine_pct) || 0) / 100;
+      const mean = picks.reduce((s, p) => s + p.final, 0);
+      const sd = Math.sqrt(picks.reduce((s, p) => s + ((p.cand ? p.cand.sd : p.final * 0.4) * (p.captain ? 1 + capt : 1)) ** 2, 0));
+      return { mean, sd, lo: mean - 1.2816 * sd, hi: mean + 1.2816 * sd };
+    }
+    const pct = (p) => (p >= 0.995 ? '> 99 %' : p < 0.005 ? '< 1 %' : Math.round(p * 100) + ' %');
+
+    // Problèmes d'un joueur avant la date limite
+    function issue(r, sp) {
+      if (!r) return null;
+      if (sp === 'NBA') {
+        const o = nbaOut(r); if (o) return [o.text, o.cls, o.title];
+        if (Number(r.matchs_gw) === 0) return ['Aucun match dans la gameweek', 'sx-bad'];
+        if (doubt(r)) return [(r.espn_statut || 'Incertain') + ' (ESPN)', 'sx-warn'];
+        if (r.minutes_tendance === 'en baisse') return ['Minutes en baisse', 'sx-warn'];
+        return null;
+      }
+      if (r.suspension) return [r.suspension, 'sx-bad'];
+      if (r.blessure && !doubt(r)) return ['Blessé : ' + r.blessure, 'sx-bad'];
+      if (r.statut === 'NOT_PLAYING' || r.statut === 'RESERVE') return [STAT[r.statut][0], 'sx-bad'];
+      if (Number(r.matchs_gw) === 0) return ['Aucun match dans la gameweek', 'sx-bad'];
+      if (doubt(r)) return ['Incertain : ' + r.blessure, 'sx-warn'];
+      if (r.proba_titulaire != null && r.proba_titulaire !== '' && Number(r.proba_titulaire) < 60) return ['Titulaire à ' + titu(r), 'sx-warn'];
+      return null;
+    }
+    const issuePill = (is) => { const p = pill(is[0], is[1]); if (is[2]) p.title = is[2]; return p; };
+
+    // ---------- Navigation ----------
+    const sportBtns = [...document.querySelectorAll('.sx-sport button')];
+    const tabs = [...document.querySelectorAll('.sx-tab')];
+    const applySport = () => {
+      sportBtns.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.sport === sport)));
+      document.querySelectorAll('[data-sport-only]').forEach((n) => (n.hidden = n.dataset.sportOnly !== sport));
+      $('#f-mode').hidden = sport !== 'FOOTBALL';
+      $('#meth-FOOTBALL').hidden = sport !== 'FOOTBALL';
+      $('#meth-NBA').hidden = sport !== 'NBA';
+      $('#th-poste').hidden = sport === 'NBA';
+      $('#j-mode').value = '';
+      if (!COLS[sport].some((c) => c.k === sortK)) sortK = 'score_final';
+      syncControls();
+    };
+    const showPage = (pageId) => {
+      current = pageId;
+      tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.page === pageId)));
+      document.querySelectorAll('.sx-page').forEach((p) => (p.hidden = p.id !== pageId));
+    };
+    sportBtns.forEach((b) => b.addEventListener('click', () => { sport = b.dataset.sport; sortK = 'score_final'; sortDir = -1; applySport(); dash.setLink(b.id); draw(); }));
+    tabs.forEach((t) => t.addEventListener('click', () => { showPage(t.dataset.page); dash.setLink(t.id); draw(); }));
+    ['#f-mode', '#f-gw', '#f-na', '#f-inj', '#f-sus', '#f-doubt', '#f-min'].forEach((s) => $(s).addEventListener('change', () => draw()));
+    $('#f-q').addEventListener('input', () => draw());
+    $('#j-mode').addEventListener('change', () => draw());
+    $('#j-all').addEventListener('change', () => draw());
+    $('#tl-mode').addEventListener('change', () => draw());
+    $('#ch-more').addEventListener('click', () => { chOpen[sport] = !chOpen[sport]; draw(); });
+
+    // Réglages
+    function syncControls() {
+      const g = RG[sport];
+      document.querySelectorAll('#rg-style button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === g.style)));
+      $('#rg-doubt').checked = g.noDoubt;
+      $('#rg-games').value = String(g.minGames);
+      $('#rg-start').value = String(g.minStart);
+    }
+    const changed = () => { saveRG(); cache.key = ''; draw(); };
+    document.querySelectorAll('#rg-style button').forEach((b) => b.addEventListener('click', () => { RG[sport].style = b.dataset.v; syncControls(); changed(); }));
+    $('#rg-doubt').addEventListener('change', (e) => { RG[sport].noDoubt = e.target.checked; changed(); });
+    $('#rg-games').addEventListener('change', (e) => { RG[sport].minGames = Number(e.target.value); changed(); });
+    $('#rg-start').addEventListener('change', (e) => { RG[sport].minStart = Number(e.target.value); changed(); });
+    $('#rg-reset').addEventListener('click', () => { RG[sport] = DEF(); syncControls(); changed(); });
+    const toggleExcl = (slug) => { const g = RG[sport]; g.excl = g.excl.includes(slug) ? g.excl.filter((s) => s !== slug) : [...g.excl, slug]; Object.keys(g.locks).forEach((k) => (g.locks[k] = g.locks[k].filter((s) => s !== slug))); changed(); };
+    const toggleLock = (comp, n, slug, lineups) => {
+      const g = RG[sport]; const key = comp + '|' + n;
+      const on = (g.locks[key] || []).includes(slug);
+      // Passer en mode réglé : on fige d'abord toute compo proposée telle quelle n'est pas nécessaire, seul le joueur est gardé
+      g.locks[key] = on ? g.locks[key].filter((s) => s !== slug) : [...(g.locks[key] || []), slug].slice(-5);
+      changed();
+    };
+
+    // ---------- Dessin ----------
+    function drawHeader() {
+      const x = (ok('resume') || [])[0];
+      const lead = $('#lead');
+      if (!x) { lead.textContent = '—'; return; }
+      // En-tête construit à partir des compétitions réellement présentes dans les données
+      const comps = compsOf(sport);
+      const names = comps.map((c) => shortComp(c.competition));
+      if (sport === 'NBA') {
+        lead.textContent = `Gameweek ${gwText(x.gw_nba)} : ` + (names.length ? `${joinFr(names)}, sans capitaine et sous plafond d’étoiles.` : 'aucune compétition NBA dans les données.');
+      } else {
+        const jpl = comps.some((c) => compType(c) === 'JPL' && Number(c.max_compos) > 0);
+        const open = comps.filter((c) => Number(c.max_compos) > 0 || compType(c) !== 'JPL').map((c) => shortComp(c.competition));
+        lead.textContent = `Gameweek ${gwText(x.gw_football)} : ` + (jpl
+          ? `${joinFr(open)}, chaque carte utilisée une seule fois.`
+          : (open.length ? `${joinFr(open)} seulement, ` : 'aucune compétition, ') + 'pas de Jupiler Pro League cette semaine.');
+      }
+      const n = ok('nb_changements'); const st = $('#st-ch'); st.dataset.where = 'sport=' + sport;
+      const row = n ? n.find((y) => y.sport === sport) : null; st.textContent = row ? '(' + plural(Number(row.n), 'changement', 'changements') + ')' : '';
+    }
+
+    // Football : la gameweek a-t-elle de la Jupiler, et au moins un de tes joueurs avec un match ?
+    function footGw() {
+      const comps = compsOf('FOOTBALL');
+      const J = (ok('joueurs') || []).filter((r) => sportOfRow(r) === 'FOOTBALL');
+      const jplRows = comps.filter((c) => compType(c) === 'JPL');
+      const jpl = jplRows.some((c) => Number(c.max_compos) > 0);
+      return { comps, jpl, jplStatut: jplRows.map((c) => c.statut).find(Boolean) || '', loaded: !!ok('joueurs') && !!ok('competitions'), noMatch: J.length > 0 && !J.some((r) => Number(r.matchs_gw) > 0) };
+    }
+    function drawGwVide() {
+      const box = $('#gw-vide');
+      const f = footGw();
+      if (sport !== 'FOOTBALL' || !f.loaded || (f.jpl && !f.noMatch)) { box.hidden = true; return; }
+      box.hidden = false;
+      const x = (ok('resume') || [])[0] || {};
+      const g = gwOf('FOOTBALL') || {};
+      const per = g.debut ? 'du ' + fmtWDM(g.debut) + ' au ' + fmtWDM(g.fin) : gwText(x.gw_football);
+      $('#gw-vide-dates').textContent = 'Gameweek ' + per + (x.limite_football ? ' · date limite ' + fmtWhen(x.limite_football) : '');
+      $('#gw-vide-titre').textContent = !f.jpl ? 'Rien à jouer en Jupiler cette semaine' : 'Aucun de tes joueurs ne joue cette gameweek';
+      const others = f.comps.filter((c) => compType(c) !== 'JPL').map((c) => shortComp(c.competition));
+      const parts = [];
+      if (!f.jpl) parts.push('Aucune compétition Jupiler n’est ouverte pour cette gameweek' + (f.jplStatut && !/comp[ée]tition jupiler/i.test(f.jplStatut) ? ' (' + f.jplStatut + ')' : '') + '.');
+      if (f.noMatch) parts.push('Aucun de tes joueurs de football n’a de match ' + (g.debut ? 'entre le ' + fmtDM(g.debut) + ' et le ' + fmtDM(g.fin) : 'dans la gameweek') + (others.length ? ' : rien à inscrire non plus en ' + joinFr(others) + '.' : ' : rien à inscrire.'));
+      else if (others.length) parts.push('Seul ' + joinFr(others) + ' est à jouer.');
+      parts.push('Les matchs marqués « hors GW » sont en dehors de la gameweek et ne comptent pas.');
+      $('#gw-vide-txt').textContent = parts.join(' ');
+      // Prochains matchs Jupiler de tes joueurs, d'après le jeu jours
+      const next = (ok('jours') || []).filter((r) => r.mode === 'Jupiler' && (!g.fin || String(r.jour) > g.fin)).map((r) => String(r.jour)).sort()[0];
+      const nx = $('#gw-vide-next');
+      nx.hidden = !next;
+      nx.textContent = next ? 'Prochains matchs Jupiler de tes joueurs : à partir du ' + fmtWDM(next) + ' (onglet Par jour).' : '';
+    }
+
+    // Joueurs à risque des compos affichées : {slug, nom, problème, compétition, compo}
+    function risksOf(lineups) {
+      const J = jMap(); const out = [];
+      lineups.forEach((L, ci) => L.list.forEach((lu) => lu.picks.forEach((p) => {
+        const r = J.get(p.slug); const is = issue(r, sport); if (!is) return;
+        out.push({ L, ci, lu, p, r, is, name: r ? r.joueur : p.row?.joueur || '' });
+      })));
+      return out;
+    }
+
+    // Alertes avant la date limite, avec le remplaçant conseillé
+    function drawBar(lineups) {
+      const used = usedIds(lineups);
+      const ul = $('#bar-alerts'); ul.replaceChildren();
+      const risks = risksOf(lineups);
+      for (const x of risks) {
+        const li = el('li'); const b = el('button', 'sx-alert');
+        b.append(el('span', 'sx-cap', x.name), issuePill(x.is), el('span', 'sx-mut', shortComp(x.L.c.competition) + ' · compo ' + x.lu.numero));
+        const sw = swaps(x.L.c, x.lu, x.p, used, sport)[0];
+        if (sw) b.append(el('span', '', '→ remplaçant conseillé : ' + sw.q.r.joueur + ' (' + signed(sw.delta) + ' pt)'));
+        b.addEventListener('click', () => { compoIdx.set(x.L.c.competition, x.lu.numero); drawCompos(); document.getElementById('comp-' + sport.toLowerCase() + '-' + x.ci)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+        li.append(b); ul.append(li);
+      }
+      $('#bar-ok').hidden = risks.length > 0 || !lineups.some((L) => L.list.length);
+      $('#avant-limite').hidden = !lineups.some((L) => L.list.length);
+    }
+
+    // ---------- KPIs en tête du sport ----------
+    const setKpi = (id, value, expl, tone) => { $('#' + id + '-v').textContent = value; $('#' + id + '-x').textContent = expl; const k = $('#' + id); if (tone) k.dataset.tone = tone; else k.removeAttribute('data-tone'); };
+    const ageText = (ms) => { const m = Math.max(0, Math.round(ms / 6e4)); if (m < 60) return 'il y a ' + m + ' min'; const h = Math.round(m / 60); if (h < 48) return 'il y a ' + h + ' h'; return 'il y a ' + Math.round(h / 24) + ' j'; };
+    // Matchs du sport joués entre la collecte et maintenant (blessures et statuts ont pu changer)
+    function playedSince(sp, from, to) {
+      const dates = new Set();
+      const inWin = (d) => { const t = toDate(d).getTime(); return t > from && t < to; };
+      for (const r of ok('joueurs') || []) if (sportOfRow(r) === sp && has(r.match) && inWin(r.match)) dates.add(String(r.match).slice(0, 16) + r.adversaire);
+      for (const r of ok('jours') || []) if ((r.mode === 'NBA' ? 'NBA' : 'FOOTBALL') === sp && has(r.match) && inWin(r.match)) dates.add(String(r.match).slice(0, 16) + r.adversaire);
+      if (sp === 'NBA') for (const m of ok('matchs') || []) if (has(m.date) && inWin(m.date)) dates.add(String(m.date).slice(0, 16) + m.adversaire);
+      return dates.size;
+    }
+    function drawKpis(lineups) {
+      const x = (ok('resume') || [])[0];
+      const now = Date.now();
+      const sp = sport === 'NBA' ? 'NBA' : 'de football';
+      // 1. Temps restant
+      const cut = x ? (sport === 'NBA' ? x.limite_nba : x.limite_football) : null;
+      if (!cut) setKpi('k-time', '—', 'Date limite inconnue dans cette collecte.', '');
+      else {
+        const ms = toDate(cut).getTime() - now;
+        if (ms > 0) {
+          const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+          setKpi('k-time', (d ? d + ' j ' : '') + h + ' h ' + String(m).padStart(2, '0'), 'Date limite ' + fmtWhen(cut) + '.', ms < 36e5 ? 'bad' : ms < 6 * 36e5 ? 'warn' : '');
+        } else setKpi('k-time', 'Verrouillée', 'Date limite passée : ' + fmtWhen(cut) + '. Demande une collecte pour préparer la gameweek suivante.', 'mut');
+      }
+      // 2. Compos à inscrire
+      const n = lineups.reduce((s, L) => s + L.list.length, 0);
+      const max = lineups.reduce((s, L) => s + (Number(L.c.max_compos) || 0), 0);
+      const kc = $('#k-compos-v'); kc.dataset.where = 'sport=' + sport;
+      const short = lineups.filter((L) => L.list.length < (Number(L.c.max_compos) || 0));
+      const vide = sport === 'FOOTBALL' && footGw().noMatch;
+      setKpi('k-compos', n + ' / ' + max,
+        !lineups.length ? 'Aucune compétition ' + sp + ' dans les données.'
+          : !short.length ? 'Toutes les compos possibles sont prêtes.'
+          : !n ? (vide ? 'Aucun de tes joueurs ne joue cette gameweek : rien à inscrire.' : 'Aucune compo possible (raisons dans les cartes ci-dessous).')
+          : 'Manque : ' + short.map((L) => shortComp(L.c.competition) + ' ' + L.list.length + '/' + L.c.max_compos).join(', ') + ' (raison dans sa carte).',
+        !max ? 'mut' : n >= max ? 'ok' : n ? 'warn' : vide ? 'mut' : 'bad');
+      // 3. Gain net espéré
+      const D = lineups.map((L) => decisionFor(L));
+      const custom = isCustom(sport);
+      const calc = (ok('gain_net') || []).find((y) => y.sport === sport);
+      const kg = $('#k-gain-v'); kg.dataset.where = 'sport=' + sport;
+      const known = D.filter((d) => d.net != null);
+      const cost = D.reduce((s, d) => s + d.cost * d.rows.length, 0);
+      // Colonne gain_net_espere (calcul gain_net) quand toutes les compétitions chiffrées la fournissent ; sinon somme des cartes de décision (colonne ou estimation de la page, compétition par compétition)
+      const allCols = !custom && known.length > 0 && known.every((d) => has(d.c.gain_net_espere));
+      const net = allCols && calc && calc.n != null ? Number(calc.n) : known.length ? known.reduce((s, d) => s + d.net, 0) : null;
+      const estimated = !allCols;
+      if (net == null) setKpi('k-gain', '—', n ? 'Pas de palier de récompense connu pour ces compétitions' + (sport === 'FOOTBALL' ? ' (le Set n’a pas de classement public).' : '.') : 'Aucune compo, donc aucun gain espéré.', 'mut');
+      else setKpi('k-gain', (net > 0 ? '+' : net < 0 ? '−' : '') + ess(Math.abs(net)),
+        'Essences Limited espérées sur ' + plural(n, 'compo', 'compos') + (cost ? ', après ' + ess(cost) + ' d’inscription' : ', sans frais d’inscription') + '.' + (estimated ? ' Estimation de la page à partir des paliers' + (custom ? ' (compos recalculées)' : '') + '.' : ''),
+        net < 0 ? 'bad' : net > 0 ? 'ok' : 'mut');
+      // 4. Joueurs à risque
+      const risks = risksOf(lineups);
+      const red = new Set(risks.filter((r) => r.is[1] === 'sx-bad').map((r) => r.p.slug)), orange = new Set(risks.filter((r) => r.is[1] !== 'sx-bad' && !red.has(r.p.slug)).map((r) => r.p.slug));
+      const nr = red.size + orange.size;
+      setKpi('k-risk', String(nr),
+        !n ? 'Aucune compo à vérifier.' : !nr ? 'Aucun : rien à changer pour l’instant.'
+          : [red.size ? red.size + ' absent' + (red.size > 1 ? 's' : '') + ' ou sans match (rouge)' : '', orange.size ? orange.size + ' incertain' + (orange.size > 1 ? 's' : '') + ' ou absent' + (orange.size > 1 ? 's' : '') + ' une partie de la GW (orange)' : ''].filter(Boolean).join(', ') + ' : voir « À vérifier avant la date limite ».',
+        !n ? 'mut' : red.size ? 'bad' : orange.size ? 'warn' : 'ok');
+      // 5. Fraîcheur
+      if (!x || !has(x.maj)) setKpi('k-fresh', '—', 'Date de collecte inconnue.', '');
+      else {
+        const t = toDate(x.maj).getTime(); const age = now - t;
+        const played = playedSince(sport, t, now);
+        const tone = age > 24 * 36e5 || played ? 'bad' : age > 12 * 36e5 ? 'warn' : 'ok';
+        const tail = played ? ' Des matchs ' + sp + ' ont été joués depuis : blessures et statuts ont pu changer, refais une collecte avant la date limite.'
+          : age > 24 * 36e5 ? ' Plus de 24 h : refais une collecte avant d’inscrire.'
+          : age > 12 * 36e5 ? ' Plus de 12 h : à rafraîchir le jour de la date limite.'
+          : cut && toDate(cut).getTime() - t > 24 * 36e5 ? ' À rafraîchir le jour de la date limite.' : '';
+        setKpi('k-fresh', ageText(age), 'Collecte du ' + fmtWhen(x.maj) + '.' + tail, tone);
+      }
+      return D;
+    }
+
+    // ---------- Décision par compétition ----------
+    const tiersOf = (c) => (ok('paliers') || []).filter((p) => p.competition === c.competition && has(p.score));
+    function decisionFor(L) {
+      const c = L.c; const custom = isCustom(sportOfRow(c) === 'NBA' ? 'NBA' : 'FOOTBALL');
+      const T = tiersOf(c); const cost = sxCout(c);
+      const colGains = !custom && has(c.gains_esperes) ? String(c.gains_esperes).trim().split(/\s+/).map(Number) : null;
+      const rows = L.list.map((lu) => {
+        const d = dist(c, lu.picks);
+        const withP = T.map((t) => ({ ...t, p: pAbove(d.mean, d.sd, Number(t.score)) }));
+        const reach = withP.filter((t) => t.p >= 0.5).sort((a, b) => Number(a.rang) - Number(b.rang))[0] || null;
+        const g = colGains && Number.isFinite(colGains[lu.numero - 1]) ? colGains[lu.numero - 1] : T.length ? sxGainEspere(T, d.mean, d.sd) : null;
+        return { numero: lu.numero, mean: d.mean, lo: d.lo, hi: d.hi, sd: d.sd, gain: g, reach, withP };
+      });
+      const gains = rows.filter((r) => r.gain != null);
+      const net = !custom && has(c.gain_net_espere) ? Number(c.gain_net_espere) : gains.length ? gains.reduce((s, r) => s + r.gain, 0) - cost * rows.length : null;
+      const losing = cost && gains.length ? rows.filter((r) => r.gain != null && r.gain < cost) : [];
+      const rentable = !custom && has(c.rentable) ? String(c.rentable) : cost && gains.length ? (losing.length ? 'non' : 'oui') : '';
+      // Autres récompenses (dollars, cartes) : chance de la compo 1 d'atteindre la plus accessible de chaque type
+      let autres = !custom && has(c.autres_recompenses) ? String(c.autres_recompenses) : '';
+      if (!autres && rows[0]) {
+        const groups = new Map();
+        for (const t of rows[0].withP) { if (sxEss(t.recompense)) continue; const k = /\$/.test(t.recompense) ? '$' : 'autre'; const cur = groups.get(k); if (!cur || Number(t.score) < Number(cur.score)) groups.set(k, t); }
+        autres = [...groups.values()].filter((t) => t.p >= 0.01).map((t) => pct(t.p) + (/\$/.test(t.recompense) ? ' d’au moins ' + t.recompense : ' de décrocher : ' + t.recompense + (groups.size > 1 ? '' : ' ou mieux'))).join(' ; ');
+      }
+      const J = jMap();
+      const risks = L.list.flatMap((lu) => lu.picks.map((p) => { const r = J.get(p.slug); const is = issue(r, sportOfRow(c) === 'NBA' ? 'NBA' : 'FOOTBALL'); return is ? { name: r?.joueur || p.row?.joueur || '', is, numero: lu.numero } : null; }).filter(Boolean));
+      const allLose = losing.length && losing.length === rows.length;
+      const tone = !rows.length ? 'mut' : rentable === 'non' ? 'bad' : risks.length ? 'warn' : 'ok';
+      const tag = { ok: 'Inscrire', warn: 'À surveiller', mut: 'Rien à jouer', bad: allLose || !losing.length ? 'Non rentable' : 'En partie non rentable' }[tone];
+      let reco = !custom && has(c.recommandation) ? String(c.recommandation) : '';
+      if (!reco) {
+        const nums = (l) => l.map((r) => r.numero);
+        if (!rows.length) reco = Number(c.max_compos) ? 'Rien à inscrire cette gameweek' : 'Aucune compo possible';
+        else if (losing.length) reco = 'Ne pas inscrire ' + (losing.length > 1 ? 'les compos ' + joinFr(nums(losing).map(String)) : rows.length > 1 ? 'la compo ' + losing[0].numero : 'la compo') + ' : ' + (losing.length > 1 ? 'moins de ' + ess(cost) + ' espérées chacune' : ess(losing[0].gain) + ' espérées') + ' pour ' + ess(cost) + ' payées' + (allLose ? '' : ' ; inscrire ' + (rows.length - losing.length > 1 ? 'les autres' : 'l’autre'));
+        else reco = rows.length > 1 ? 'Inscrire les ' + rows.length + ' compos' : 'Inscrire la compo';
+      }
+      return { c, L, rows, cost, net, rentable, losing, autres, alternative: has(c.alternative) ? String(c.alternative) : '', risks, tone, tag, reco, custom, fromCols: !custom && has(c.gains_esperes) };
+    }
+    function drawDecisions(D) {
+      const grid = $('#dec-grid'); grid.replaceChildren();
+      const custom = isCustom(sport);
+      $('#dec-note').textContent = !D.length ? 'Aucune compétition ' + (sport === 'NBA' ? 'NBA' : 'de football') + ' dans les données.'
+        : 'Dans l’ordre de priorité des compétitions. Score attendu en points Sorare, fourchette = 8 chances sur 10, gains en essences Limited.' + (custom ? ' Compos recalculées avec tes réglages : recommandations et gains estimés par la page.' : '');
+      D.forEach((d, i) => {
+        const c = d.c;
+        const card = el('article', 'sx-dec'); card.dataset.tone = d.tone; card.setAttribute('aria-label', shortComp(c.competition) + ' : ' + d.tag);
+        card.append(el('span', 'sx-tag sx-' + d.tone, d.tag), el('h3', '', shortComp(c.competition)), el('p', 'sx-reco', d.reco.charAt(0).toUpperCase() + d.reco.slice(1)));
+        if (d.rows.length) {
+          const best = d.rows[0];
+          const nums = el('div', 'sx-dec-num');
+          const kv = (lbl, v, cls) => { const x = el('div'); x.append(el('span', 'sx-lbl', lbl), el('span', 'sx-v' + (cls ? ' ' + cls : ''), v)); return x; };
+          nums.append(kv(d.rows.length > 1 ? 'Score attendu (compo 1)' : 'Score attendu', dec(best.mean) + ' pts'));
+          if (d.net != null) nums.append(kv(d.cost ? 'Gain net espéré' : 'Gain espéré', (d.net > 0 ? '+' : d.net < 0 ? '−' : '') + ess(Math.abs(d.net)), d.net < 0 ? 'sx-bad' : ''));
+          card.append(nums);
+          const ul = el('ul', 'sx-dec-lines');
+          for (const r of d.rows) {
+            const li = el('li');
+            li.append((d.rows.length > 1 ? 'Compo ' + r.numero + ' : ' : '') + dec(r.mean) + ' pts, fourchette ' + dec(r.lo, 0) + ' à ' + dec(r.hi, 0) + ' pts');
+            if (r.gain != null) li.append(' · ', el('span', d.cost && r.gain < d.cost ? 'sx-bad' : '', '≈ ' + ess(r.gain) + ' espérées' + (d.cost ? ' pour ' + d.cost + ' payées' : '')));
+            if (r.reach) li.append(' · ', el('span', 'sx-mut', (r.reach.type === 'salon' ? ord(r.reach.rang) + ' du salon' : 'top ' + Number(r.reach.rang).toLocaleString('fr-BE')) + ' à ' + pct(r.reach.p)));
+            ul.append(li);
+          }
+          card.append(ul);
+          if (d.cost) card.append(el('p', '', 'Inscription : ' + ess(d.cost) + ' par compo' + (d.rentable === 'oui' ? ' · rentable' : d.rentable === 'non' ? ' · non rentable' : '') + '.'));
+          if (!tiersOf(c).length) card.append(el('p', 'sx-mut', compType(c) === 'SET' ? 'Pas de classement public pour ce mode : ni palier ni gain espéré.' : 'Aucun palier de récompense connu : pas de gain espéré.'));
+          if (d.autres) { const p = el('p'); p.append(el('span', 'sx-lbl', 'Autres récompenses : '), d.autres); card.append(p); }
+          if (d.risks.length) { const p = el('p', 'sx-warn'); p.append('À vérifier : ' + d.risks.map((r) => r.name + ' (' + r.is[0].split(' : ')[0].split(' · ')[0] + (d.rows.length > 1 ? ', compo ' + r.numero : '') + ')').join(' ; ')); card.append(p); }
+          if (!d.fromCols && d.net != null) card.append(el('p', 'sx-mut', 'Gains estimés par la page à partir des paliers de la dernière gameweek.'));
+        }
+        if (d.alternative) { const p = el('p'); p.append(el('span', 'sx-lbl', 'Comparaison In-Season : '), d.alternative + (d.custom ? ' (calculée sur les compos proposées)' : '')); card.append(p); }
+        if (d.L.reason) { const p = el('p', 'sx-mut'); p.append((d.rows.length ? 'Pourquoi pas plus : ' : 'Pourquoi : ') + d.L.reason.charAt(0).toUpperCase() + d.L.reason.slice(1) + (/[.!]$/.test(d.L.reason) ? '' : '.')); card.append(p); }
+        if (d.rows.length) {
+          const go = el('button', 'sx-btn', 'Voir les joueurs');
+          go.setAttribute('aria-controls', 'comp-' + sport.toLowerCase() + '-' + i);
+          go.addEventListener('click', () => { const t = document.getElementById('comp-' + sport.toLowerCase() + '-' + i); if (t) { t.open = true; t.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+          const box = el('div', 'sx-acts'); box.style.justifyContent = 'flex-start'; box.append(go); card.append(box);
+        }
+        grid.append(card);
+      });
+    }
+
+    function goalBlock(c, picks) {
+      const rows = (ok('paliers') || []).filter((p) => p.competition === c.competition).sort((a, b) => Number(a.rang) - Number(b.rang));
+      const box = el('div', 'sx-goal');
+      const dd = dist(c, picks);
+      const rng = el('div', 'sx-range', `Fourchette 10–90 % : ${dec(dd.lo, 0)} à ${dec(dd.hi, 0)} pts`);
+      rng.title = 'Plancher et plafond probables de cette compo (écart-type ' + dec(dd.sd, 0) + ' pts)';
+      box.append(rng);
+      if (!rows.length) { if (compType(c) === 'SET') box.append(el('div', 'sx-lbl', 'Pas de classement public pour ce mode : pas d’objectif de score.')); return box; }
+      const salon = rows[0].type === 'salon';
+      // Paliers clés : le plus haut atteignable à plus de 50 %, et le suivant
+      const withP = rows.map((p) => ({ ...p, p: pAbove(dd.mean, dd.sd, Number(p.score)) }));
+      const keys = el('div', 'sx-goal-keys');
+      const reach = withP.filter((p) => p.p >= 0.5).sort((a, b) => Number(a.rang) - Number(b.rang))[0];
+      const target = reach ? withP.filter((p) => Number(p.rang) < Number(reach.rang)).sort((a, b) => Number(b.rang) - Number(a.rang))[0] : withP.sort((a, b) => Number(b.rang) - Number(a.rang))[0];
+      for (const p of [reach, target].filter(Boolean)) {
+        const s = el('span'); s.append((salon ? ord(p.rang) + ' du salon' : 'Top ' + p.rang) + ' (' + dec(p.score, 0) + ' pts, ' + p.recompense + ') : ', el('span', 'sx-prob ' + (p.p >= 0.5 ? 'sx-ok' : p.p >= 0.2 ? 'sx-warn' : 'sx-bad'), pct(p.p)));
+        keys.append(s);
+      }
+      box.append(keys);
+      const det = el('details'); det.append(el('summary', 'sx-lbl', 'Tous les paliers de récompense'));
+      const t = el('table', 'sx-table');
+      const h = el('tr'); [salon ? 'Place' : 'Rang', 'Score à atteindre', 'Récompense', 'Ta chance'].forEach((x, i) => { const th = el('th', i === 1 || i === 3 ? 'num' : ''); th.append(el('span', '', x)); h.append(th); });
+      const th = el('thead'); th.append(h); t.append(th);
+      const tb = el('tbody');
+      for (const p of withP.sort((a, b) => Number(a.rang) - Number(b.rang))) {
+        const tr = el('tr'); tr.append(el('td', '', (salon ? ord(p.rang) : 'Top ' + p.rang)), el('td', 'num', dec(p.score)), el('td', '', p.recompense), el('td', 'num sx-prob ' + (p.p >= 0.5 ? 'sx-ok' : p.p >= 0.2 ? 'sx-warn' : 'sx-bad'), pct(p.p)));
+        tb.append(tr);
+      }
+      t.append(tb); det.append(t);
+      const ref = String(rows[0].gw_reference || '');
+      det.append(el('p', 'sx-note', 'Référence : gameweek ' + gwText(ref.split(' ')[0]) + ref.slice(ref.split(' ')[0].length) + (salon ? '' : ' · ' + rows[0].participants + ' compos inscrites') + '. Scores réellement atteints lors de cette gameweek.'));
+      box.append(det);
+      return box;
+    }
+
+    // Changements depuis hier : joueurs des compos d'abord, puis par type ; projections et « plus de match » repliés
+    const CH_ORDER = ['Nouvelle blessure', 'Suspension', 'Retour de blessure', 'Statut modifié', 'Projection en hausse', 'Projection en baisse', 'Plus de match dans la gameweek'];
+    const CH_MINOR = new Set(['Projection en hausse', 'Projection en baisse', 'Plus de match dans la gameweek']);
+    const chOpen = { FOOTBALL: false, NBA: false };
+    function drawChanges(lineups, J) {
+      const ch = ok('changements'); const tb = $('#t-ch tbody'); tb.replaceChildren();
+      const rowsCh = ch ? ch.filter((c) => sportOfChange(c) === sport) : [];
+      const inLu = new Set(lineups.flatMap((L) => L.list.flatMap((x) => x.picks.map((p) => J.get(p.slug)?.joueur || p.row?.joueur))).filter(Boolean));
+      const rank = (t) => { const i = CH_ORDER.indexOf(t); return i < 0 ? CH_ORDER.length : i; };
+      const sorted = rowsCh.slice().sort((a, b) => (inLu.has(b.joueur) - inLu.has(a.joueur)) || rank(a.type) - rank(b.type) || String(a.joueur).localeCompare(String(b.joueur), 'fr'));
+      const minor = (r) => !inLu.has(r.joueur) && CH_MINOR.has(r.type);
+      const nMinor = sorted.filter(minor).length;
+      const byType = new Map(); for (const r of rowsCh) byType.set(r.type, (byType.get(r.type) || 0) + 1);
+      const base = sport === 'NBA' ? 'Blessures ESPN et Sorare, et projections qui bougent de 10 points ou plus.' : 'Blessures, suspensions, changements de statut et projections qui bougent de 10 points ou plus.';
+      $('#ch-note').textContent = base + (rowsCh.length ? ' Les joueurs de tes compos passent en premier. ' + [...byType].sort((a, b) => rank(a[0]) - rank(b[0])).map(([t, n]) => t + ' : ' + n).join(' · ') + '.' : '');
+      $('#ch-empty').hidden = !(ch && rowsCh.length === 0);
+      for (const r of sorted) {
+        if (minor(r) && !chOpen[sport]) continue;
+        const tr = el('tr'); tr.dataset.key = encodeURIComponent(r.joueur) + ',' + encodeURIComponent(r.type);
+        const n = el('td'); n.append(el('span', '', r.joueur)); if (inLu.has(r.joueur)) n.append(' ', pill('dans une compo', 'sx-ok'));
+        n.classList.add('sx-c-main');
+        tr.append(n, el('td', CH_MINOR.has(r.type) ? 'sx-mut' : '', r.type), el('td', '', r.detail)); labelRow(tr, ['', 'Changement', 'Détail']); tb.append(tr);
+      }
+      const btn = $('#ch-more');
+      $('#ch-more-box').hidden = nMinor === 0;
+      btn.setAttribute('aria-expanded', String(chOpen[sport]));
+      btn.textContent = chOpen[sport] ? 'Replier les ' + nMinor + ' changements de projection' : 'Afficher les ' + nMinor + ' autres changements (projections, plus de match dans la gameweek)';
+    }
+
+    function drawCompos() {
+      // Réglages
+      const g = RG[sport]; const custom = isCustom(sport);
+      $('#rg-banner').hidden = !custom;
+      const chips = $('#rg-chips'); chips.replaceChildren();
+      const J = jMap();
+      if (custom) {
+        const parts = [];
+        if (g.style !== 'equilibre') parts.push('profil ' + (g.style === 'sure' ? 'Sûre' : 'Explosive'));
+        if (g.noDoubt) parts.push('sans incertains');
+        if (g.minGames) parts.push(g.minGames + ' matchs minimum');
+        if (g.minStart) parts.push('titulaire ≥ ' + g.minStart + ' %');
+        $('#rg-banner-txt').textContent = 'Compos recalculées avec tes réglages' + (parts.length ? ' (' + parts.join(', ') + ')' : '') + '.';
+        g.excl.forEach((s) => { const b = el('button', 'sx-btn', '× ' + (J.get(s)?.joueur || s)); b.title = 'Réintégrer ce joueur'; b.addEventListener('click', () => toggleExcl(s)); chips.append(b); });
+        Object.entries(g.locks).forEach(([k, l]) => l.forEach((s) => { const b = el('button', 'sx-btn', 'Gardé : ' + (J.get(s)?.joueur || s)); b.title = 'Ne plus garder (' + k.replace('|', ', compo ') + ')'; b.addEventListener('click', () => { g.locks[k] = g.locks[k].filter((x) => x !== s); changed(); }); chips.append(b); }));
+      }
+
+      drawGwVide();
+      const lineups = lineupsFor(sport);
+      drawChanges(lineups, J);
+      drawBar(lineups);
+      drawDecisions(lineups.map((L) => decisionFor(L)));
+      const used = usedIds(lineups);
+      const isNba = sport === 'NBA';
+      const list = $('#comp-list'); list.replaceChildren();
+      lineups.forEach((L, i) => {
+        const c = L.c;
+        // Carte repliable (ouverte par défaut, état gardé tant que la page reste ouverte)
+        const card = el('details', 'sx-card'); card.id = 'comp-' + sport.toLowerCase() + '-' + i;
+        const fk = sport + '|' + c.competition;
+        card.open = foldState.has(fk) ? foldState.get(fk) : true;
+        if (card.open) card.setAttribute('open', '');
+        card.addEventListener('toggle', () => foldState.set(fk, card.open));
+        const nums = L.list.map((x) => x.numero);
+        const maxC = Number(c.max_compos) || nums.length || 0;
+        const cur = Math.min(Math.max(1, compoIdx.get(c.competition) || 1), Math.max(1, nums.length));
+        const lu = L.list.find((x) => x.numero === cur) || L.list[0];
+        const picks = lu ? lu.picks : [];
+        const total = picks.reduce((s, p) => s + p.final, 0);
+        const head = el('div', 'sx-comp-head');
+        head.append(el('h2', '', c.competition), el('span', 'sx-comp-score', picks.length ? dec(total) + ' pts' : ''));
+        const sum = el('summary'); sum.append(head); card.append(sum);
+        const nav = el('div', 'sx-cnav');
+        const vide = !isNba && !nums.length && footGw().noMatch;
+        nav.append(el('span', 'sx-cbadge' + (nums.length >= maxC && nums.length ? ' sx-ok' : nums.length ? ' sx-warn' : vide ? ' sx-mut' : ' sx-bad'), nums.length ? `${nums.length} compo${nums.length > 1 ? 's' : ''} à inscrire sur ${maxC} possible${maxC > 1 ? 's' : ''}` : maxC ? `Aucune compo à inscrire sur ${maxC} possible${maxC > 1 ? 's' : ''}` : 'Aucune compo possible'));
+        if (nums.length > 1) {
+          const go = (n) => { compoIdx.set(c.competition, n); drawCompos(); document.getElementById(card.id)?.querySelector('.sx-cnav button[data-n="' + n + '"]')?.focus(); };
+          const prev = el('button', 'sx-arrow', '‹'); prev.setAttribute('aria-label', 'Compo précédente'); prev.disabled = cur <= 1; prev.addEventListener('click', () => go(cur - 1));
+          const next = el('button', 'sx-arrow', '›'); next.setAttribute('aria-label', 'Compo suivante'); next.disabled = cur >= nums.length; next.addEventListener('click', () => go(cur + 1));
+          const dots = el('span', 'sx-dots');
+          L.list.forEach((x) => {
+            const sc = x.picks.reduce((s, p) => s + p.final, 0);
+            const b = el('button', 'sx-dot' + (x.numero === cur ? ' on' : ''), String(x.numero)); b.dataset.n = x.numero; b.title = `Compo ${x.numero} : ${dec(sc)} pts`; b.setAttribute('aria-label', `Compo ${x.numero}, ${dec(sc)} points`); b.setAttribute('aria-pressed', String(x.numero === cur)); b.addEventListener('click', () => go(x.numero)); dots.append(b);
+          });
+          const ctrl = el('span', 'sx-cnav-ctrl'); ctrl.append(prev, dots, next, el('span', 'sx-lbl', `Compo ${cur} sur ${nums.length}`)); nav.append(ctrl);
+        }
+        card.append(nav);
+        // Raison en clair quand il y a moins de compos que possible (statut du stratège ou du recalcul)
+        if (L.reason) { const why = el('p', 'sx-reason'); why.append(el('span', 'sx-lbl', nums.length ? 'Pourquoi pas plus : ' : 'Pourquoi : '), L.reason.charAt(0).toUpperCase() + L.reason.slice(1) + (/[.!]$/.test(L.reason) ? '' : '.')); card.append(why); }
+        card.append(el('p', 'sx-note', [(L.reason || custom) ? '' : c.statut, c.contraintes, 'limite ' + fmtDate(c.date_limite)].filter(Boolean).join(' · ')));
+        if (picks.length) {
+          const wrap = el('div', 'sx-wrap'); const t = el('table', 'sx-table sx-cards');
+          const labels = isNba ? ['N°', 'Joueur et carte', '★', 'Matchs', 'Adv. att. / déf.', 'Attendu (pts)', 'Gain/★ (pts)', 'Final (pts)', 'Remplaçant', ''] : ['Poste', 'Joueur et carte', 'Match', 'Adv. att. / déf.', 'Attendu (pts)', 'Bonus', 'Final (pts)', 'Remplaçant', ''];
+          const numCols = isNba ? [2, 5, 6, 7] : [4, 5, 6];
+          const h = el('tr'); labels.forEach((x, k) => { const th = el('th', numCols.includes(k) ? 'num' : ''); th.append(el('span', '', x)); h.append(th); });
+          const thead = el('thead'); thead.append(h); t.append(thead);
+          const tbody = el('tbody');
+          const lockKey = c.competition + '|' + cur;
+          for (const p of picks) {
+            const r = J.get(p.slug) || p.cand?.r || {};
+            const row = p.row || {};
+            const locked = (g.locks[lockKey] || []).includes(p.slug);
+            const tr = el('tr', locked ? 'sx-locked' : '');
+            const name = el('td'); name.append(el('span', p.captain ? 'sx-cap' : '', r.joueur || row.joueur || ''));
+            if (!isNba && p.captain) name.append(' ', pill('Capitaine', 'sx-ok'));
+            const is = issue(r, sport); if (is) name.append(' ', issuePill(is));
+            if (isNba && Number(r.minutes_liberees) >= 20) name.append(' ', pill('Rôle élargi', 'sx-ok'));
+            if (isNba && r.slug && !has(r.etoiles)) { const pe = pill('sans étoiles : compté 1★', 'sx-warn'); pe.title = 'Niveau Sorare inconnu dans la collecte : la compo le compte 1★ sous le plafond.'; name.append(' ', pe); }
+            const carte = p.cand ? p.cand.k.label : row.carte || '';
+            const exp = r.score_attendu ?? row.score_attendu;
+            const matchTd = () => {
+              const td = el('td');
+              // NBA : tous les matchs de la gameweek, avec la probabilité de jouer chacun
+              const games = isNba ? gwGames(p.slug) : [];
+              if (games.length) {
+                for (const m of games) {
+                  const pr = Number(m.proba);
+                  const line = el('span', 'sx-mline' + (pr > 0 ? '' : ' sx-mut'), fmtWDM(m.jour || m.date) + ' · ' + m.adversaire + (pr > 0 ? (pr < 90 ? ' · ' + pr + ' %' : '') : ' · absent'));
+                  line.title = fmtWhen(m.date) + (yes(m.b2b) ? ' · 2e soir de suite' : '');
+                  td.append(line);
+                }
+                return td;
+              }
+              const off = offGw(r);
+              td.append(el('div', off ? 'sx-offgw' : '', r.adversaire || row.adversaire || ''));
+              const d = el('div', 'sx-mut', fmtDate(r.match || row.match));
+              if (off) { d.append(' ', pill('hors GW', 'sx-mut')); td.title = 'Ce match est en dehors de la gameweek : il ne compte pas.'; }
+              td.append(d);
+              return td;
+            };
+            const sw = swaps(c, lu, p, used, sport);
+            const swTd = el('td');
+            if (sw.length) { swTd.append(el('span', '', sw[0].q.r.joueur), el('span', 'sx-sub', signed(sw[0].delta) + ' pt' + (isNba ? ' · ' + stars(sw[0].q.stars) : ''))); swTd.title = 'Autres options : ' + sw.slice(1).map((s) => s.q.r.joueur + ' (' + signed(s.delta) + ')').join(', '); }
+            else swTd.append(el('span', 'sx-mut', 'aucun'));
+            const acts = el('td'); const box = el('div', 'sx-acts');
+            const bl = el('button', 'sx-btn', 'Garder'); bl.setAttribute('aria-pressed', String(locked)); bl.title = 'Garder ce joueur dans cette compo quand tu changes les réglages';
+            bl.addEventListener('click', () => toggleLock(c.competition, cur, p.slug, lineups));
+            const bx = el('button', 'sx-btn', 'Exclure'); bx.title = 'Retirer ce joueur de toutes les compos ' + (isNba ? 'NBA' : 'football');
+            bx.addEventListener('click', () => toggleExcl(p.slug));
+            box.append(bl, bx); acts.append(box);
+            const adv = { ...r, ...(p.row ? { adv_attaque_rang: row.adv_attaque_rang ?? r.adv_attaque_rang, adv_defense_rang: row.adv_defense_rang ?? r.adv_defense_rang, adv_nb_equipes: row.adv_nb_equipes ?? r.adv_nb_equipes } : {}) };
+            name.append(el('span', 'sx-sub', carte + (!isNba && Number(c.cap_points) ? ' · moy. ' + dec(r.l15, 0) : '')));
+            if (isNba) tr.append(el('td', 'sx-mut', String(p.slot).replace('Joueur ', '')), name, el('td', 'num', stars(r.etoiles ?? row.etoiles)), matchTd(), advCell({ ...adv, sport: 'NBA', adv_ligue: 'NBA' }, false), el('td', 'num', dec(exp)), el('td', 'num' + (Number(r.gain_etoiles) > 0 ? ' sx-ok' : ''), signed(r.gain_etoiles ?? row.gain_etoiles)), el('td', 'num', dec(p.final)), swTd, acts);
+            else tr.append(el('td', '', p.slot), name, matchTd(), advCell({ ...adv, sport: 'FOOTBALL', adv_ligue: '' }, true), el('td', 'num', dec(exp)), el('td', 'num', p.cand ? (p.cand.bonus ? '+' + p.cand.bonus + ' %' : '') : (row.bonus ? '+' + row.bonus + ' %' : '')), el('td', 'num', dec(p.final)), swTd, acts);
+            name.classList.add('sx-c-main'); tr.children[tr.children.length - 1].classList.add('sx-c-wide');
+            labelRow(tr, labels);
+            if (isNba) { tr.children[0].classList.add('sx-hide-phone'); tr.children[2].removeAttribute('data-label'); }
+            tbody.append(tr);
+          }
+          const foot = el('tr'); const td = el('td', 'sx-mut sx-c-main');
+          td.colSpan = labels.length;
+          const parts = [];
+          if (isNba) parts.push('Total des étoiles : ' + String(picks.reduce((s, p) => s + (Number(J.get(p.slug)?.etoiles) || 1), 0)).replace('.', ',') + (Number(c.cap_etoiles) ? ' sur ' + c.cap_etoiles : ''));
+          if (Number(c.cap_points)) parts.push('Somme des moyennes : ' + dec(picks.reduce((s, p) => s + (Number(J.get(p.slug)?.l15) || 0), 0), 0) + ' sur ' + c.cap_points);
+          if (Number(c.min_in_season)) parts.push('Cartes In-Season : ' + picks.filter((p) => p.cand?.ins).length + ' (min ' + c.min_in_season + ')');
+          td.textContent = parts.join(' · ');
+          if (parts.length) { foot.append(td); tbody.append(foot); }
+          t.append(tbody); wrap.append(t); card.append(wrap);
+          card.append(goalBlock(c, picks));
+        }
+        if (c.regles) { const d = el('details'); d.append(el('summary', 'sx-lbl', 'Règles Sorare'), el('p', 'sx-note', c.regles)); card.append(d); }
+        list.append(card);
+      });
+
+      if (isNba) { drawTimeline(lineups); drawEtoiles(); drawRole(lineups); drawBonnes(); }
+    }
+
+    function drawBonnes() {
+      const tba = $('#t-ba tbody'); tba.replaceChildren(); const L = headLabels('#t-ba');
+      (ok('joueurs') || []).filter((r) => r.sport === 'NBA' && Number(r.etoiles) <= 3 && Number(r.matchs_gw) > 0 && r.gain_etoiles != null && !/^out/i.test(r.espn_statut || '')).sort((a, b) => b.gain_etoiles - a.gain_etoiles).slice(0, 12).forEach((r) => {
+        const tr = el('tr'); tr.dataset.key = r.slug;
+        tr.append(el('td', '', r.joueur), el('td', 'num', stars(r.etoiles)), el('td', 'num', num(r.matchs_gw)), el('td', 'num', dec(r.score_attendu)), el('td', 'num' + (r.gain_etoiles > 0 ? ' sx-ok' : ''), signed(r.gain_etoiles)), el('td', 'num', signed(r.gain_sorare)), el('td', '', r.minutes_tendance));
+        mainFirst(tr, L); tba.append(tr);
+      });
+    }
+
+    function drawTimeline(lineups) {
+      const M = ok('matchs') || [];
+      const t = $('#t-tl'); const head = t.querySelector('thead tr'); const tb = t.querySelector('tbody');
+      head.replaceChildren(); tb.replaceChildren();
+      $('#tl-empty').hidden = M.length > 0;
+      t.hidden = M.length === 0;
+      if (!M.length) return;
+      const days = [...new Set(M.map((m) => m.jour))].sort();
+      const J = jMap();
+      let rows = [];
+      if ($('#tl-mode').value === 'tous') rows = [...new Set(M.map((m) => m.slug))].map((s) => ({ slug: s, label: '' })).sort((a, b) => (Number(J.get(b.slug)?.score_attendu) || 0) - (Number(J.get(a.slug)?.score_attendu) || 0));
+      else lineups.forEach((L) => L.list.forEach((lu) => lu.picks.forEach((p) => rows.push({ slug: p.slug, label: L.c.competition.replace('NBA ', '') + ' ' + lu.numero }))));
+      const th0 = el('th'); th0.append(el('span', '', 'Joueur')); head.append(th0);
+      for (const d of days) { const th = el('th'); th.append(el('span', '', fmtDayShort(d))); head.append(th); }
+      const thn = el('th', 'num'); thn.append(el('span', '', 'Matchs')); head.append(thn);
+      for (const x of rows) {
+        const r = J.get(x.slug); const g = M.filter((m) => m.slug === x.slug);
+        const tr = el('tr');
+        const n0 = el('td', 'sx-c-main'); n0.append(el('div', '', r?.joueur || g[0]?.joueur || x.slug), el('div', 'sx-mut', [x.label, r ? stars(r.etoiles) : ''].filter(Boolean).join(' · '))); tr.append(n0);
+        for (const d of days) {
+          const td = el('td', 'sx-g' + (g.some((y) => y.jour === d) ? '' : ' sx-c-empty')); td.dataset.label = fmtWDM(d);
+          for (const m of g.filter((y) => y.jour === d)) {
+            const cls = rankCls(m.adv_defense_rang, m.adv_nb_equipes);
+            td.append(el('span', 'sx-gm ' + cls, m.adversaire), el('span', 'sx-gs', dec(m.proj, 0) + ' pts' + (Number(m.proba) < 90 ? ' · ' + m.proba + ' %' : '') + (yes(m.b2b) ? ' · 2e soir' : '')));
+            // Cotes du match (The Odds API), seulement si la collecte les fournit
+            const odds = [has(m.proba_victoire) ? 'victoire ' + dec(m.proba_victoire, 0) + ' %' : '', has(m.total) ? 'total ' + dec(m.total) + ' pts' : ''].filter(Boolean);
+            if (odds.length) td.append(el('span', 'sx-gs', odds.join(' · ')));
+            td.title = `Défense adverse : ${ord(m.adv_defense_rang)} sur ${m.adv_nb_equipes ?? '?'}`;
+          }
+          tr.append(td);
+        }
+        const tn = el('td', 'num', String(g.length)); tn.dataset.label = 'Matchs'; tr.append(tn);
+        tb.append(tr);
+      }
+    }
+
+    function drawEtoiles() {
+      const d = ok('progression_l10') || []; const tb = $('#t-et tbody'); tb.replaceChildren(); const L = headLabels('#t-et');
+      const J = jMap();
+      const rows = d.filter((r) => r.etoiles_apres !== r.etoiles || r.ecart).filter((r) => Number(J.get(r.slug)?.matchs_gw) > 0 || r.etoiles_apres !== r.etoiles)
+        .sort((a, b) => Math.abs(b.etoiles_apres - b.etoiles) - Math.abs(a.etoiles_apres - a.etoiles) || b.etoiles - a.etoiles);
+      $('#et-empty').hidden = rows.length > 0;
+      for (const r of rows.slice(0, 40)) {
+        const tr = el('tr'); tr.dataset.key = r.slug;
+        const ch = r.etoiles_apres > r.etoiles ? 'sx-bad' : r.etoiles_apres < r.etoiles ? 'sx-ok' : '';
+        const after = el('td'); after.append(el('span', ch ? 'sx-pill ' + ch : '', stars(r.etoiles_apres) + (r.etoiles_apres > r.etoiles ? ' ↑' : r.etoiles_apres < r.etoiles ? ' ↓' : '')));
+        after.title = r.etoiles_apres > r.etoiles ? 'Plus cher sous le plafond la semaine prochaine' : r.etoiles_apres < r.etoiles ? 'Moins cher sous le plafond la semaine prochaine' : '';
+        tr.append(el('td', '', r.joueur), el('td', 'num', stars(r.etoiles)), el('td', 'num', dec(r.l10)), el('td', 'num', num(r.matchs_prevus)), el('td', 'num', dec(r.score_par_match)), el('td', 'num', dec(r.l10_projete)), after, el('td', 'sx-mut', r.etoiles_apres !== r.etoiles ? '' : r.ecart));
+        mainFirst(tr, L); tb.append(tr);
+      }
+    }
+
+    function drawRole(lineups) {
+      const tb = $('#t-role tbody'); tb.replaceChildren(); const L = headLabels('#t-role');
+      const inLu = new Set(lineups.flatMap((L) => L.list.flatMap((x) => x.picks.map((p) => p.slug))));
+      const rows = (ok('joueurs') || []).filter((r) => r.sport === 'NBA' && Number(r.minutes_liberees) >= 15).sort((a, b) => b.minutes_liberees - a.minutes_liberees);
+      $('#role-empty').hidden = rows.length > 0;
+      for (const r of rows.slice(0, 25)) {
+        const tr = el('tr'); tr.dataset.key = r.slug;
+        const n = el('td'); n.append(el('span', '', r.joueur)); if (inLu.has(r.slug)) n.append(' ', pill('dans une compo', 'sx-ok'));
+        tr.append(n, el('td', 'num', stars(r.etoiles)), el('td', '', r.coequipiers_absents), el('td', 'num', dec(r.minutes_liberees, 0)), el('td', 'num', num(r.minutes_5)), el('td', r.minutes_tendance === 'en hausse' ? 'sx-ok' : r.minutes_tendance === 'en baisse' ? 'sx-bad' : '', r.minutes_tendance), el('td', 'num', dec(r.score_attendu)));
+        mainFirst(tr, L); tb.append(tr);
+      }
+    }
+
+    // ---------- Tableau des joueurs ----------
+    const spark = (str) => {
+      const v = String(str || '').split(' ').filter(Boolean).map(Number);
+      const w = 84, h = 20; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', w); svg.setAttribute('height', h); svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.classList.add('sx-spark');
+      const bw = w / 10 - 2;
+      v.forEach((x, i) => {
+        const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        const bh = Math.max(1, Math.min(100, x) / 100 * h);
+        r.setAttribute('x', i * (bw + 2)); r.setAttribute('y', h - bh); r.setAttribute('width', bw); r.setAttribute('height', bh); r.setAttribute('rx', 1);
+        r.setAttribute('fill', i === v.length - 1 ? dash.colors[0] : 'var(--cds-chart-muted)');
+        svg.append(r);
+      });
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'title'); t.textContent = v.join(' · '); svg.append(t);
+      return svg;
+    };
+    const nameCell = (r) => {
+      const td = el('td'); td.append(el('div', '', r.joueur));
+      if (r.sport === 'NBA' && !has(r.club)) { const p = pill('sans équipe', 'sx-mut'); p.title = 'Équipe introuvable chez ESPN : pas de match ni de projection dans cette collecte.'; td.append(p); }
+      else td.append(el('div', 'sx-mut', r.club));
+      return td;
+    };
+    const starsCell = (r) => { const td = el('td', 'num'); if (has(r.etoiles)) td.textContent = stars(r.etoiles); else { const p = pill('sans ★ (compté 1★)', 'sx-warn'); p.title = 'Niveau Sorare inconnu : compté 1★ sous le plafond.'; td.append(p); } return td; };
+    const matchCell = (r) => {
+      const td = el('td'); const off = offGw(r);
+      const d = el('div', 'sx-mut', fmtDate(r.match) + (r.competition_match && r.sport !== 'NBA' ? ' · ' + r.competition_match : ''));
+      if (off) { d.append(' ', pill('hors GW', 'sx-mut')); td.title = 'Ce match est en dehors de la gameweek : il ne compte pas.'; }
+      td.append(el('div', off ? 'sx-offgw' : '', r.adversaire), d); return td;
+    };
+    const footStatus = (r) => {
+      const td = el('td');
+      if (r.blessure) td.append(pill(r.blessure, doubt(r) ? 'sx-warn' : 'sx-bad'));
+      if (r.suspension) td.append(pill(r.suspension, 'sx-bad'));
+      if (r.statut && STAT[r.statut]) td.append(pill(STAT[r.statut][0], STAT[r.statut][1]));
+      if (!td.childNodes.length) td.append(el('span', 'sx-mut', r.statut || ''));
+      return td;
+    };
+    const nbaStatus = (r) => {
+      const td = el('td');
+      const o = nbaOut(r);
+      if (o) { const p = pill(o.text, o.cls); p.title = o.title; td.append(p); }
+      else if (r.espn_statut) { const p = pill(r.espn_statut + (r.espn_retour ? ' · retour ' + fmtDM(r.espn_retour) : ''), 'sx-warn'); p.title = r.espn_info || ''; td.append(p); }
+      else if (r.blessure) td.append(pill(r.blessure, doubt(r) ? 'sx-warn' : 'sx-bad'));
+      if (Number(r.minutes_liberees) >= 20) { const p = pill('Rôle élargi', 'sx-ok'); p.title = 'Absents : ' + (r.coequipiers_absents || ''); td.append(p); }
+      if (!td.childNodes.length) td.append(el('span', 'sx-ok', 'Disponible'));
+      return td;
+    };
+    const COLS = {
+      FOOTBALL: [
+        { k: 'joueur', label: 'Joueur', cell: nameCell },
+        { k: 'poste', label: 'Poste', narrow: true },
+        { k: 'statut', label: 'Statut', cell: footStatus },
+        { k: 'adversaire', label: 'Prochain match', cell: matchCell },
+        { k: 'adv_defense_rang', label: 'Adversaire att. / déf.', n: true, cell: (r) => advCell(r, true) },
+        { k: 'proba_titulaire', label: 'Titulaire %', n: true, cell: (r) => { const td = el('td', 'num', titu(r)); if (has(r.source_titulaire)) td.title = 'Source : ' + r.source_titulaire; return td; } },
+        { k: 'proba_victoire', label: 'Victoire %', n: true, narrow: true },
+        { k: 'clean_sheet', label: 'Clean sheet %', n: true, narrow: true },
+        { k: 'total_match', label: 'Buts attendus', n: true, narrow: true },
+        { k: 'forme10', label: 'Forme', narrow: true, nosort: true, cell: (r) => { const td = el('td'); td.append(spark(r.forme10)); return td; } },
+        { k: 'l5', label: 'L5', n: true },
+        { k: 'l15', label: 'L15', n: true, narrow: true },
+        { k: 'proj_sorare', label: 'Proj. Sorare', n: true },
+        { k: 'grade_sorare', label: 'Note', narrow: true },
+        { k: 'score_attendu', label: 'Attendu (pts)', n: true },
+        { k: 'bonus', label: 'Bonus %', n: true, narrow: true, fmt: signed },
+        { k: 'bonus_skin', label: 'Skin %', n: true, narrow: true, fmt: signed },
+        { k: 'score_final', label: 'Final (pts)', n: true },
+        { k: 'regularite', label: 'Variabilité %', n: true, narrow: true },
+        { k: 'part_decisive', label: 'Décisif %', n: true, narrow: true },
+        { k: 'minutes_moy', label: 'Min.', n: true, narrow: true },
+        { k: 'carte_label', label: 'Meilleure carte', narrow: true },
+      ],
+      NBA: [
+        { k: 'joueur', label: 'Joueur', cell: nameCell },
+        { k: 'etoiles', label: 'Étoiles', n: true, cell: starsCell },
+        { k: 'espn_statut', label: 'Statut', cell: nbaStatus },
+        { k: 'adversaire', label: 'Prochain match', cell: matchCell },
+        { k: 'adv_defense_rang', label: 'Adversaire att. / déf.', n: true, cell: (r) => advCell(r, false) },
+        { k: 'matchs_gw', label: 'Matchs GW', n: true },
+        { k: 'back_to_back', label: '2 soirs', n: true, narrow: true, fmt: (v) => (v ? String(v) : '') },
+        { k: 'proba_titulaire', label: 'Jouera %', n: true },
+        { k: 'proba_victoire', label: 'Victoire %', n: true, narrow: true },
+        { k: 'total_match', label: 'Total pts', n: true, narrow: true },
+        { k: 'forme10', label: 'Forme', narrow: true, nosort: true, cell: (r) => { const td = el('td'); td.append(spark(r.forme10)); return td; } },
+        { k: 'l5', label: 'L5', n: true },
+        { k: 'l10', label: 'L10', n: true, narrow: true },
+        { k: 'l10_projete', label: 'L10 après GW', n: true, narrow: true, fmt: (v) => dec(v) },
+        { k: 'etoiles_apres', label: '★ après GW', n: true, narrow: true, fmt: stars, cls: (r) => (r.etoiles_apres > r.etoiles ? 'sx-bad' : r.etoiles_apres < r.etoiles ? 'sx-ok' : '') },
+        { k: 'proj_sorare', label: 'Proj. Sorare', n: true },
+        { k: 'score_attendu', label: 'Attendu (pts)', n: true },
+        { k: 'gain_etoiles', label: 'Gain / ★ (pts)', n: true, fmt: signed, cls: (r) => (r.gain_etoiles > 0 ? 'sx-ok' : '') },
+        { k: 'gain_sorare', label: 'Gain Sorare', n: true, narrow: true, fmt: signed },
+        { k: 'bonus', label: 'Bonus %', n: true, narrow: true, fmt: signed },
+        { k: 'score_final', label: 'Final (pts)', n: true },
+        { k: 'regularite', label: 'Variabilité %', n: true, narrow: true },
+        { k: 'minutes_5', label: 'Min. (5 m.)', n: true, narrow: true },
+        { k: 'minutes_tendance', label: 'Minutes', narrow: true, cls: (r) => (r.minutes_tendance === 'en baisse' ? 'sx-bad' : r.minutes_tendance === 'en hausse' ? 'sx-ok' : '') },
+        { k: 'minutes_liberees', label: 'Min. libérées', n: true, narrow: true, fmt: (v) => dec(v, 0) },
+        { k: 'carte_label', label: 'Meilleure carte', narrow: true },
+      ],
+    };
+    let sortK = 'score_final', sortDir = -1;
+    function buildHead() {
+      const tr = $('#t-j thead tr'); tr.replaceChildren();
+      for (const c of COLS[sport]) {
+        const th = el('th', [c.n ? 'num' : '', c.narrow ? 'sx-hide-narrow' : ''].filter(Boolean).join(' '));
+        th.dataset.field = c.k;
+        if (c.nosort) th.append(el('span', '', c.label));
+        else { const b = el('button', '', c.label); b.addEventListener('click', () => { if (sortK === c.k) sortDir = -sortDir; else { sortK = c.k; sortDir = c.n ? -1 : 1; } draw(); }); th.append(b); }
+        if (c.k === sortK) th.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending');
+        tr.append(th);
+      }
+    }
+    function drawJoueurs() {
+      buildHead();
+      $('#j-title').textContent = sport === 'NBA' ? 'Tes joueurs NBA' : 'Tes joueurs de football';
+      $('#j-note').textContent = sport === 'NBA'
+        ? 'Clique un en-tête pour trier. Forme : les 10 derniers scores. L10 et étoiles après la gameweek : estimation si le joueur joue ses matchs prévus. Survole un statut pour lire le commentaire ESPN. Heures de Bruxelles.'
+        : 'Clique un en-tête pour trier. Forme : les 10 derniers scores, du plus ancien au plus récent. Heures de Bruxelles.';
+      const d = ok('joueurs'); const tb = $('#t-j tbody'); tb.replaceChildren();
+      if (!d) return;
+      // NBA : joueurs sans étoiles ou sans équipe (proposition 15)
+      if (sport === 'NBA') {
+        const N = d.filter((r) => r.sport === 'NBA');
+        const noStar = N.filter((r) => !has(r.etoiles)), noTeam = N.filter((r) => !has(r.club));
+        $('#j-flags').textContent = noStar.length || noTeam.length ? [noStar.length ? plural(noStar.length, 'joueur', 'joueurs') + ' sans étoiles, comptés 1★ sous le plafond (' + noStar.slice(0, 5).map((r) => r.joueur).join(', ') + (noStar.length > 5 ? '…' : '') + ')' : '', noTeam.length ? plural(noTeam.length, 'joueur', 'joueurs') + ' sans équipe : introuvables chez ESPN, donc sans match ni projection (décoche « Avec un match cette gameweek » pour les voir)' : ''].filter(Boolean).join(' ; ') + '.' : '';
+      }
+      const q = $('#f-q').value.trim().toLowerCase();
+      let rows = d.filter((r) => sportOfRow(r) === sport);
+      if (sport === 'NBA') { const P = new Map((ok('progression_l10') || []).map((p) => [p.slug, p])); rows = rows.map((r) => { const p = P.get(r.slug); return p ? { ...r, l10_projete: p.l10_projete, etoiles_apres: p.etoiles_apres } : r; }); }
+      if (sport === 'FOOTBALL') { const mode = $('#f-mode').value; if (mode) rows = rows.filter((r) => String(r.modes).split(' ').includes(mode)); }
+      if (q) rows = rows.filter((r) => [r.joueur, r.club, r.adversaire].join(' ').toLowerCase().includes(q));
+      if ($('#f-gw').checked) rows = rows.filter((r) => Number(r.matchs_gw) > 0);
+      if ($('#f-inj').checked) rows = rows.filter((r) => !injured(r));
+      if ($('#f-doubt').checked) rows = rows.filter((r) => !doubt(r));
+      if (sport === 'FOOTBALL') {
+        if ($('#f-na').checked) rows = rows.filter((r) => r.statut !== 'NOT_PLAYING' && r.statut !== 'RESERVE' && Number(r.proba_titulaire ?? 1) > 0);
+        if ($('#f-sus').checked) rows = rows.filter((r) => !r.suspension);
+      } else if ($('#f-min').checked) rows = rows.filter((r) => r.minutes_tendance !== 'en baisse');
+      const col = COLS[sport].find((c) => c.k === sortK);
+      rows.sort((a, b) => { const x = a[sortK], y = b[sortK]; if (col && col.n) return ((x ?? -1e9) - (y ?? -1e9)) * sortDir; return String(x ?? '').localeCompare(String(y ?? ''), 'fr') * sortDir; });
+      for (const r of rows.slice(0, 400)) {
+        const tr = el('tr'); tr.dataset.key = r.slug;
+        for (const c of COLS[sport]) {
+          if (c.cell) { const td = c.cell(r); if (c.narrow) td.classList.add('sx-hide-narrow'); tr.append(td); continue; }
+          const v = r[c.k];
+          tr.append(el('td', [c.n ? 'num' : '', c.narrow ? 'sx-hide-narrow' : '', c.cls ? c.cls(r) : ''].filter(Boolean).join(' '), c.fmt ? c.fmt(v) : c.n ? dec(v) : num(v)));
+        }
+        mainFirst(tr, COLS[sport].map((c) => c.label));
+        tb.append(tr);
+      }
+    }
+
+    // Par jour : jours de la gameweek d'abord (proposition 13), les autres sur demande
+    function drawJours() {
+      const d = ok('jours'); const sel = $('#j-mode'); const tb = $('#t-jours tbody'); tb.replaceChildren();
+      const empty = $('#jr-empty'); empty.hidden = true;
+      if (!d) return;
+      const modes = [...new Set(d.map((r) => r.mode))].filter((m) => (m === 'NBA' ? 'NBA' : 'FOOTBALL') === sport);
+      const cur = sel.value;
+      sel.replaceChildren(...modes.map((m) => new Option(m, m)));
+      sel.hidden = modes.length < 2;
+      sel.value = modes.includes(cur) ? cur : modes[0] || '';
+      const g = gwOf(sport) || {};
+      // Un match compte s'il tombe dans la gameweek (jour calculé depuis l'heure du match, sinon le jour de la ligne)
+      const inGw = (r) => { if (!g.debut || !g.fin) return false; const j = has(r.match) ? gwDay(sport, r.match) : String(r.jour); return j >= g.debut && j <= g.fin; };
+      const rows = d.filter((x) => x.mode === sel.value);
+      const nGw = rows.filter(inGw).length;
+      const all = $('#j-all').checked || !nGw;
+      const per = g.debut ? 'du ' + fmtWDM(g.debut) + ' au ' + fmtWDM(g.fin) : '';
+      $('#jr-note').textContent = 'Pour choisir tes joueurs match par match. Score attendu = projection × probabilité de jouer, en points.' + (per ? ' Gameweek ' + per + (sport === 'NBA' ? ' (soirées américaines)' : '') + '.' : '');
+      if (!nGw && rows.length) { empty.hidden = false; empty.textContent = 'Aucun match de la gameweek ' + per + ' pour ce mode : voici les jours suivants, qui ne comptent pas pour cette gameweek.'; }
+      const L = headLabels('#t-jours');
+      let last = '';
+      for (const r of rows) {
+        const ig = inGw(r);
+        if (!all && !ig) continue;
+        if (r.jour !== last) {
+          last = r.jour;
+          const day = rows.filter((x) => x.jour === r.jour); const nIn = day.filter(inGw).length;
+          const hr = el('tr', 'sx-day'); const td = el('td', 'sx-c-main'); td.colSpan = sport === 'NBA' ? 6 : 7;
+          td.append(fmtDay(r.jour) + ' ', nIn === day.length ? pill('gameweek', 'sx-ok') : nIn ? pill('en partie hors gameweek', 'sx-warn') : pill('hors gameweek', 'sx-mut'));
+          hr.append(td); tb.append(hr);
+        }
+        const tr = el('tr', ig ? '' : 'sx-offgw'); tr.dataset.key = [r.mode, r.jour, r.rang].map((x) => encodeURIComponent(String(x))).join(',');
+        const poste = el('td', '', r.poste); poste.hidden = sport === 'NBA';
+        tr.append(el('td', 'num', r.rang), el('td', '', r.joueur), poste, el('td', '', r.adversaire), advCell({ ...r, sport, adv_ligue: sport === 'NBA' ? 'NBA' : '' }, sport !== 'NBA'), el('td', '', fmtDate(r.match)), el('td', 'num', dec(r.score_attendu)));
+        if (!ig && g.debut) tr.children[5].append(' ', pill('hors GW', 'sx-mut'));
+        tr.children[1].classList.add('sx-c-main'); labelRow(tr, L);
+        tb.append(tr);
+      }
+    }
+
+    // ---------- Bilan de la gameweek passée ----------
+    function drawBilan() {
+      const B = (ok('bilan') || []).filter((b) => sportOfRow(b) === sport);
+      const S = (ok('bilan_synthese') || []).find((y) => y.sport === sport);
+      const tb = $('#t-bi tbody'); tb.replaceChildren();
+      const sp = sport === 'NBA' ? 'NBA' : 'football';
+      const empty = $('#bi-empty');
+      $('#bi-kpis').hidden = !B.length; $('#bi-synth').hidden = !B.length; $('#bi-wrap').hidden = !B.length; empty.hidden = !!B.length;
+      if (!B.length) {
+        const g = gwOf(sport) || {};
+        const per = g.debut ? 'du ' + fmtDM(g.debut) + ' au ' + fmtDM(g.fin) : gwText(g.slug);
+        const nComp = lineupsFor(sport).reduce((s, L) => s + L.list.length, 0);
+        $('#bi-title').textContent = 'Bilan de la gameweek passée';
+        empty.textContent = 'Pas encore de bilan ' + sp + '. ' + (nComp
+          ? 'Premier bilan après la fin de la gameweek ' + sp + ' ' + per + ' : ' + (nComp > 1 ? 'les ' + nComp + ' compos proposées y seront comparées' : 'la compo proposée y sera comparée') + ' aux scores réels.'
+          : 'Aucune compo ' + sp + ' n’est proposée pour la gameweek ' + per + ' : le premier bilan suivra la première gameweek où une compo est inscrite.');
+        return;
+      }
+      $('#bi-title').textContent = 'Bilan de la gameweek ' + gwText(B[0].gw);
+      // Synthèse (calcul bilan_synthese)
+      ['#bi-k1-v', '#bi-k2-v', '#bi-k3-v'].forEach((k) => ($(k).dataset.where = 'sport=' + sport));
+      const m = S ? S.ecart_moyen : null;
+      setKpi('bi-k1', m == null ? '—' : signed(m) + ' pts', S ? 'Sur ' + plural(S.compos, 'compo', 'compos') + ' ; écart absolu moyen ' + dec(S.ecart_abs_moyen) + ' pts.' : '', m == null ? '' : Math.abs(m) < 5 ? 'ok' : m < 0 ? 'bad' : 'warn');
+      setKpi('bi-k2', S && S.paliers_vises ? S.paliers_atteints + ' / ' + S.paliers_vises : '—', S && S.paliers_vises ? 'Compos qui ont atteint ou dépassé le palier qu’elles avaient plus de 50 % de chances d’atteindre.' : 'Aucun palier visé (pas de classement pour ces compétitions).', S && S.paliers_vises ? (S.paliers_atteints >= S.paliers_vises / 2 ? 'ok' : 'warn') : 'mut');
+      setKpi('bi-k3', S ? dec(S.total_prevu, 0) + ' → ' + dec(S.total_reel, 0) : '—', 'Points prévus puis réellement marqués, toutes compos ' + sp + ' confondues.', '');
+      // Phrase d'interprétation
+      let worst = null;
+      for (const b of B) for (const part of String(b.joueurs || '').split(';')) {
+        const mm = /^\s*(.+?)\s+(-?[\d.,]+)\s*→\s*(-?[\d.,]+)\s*$/.exec(part); if (!mm) continue;
+        const pv = Number(mm[2].replace(',', '.')), rv = Number(mm[3].replace(',', '.'));
+        if (!worst || rv - pv < worst.d) worst = { name: mm[1], pv, rv, d: rv - pv };
+      }
+      const sens = m == null ? '' : Math.abs(m) < 1 ? 'Le modèle a vu juste : écart moyen de ' + dec(Math.abs(m)) + ' pt par compo.' : m < 0 ? 'Le modèle a surestimé de ' + dec(-m) + ' pts en moyenne par compo.' : 'Le modèle a sous-estimé de ' + dec(m) + ' pts en moyenne par compo.';
+      $('#bi-synth').textContent = [sens, S && S.paliers_vises ? 'Palier visé atteint par ' + S.paliers_atteints + ' compo' + (S.paliers_atteints > 1 ? 's' : '') + ' sur ' + S.paliers_vises + '.' : '', worst && worst.d < -5 ? 'Plus grosse déception : ' + worst.name + ' (' + dec(worst.pv) + ' pts prévus, ' + dec(worst.rv) + ' marqués).' : ''].filter(Boolean).join(' ');
+      const L = headLabels('#t-bi');
+      const order = new Map(compsOf(sport).map((c, i) => [c.competition, i]));
+      for (const b of B.slice().sort((x, y) => (order.get(x.competition) ?? 99) - (order.get(y.competition) ?? 99) || Number(x.numero) - Number(y.numero))) {
+        const tr = el('tr'); tr.dataset.key = [b.sport, b.competition, b.numero, b.gw].map((x) => encodeURIComponent(String(x))).join(',');
+        const e = Number(b.ecart);
+        const vise = sxPalierRang(b.palier_vise), att = sxPalierRang(b.palier_atteint);
+        const reached = has(b.palier_vise) && Number.isFinite(vise) ? (att <= vise ? 'sx-ok' : 'sx-bad') : '';
+        const jt = el('td', 'sx-c-wide');
+        const parts = String(b.joueurs || '').split(';').map((x) => x.trim()).filter(Boolean);
+        if (parts.length) { const det = el('details', 'sx-fold'); det.append(el('summary', '', plural(parts.length, 'joueur', 'joueurs'))); const ul = el('ul', 'sx-dec-lines'); parts.forEach((x) => ul.append(el('li', '', x.replace(/\s*→\s*/, ' → ').replace(/(\d)\.(\d)/g, '$1,$2') + ' pts'))); det.append(ul); jt.append(det); }
+        tr.append(el('td', 'sx-c-main', shortComp(b.competition)), el('td', 'num', num(b.numero)), el('td', 'num', dec(b.score_prevu)), el('td', 'num', dec(b.score_reel)), el('td', 'num ' + (has(b.ecart) ? (e >= 0 ? 'sx-pos' : 'sx-neg') : ''), has(b.ecart) ? signed(e) : ''), el('td', '', has(b.palier_vise) ? b.palier_vise : '—'), el('td', reached, has(b.palier_atteint) ? b.palier_atteint : '—'), jt);
+        labelRow(tr, L);
+        tb.append(tr);
+      }
+    }
+
+    // ---------- Fiabilité ----------
+    function drawFiab() {
+      const d = ok('calibration');
+      const rows = (d || []).filter((r) => r.date && (r.sport || '') === sport).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      const last = rows[rows.length - 1], first = rows[0];
+      const sp = sport === 'NBA' ? 'NBA' : 'de football';
+      $('#calib-empty').hidden = rows.length > 0;
+      ['#fi-mod-v', '#fi-sor-v', '#fi-for-v', '#fi-poids-v'].forEach((k) => { $(k).dataset.where = 'sport=' + sport; if (last) $(k).dataset.row = String((d || []).indexOf(last)); });
+      if (!last) {
+        ['fi-mod', 'fi-sor', 'fi-for', 'fi-poids'].forEach((k) => setKpi(k, '—', '', ''));
+        $('#fi-txt').textContent = 'Pas encore de mesure pour ce sport.';
+      } else {
+        const errs = [['erreur_modele', 'fi-mod'], ['erreur_sorare', 'fi-sor'], ['erreur_forme', 'fi-for']].filter(([k]) => has(last[k]));
+        const best = Math.min(...errs.map(([k]) => Number(last[k])));
+        const on = 'au ' + fmtDM(last.date) + ', ' + plural(Number(last.matchs) || 0, 'match', 'matchs');
+        for (const [k, id] of [['erreur_modele', 'fi-mod'], ['erreur_sorare', 'fi-sor'], ['erreur_forme', 'fi-for']]) {
+          const v = last[k]; const prev = rows.length > 1 && has(rows[rows.length - 2][k]) ? Number(rows[rows.length - 2][k]) : null;
+          setKpi(id, has(v) ? dec(v) + ' pts' : '—', has(v) ? on + (prev != null ? ' · ' + (Number(v) < prev ? 'en baisse' : Number(v) > prev ? 'en hausse' : 'stable') + ' depuis le ' + fmtDM(rows[rows.length - 2].date) : '') + '.' : 'Non mesurée.', has(v) && Number(v) === best ? 'ok' : '');
+        }
+        const w = has(last.poids_sorare) ? Math.round(Number(last.poids_sorare) * 100) : null;
+        const w0 = first && has(first.poids_sorare) ? Math.round(Number(first.poids_sorare) * 100) : null;
+        setKpi('fi-poids', w == null ? '—' : w + ' %', w == null ? '' : 'Forme : ' + (100 - w) + ' %. ' + (rows.length > 1 && w0 != null ? (w0 === w ? 'Inchangé depuis le ' + fmtDM(first.date) + '.' : w0 + ' % le ' + fmtDM(first.date) + ' → ' + w + ' % le ' + fmtDM(last.date) + '.') : 'Première mesure.'), '');
+        const es = Number(last.erreur_sorare), ef = Number(last.erreur_forme), em = Number(last.erreur_modele);
+        const txt = [];
+        if (has(last.erreur_sorare) && has(last.erreur_forme)) txt.push('Sur les ' + (Number(last.matchs) || 0).toLocaleString('fr-BE') + ' derniers matchs ' + sp + ' suivis, la projection Sorare se trompe en moyenne de ' + dec(es) + ' pts par joueur et la forme récente de ' + dec(ef) + ' pts : ' + (es < ef ? 'Sorare est plus fiable' : es > ef ? 'la forme est plus fiable' : 'les deux se valent') + '.');
+        if (w != null) txt.push(w >= 100 ? 'Le modèle suit donc entièrement Sorare (100 %).' : w <= 0 ? 'Le modèle suit donc entièrement la forme.' : 'Le modèle les mélange : ' + w + ' % Sorare, ' + (100 - w) + ' % forme.');
+        if (has(last.erreur_modele)) txt.push('Son erreur (' + dec(em) + ' pts) ' + (em <= best + 0.05 ? 'est au niveau de la meilleure source.' : 'dépasse un peu la meilleure source : le poids se réajuste chaque jour.'));
+        txt.push('Sur une compo de 5 joueurs, les erreurs se compensent en partie : la fourchette 10–90 % des compos en tient compte.');
+        $('#fi-txt').textContent = txt.join(' ');
+      }
+      // Tableau jour par jour
+      const tb = $('#t-fi tbody'); tb.replaceChildren(); const L = headLabels('#t-fi');
+      for (const r of rows.slice().reverse()) {
+        const tr = el('tr'); tr.dataset.key = encodeURIComponent(r.date) + ',' + encodeURIComponent(r.sport);
+        tr.append(el('td', 'sx-c-main', fmtWDM(r.date)), el('td', 'num', num(r.matchs)), el('td', 'num', dec(r.erreur_modele)), el('td', 'num', dec(r.erreur_sorare)), el('td', 'num', dec(r.erreur_forme)), el('td', 'num', has(r.poids_sorare) ? Math.round(Number(r.poids_sorare) * 100) + ' %' : ''));
+        labelRow(tr, L); tb.append(tr);
+      }
+      // Courbe (d3 fourni par le type Dashboard), à partir de 2 jours de mesure
+      const box = $('#calib-chart'); box.replaceChildren();
+      box.hidden = rows.length < 2 || typeof d3 === 'undefined' || !d3;
+      if (box.hidden) return;
+      const W = Math.max(280, box.clientWidth), H = 240, m = { t: 12, r: 90, b: 28, l: 36 };
+      const series = [['erreur_modele', 'Modèle'], ['erreur_sorare', 'Sorare'], ['erreur_forme', 'Forme']];
+      const x = d3.scaleUtc(d3.extent(rows, (r) => new Date(r.date)), [m.l, W - m.r]);
+      const ymax = d3.max(rows, (r) => Math.max(...series.map(([k]) => Number(r[k]) || 0))) || 10;
+      const y = d3.scaleLinear([0, ymax * 1.1], [H - m.b, m.t]).nice();
+      const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Erreur moyenne par jour : modèle, Sorare et forme');
+      svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.min(6, rows.length)).tickFormat(d3.utcFormat('%d/%m'))).attr('font-size', null).attr('font-family', null).call((g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)')).call((g) => g.selectAll('line,path').attr('stroke', 'var(--cds-chart-axis)'));
+      svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(-(W - m.l - m.r))).attr('font-size', null).attr('font-family', null).call((g) => g.select('.domain').remove()).call((g) => g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)')).call((g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)'));
+      series.forEach(([k, label], i) => {
+        const pts = rows.filter((r) => r[k] != null && r[k] !== '');
+        svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', dash.colors[i]).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round').attr('d', d3.line((r) => x(new Date(r.date)), (r) => y(Number(r[k]))));
+        const lp = pts[pts.length - 1];
+        if (lp) svg.append('text').attr('x', W - m.r + 6).attr('y', y(Number(lp[k])) + 4 + (i - 1) * 12).attr('fill', 'var(--color-fg-muted)').attr('font-size', 'var(--cds-font-size-caption)').text(label + ' ' + dec(lp[k]) + ' pts');
+      });
+    }
+
+    // ---------- Méthode : chiffres lus dans les données ----------
+    function poidsText(sp, quoi) {
+      const cal = (ok('calibration') || []).filter((r) => (r.sport || '') === sp && has(r.poids_sorare)).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      const last = cal[cal.length - 1];
+      const x = (ok('resume') || [])[0] || {};
+      const w = last ? Number(last.poids_sorare) : has(x.poids_sorare) ? Number(x.poids_sorare) : null;
+      const forme = 'la forme récente (60 % de la moyenne L5 + 40 % de la L15)';
+      if (w == null || Number.isNaN(w)) return `La projection ${quoi} combine la projection Sorare et ${forme}.`;
+      const ps = Math.round(w * 100);
+      const err = last && has(last.erreur_sorare) && has(last.erreur_forme) ? ` (erreur moyenne au ${fmtDM(last.date)} : ${dec(last.erreur_sorare)} pts pour Sorare, ${dec(last.erreur_forme)} pts pour la forme)` : '';
+      if (ps >= 100) return `La projection ${quoi} est aujourd’hui à 100 % celle de Sorare : ${forme} compte pour 0 %, car la projection Sorare a mieux prédit les scores réels${err}.`;
+      if (ps <= 0) return `La projection ${quoi} est aujourd’hui à 100 % ${forme} : la projection Sorare compte pour 0 %${err}.`;
+      return `La projection ${quoi} combine la projection Sorare (${ps} %) et ${forme} (${100 - ps} %)${err}.`;
+    }
+    function refText(sp) {
+      const P = (ok('paliers') || []).filter((p) => sportOfRow(p) === sp);
+      const byComp = new Map(); for (const p of P) if (!byComp.has(p.competition)) byComp.set(p.competition, p);
+      const order = new Map(compsOf(sp).map((c, i) => [c.competition, i]));
+      const parts = [...byComp.values()].sort((a, b) => (order.get(a.competition) ?? 99) - (order.get(b.competition) ?? 99)).map((p) => {
+        const ref = String(p.gw_reference || '');
+        const salons = /(\d+)\s+salons/.exec(ref);
+        const slug = ref.split(' ')[0];
+        return shortComp(p.competition) + ' : gameweek ' + gwText(slug) + (p.type === 'salon' ? (salons ? ', médiane de ' + salons[1] + ' salons de ' + (p.participants || 10) + ' joueurs' : ', médiane des salons') : has(p.participants) ? ', ' + Number(p.participants).toLocaleString('fr-BE') + ' compos inscrites' : '');
+      });
+      if (parts.length) return 'Références de cette collecte : ' + parts.join(' ; ') + '.';
+      return sp === 'NBA' ? 'Aucun palier dans cette collecte.' : 'Aucun palier dans cette collecte : pas de compétition Jupiler classée cette gameweek (le Set n’a pas de classement public).';
+    }
+    function drawMethode() {
+      $('#mf-poids').textContent = poidsText('FOOTBALL', 'du match');
+      $('#mn-poids').textContent = poidsText('NBA', 'de chaque match');
+      $('#mf-ref').textContent = refText('FOOTBALL');
+      $('#mn-ref').textContent = refText('NBA');
+      // Football : compétitions de cette gameweek, dans l'ordre de priorité
+      const fc = compsOf('FOOTBALL');
+      const fopen = fc.filter((c) => Number(c.max_compos) > 0).map((c) => shortComp(c.competition));
+      $('#mf-ordre').textContent = !ok('competitions') ? '' : fc.some((c) => compType(c) === 'JPL' && Number(c.max_compos) > 0)
+        ? 'Cette gameweek : ' + fopen.join(', puis ') + '.'
+        : 'Cette gameweek, pas de compétition Jupiler' + (fopen.length ? ' : seul ' + joinFr(fopen) + ' est ouvert.' : '.');
+      // NBA : ordre de priorité et contraintes lus dans competitions
+      const nc = compsOf('NBA');
+      if (nc.length) {
+        $('#mn-ordre').textContent = nc.map((c) => {
+          const bits = [];
+          if (Number(c.cap_etoiles)) bits.push(c.cap_etoiles + ' étoiles');
+          if (Number(c.min_in_season)) bits.push('min ' + c.min_in_season + ' cartes In-Season');
+          const ins = /inscription : ([^,]+)/.exec(String(c.contraintes || ''));
+          if (ins) bits.push(ins[1]);
+          const m = Number(c.max_compos) || 0;
+          return shortComp(c.competition) + ' (' + (m ? (m > 1 ? 'jusqu’à ' + m + ' compos' : 'une compo') : 'aucune compo possible') + (bits.length ? ', ' + bits.join(', ') : '') + ')';
+        }).join(', puis ') + '.';
+      }
+      // Coûts d'inscription lus dans les compétitions
+      for (const [sp, id] of [['FOOTBALL', '#mf-cout'], ['NBA', '#mn-cout']]) {
+        const paid = compsOf(sp).filter((c) => sxCout(c) > 0);
+        $(id).textContent = !ok('competitions') ? '' : paid.length ? 'Cette gameweek : ' + paid.map((c) => shortComp(c.competition) + ' ' + ess(sxCout(c)) + ' par compo').join(', ') + ' ; les autres compétitions sont gratuites.' : 'Cette gameweek, aucune compétition ' + (sp === 'NBA' ? 'NBA' : 'de football') + ' ne demande d’inscription payante.';
+      }
+      // NBA : cotes des matchs
+      const x = (ok('resume') || [])[0] || {};
+      const M = (ok('matchs') || []).filter((m) => sportOfRow(m) === 'NBA');
+      const nOdds = M.filter((m) => has(m.proba_victoire) || has(m.total)).length;
+      $('#mn-cotes').textContent = x.cotes_externes === 'non' ? 'Désactivées dans cette collecte.'
+        : nOdds ? `Disponibles pour ${nOdds} matchs de tes joueurs sur ${M.length} dans cette gameweek, affichées dans le calendrier.`
+        : 'Pas encore fournies match par match dans cette collecte : le calendrier les affichera dès qu’elles arriveront.';
+    }
+
+    function draw() {
+      drawHeader();
+      drawKpis(lineupsFor(sport));
+      if (current === 'p-bilan') drawBilan();
+      if (current === 'p-meth') drawMethode();
+      if (current === 'p-compos') drawCompos();
+      if (current === 'p-joueurs') drawJoueurs();
+      if (current === 'p-jours') drawJours();
+      if (current === 'p-fiab') drawFiab();
+    }
+
+    const h = location.hash.slice(1);
+    if (h === 'nba') sport = 'NBA';
+    const page = { 't-compos': 'p-compos', 't-joueurs': 'p-joueurs', 't-jours': 'p-jours', 't-bilan': 'p-bilan', 't-fiab': 'p-fiab', 't-meth': 'p-meth' }[h];
+    applySport();
+    if (page) showPage(page);
+    dash.onData(() => { cache.key = ''; draw(); });
+    // Le compte à rebours avance chaque minute
+    setInterval(() => drawKpis(lineupsFor(sport)), 60000);
+  })();
+</script>

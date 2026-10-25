@@ -1,0 +1,119 @@
+# Copié par outils/prepare-depot.sh vers .github/workflows/collecte.yml du dépôt public.
+# Collecte quotidienne Sorare (lecture seule) -> vérification du contrat -> commit des données -> site GitHub Pages.
+name: Collecte Sorare quotidienne
+
+on:
+  schedule:
+    - cron: "15 5 * * *"   # 05:15 UTC, soit 6h15 (hiver) ou 7h15 (été) à Bruxelles
+  workflow_dispatch: {}     # bouton « Run workflow » pour lancer à la main
+
+permissions:
+  contents: write   # commit des données dans data/
+  pages: write      # déploiement GitHub Pages
+  id-token: write   # exigé par actions/deploy-pages
+
+concurrency:
+  group: collecte
+  cancel-in-progress: false
+
+jobs:
+  collecte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # 1 appel Sorare, sans clé
+      - name: Diagnostic - les serveurs de GitHub joignent-ils api.sorare.com ?
+        run: |
+          set +e
+          corps=$(curl -sS -m 20 -w '\n%{http_code}' https://api.sorare.com/graphql \
+            -H 'Content-Type: application/json' \
+            -d '{"query":"{ so5 { so5Fixture(type: UPCOMING, sport: NBA) { slug cutOffDate } } }"}' 2>&1)
+          code_curl=$?
+          set -e
+          http=$(printf '%s' "$corps" | tail -n 1)
+          reponse=$(printf '%s' "$corps" | sed '$d' | head -c 300)
+          if [ $code_curl -ne 0 ]; then
+            echo "::error::api.sorare.com INJOIGNABLE depuis les serveurs de GitHub (curl code $code_curl : délai dépassé, DNS ou connexion refusée). Collecte annulée."
+            echo "$reponse"
+            exit 1
+          fi
+          if [ "$http" != "200" ] || ! printf '%s' "$reponse" | grep -q '"so5Fixture":{"slug"'; then
+            echo "::error::api.sorare.com répond mais REFUSE la requête depuis GitHub (HTTP $http). Probable blocage des adresses de GitHub. Collecte annulée."
+            echo "Début de la réponse : $reponse"
+            exit 1
+          fi
+          echo "OK : api.sorare.com joignable depuis GitHub (HTTP 200). Réponse : $reponse"
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Tests hors ligne (API simulée, aucun appel réseau)
+        run: |
+          node outils/test-collecte.mjs
+          node outils/test-bilan.mjs
+
+      # Environ 400 à 500 appels Sorare (limite : environ 1 000 par 10 minutes), 2 appels The Odds API
+      - name: Collecter les données Sorare
+        env:
+          SORARE_API_KEY: ${{ secrets.SORARE_API_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: node sorare-compos/collect.mjs
+
+      - name: Vérifier le contrat de données (erreur bloquante = pas de publication)
+        run: node outils/verifier.mjs data/latest
+
+      # Même règle que outils/collecte-locale.mjs : plus de 30 jours supprimés, en gardant toujours les 3 dernières
+      - name: Supprimer les archives de plus de 30 jours
+        run: |
+          node -e '
+            const fs = require("fs");
+            const dir = "data/archive", RETENTION_JOURS = 30, GARDER_MIN = 3;
+            if (!fs.existsSync(dir)) process.exit(0);
+            const tous = fs.readdirSync(dir).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+            const limite = Date.now() - RETENTION_JOURS * 864e5;
+            for (const d of tous.slice(0, Math.max(0, tous.length - GARDER_MIN)))
+              if (Date.parse(d + "T00:00:00Z") < limite) { fs.rmSync(dir + "/" + d, { recursive: true }); console.log("Archive supprimée : " + d); }
+          '
+
+      - name: Enregistrer les données dans le dépôt
+        run: |
+          git config user.name "collecte-sorare"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data
+          if git diff --cached --quiet; then echo "Aucune donnée nouvelle"; exit 0; fi
+          git commit -m "Données du $(date -u +%Y-%m-%d)"
+          git pull --rebase
+          git push
+
+      - name: Construire le site
+        run: node site/build.mjs data/latest
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+      # En cas d'échec (vérification en particulier) : les jeux produits restent consultables 7 jours dans l'onglet Actions
+      - name: Conserver les données en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: donnees-en-echec
+          path: data/latest
+          retention-days: 7
+          if-no-files-found: ignore
+
+  deploiement:
+    needs: collecte
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - name: Publier sur GitHub Pages
+        id: deploiement
+        uses: actions/deploy-pages@v4
