@@ -107,12 +107,10 @@ export const ARCADE_VIES = 4; // 4 compos par palier (aide Sorare « What is Arc
 // 2 h. Plus large = plus de joueurs mais resultat plus tardif ; la recherche choisit pour chaque lot la largeur la
 // plus rentable (au palier 1 aussi : jouer au plus tot, mais sans bloquer la vague suivante si ce n'est pas utile).
 export const ARCADE_LARGEURS = [0, 3600e3, 2 * 3600e3];
-// Objectif : nombre espere de paliers franchis d'ici la fin (demande de l'orchestrateur, 25/10/2026). false (choix du
-// stratege, a confirmer par l'utilisateur) = seuls les paliers au-dessus du plus haut deja atteint comptent, un echec est
-// donc une vraie perte ; true = un palier refranchi apres un retour au palier 1 compte de nouveau (si Sorare redonne la
-// recompense a chaque passage ; l'aide « What is Arcade? » ne le dit pas). Avec true, le plan ne conseille presque jamais
-// d'attendre (echouer au palier 6 a 15 % reste rentable car on recompte 1 a 5).
-export const ARCADE_RECOMPTE = false;
+// Objectif : nombre espere de paliers franchis d'ici la fin. true = un palier refranchi apres un retour au palier 1
+// compte de nouveau : Sorare redonne la recompense a chaque passage (confirme par l'utilisateur le 25/10/2026). Le plan
+// conseille donc rarement d'attendre : un echec ne coute que le temps de refranchir les paliers deja passes.
+export const ARCADE_RECOMPTE = true;
 const ARCADE_PAR_POSTE = 6; // candidats par poste dans la recherche exhaustive d'une compo
 
 const heureBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" }).format(new Date(t)).replace(":", "h"); } catch { return new Date(t).toISOString().slice(11, 16).replace(":", "h"); } };
