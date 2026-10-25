@@ -77,6 +77,12 @@ export function indexeReference(ref) {
   }
   return m;
 }
+// Compétitions marquées « suivie: false » dans la référence (non jouées, décision de l'utilisateur) : ignorées partout,
+// y compris dans les collectes, pour que leur apparition ou leur disparition ne soit jamais signalée.
+export function nonSuivies(ref) {
+  return new Set(Object.entries(ref?.competitions || {}).filter(([, c]) => c.suivie === false).map(([k]) => k));
+}
+const sans = (m, ignore) => { for (const k of ignore) m.delete(k); return m; };
 
 // Choix des deux collectes à comparer
 export function trouveCollectes(p, precedent = null) {
@@ -106,7 +112,8 @@ export function trouveCollectes(p, precedent = null) {
 }
 
 export function analyse({ actuel, precedent, reference }) {
-  const A = indexe(lire(join(actuel, "competitions.json")));
+  const ignore = nonSuivies(reference);
+  const A = sans(indexe(lire(join(actuel, "competitions.json"))), ignore);
   const res = { actuel, precedent, lignes: [], nb: 0 };
   const bloc = (titre, r) => {
     res.lignes.push(`### ${titre}`);
@@ -114,7 +121,7 @@ export function analyse({ actuel, precedent, reference }) {
     res.nb += r.changements.length;
     res.lignes.push(...(r.changements.length ? r.changements.map((x) => "- " + x) : ["- aucun changement"]), ...r.infos.map((x) => "- (info) " + x));
   };
-  bloc(`Par rapport à la collecte précédente${precedent ? ` (${precedent})` : ""}`, precedent && existsSync(join(precedent, "competitions.json")) ? compare(A, indexe(lire(join(precedent, "competitions.json")))) : null);
+  bloc(`Par rapport à la collecte précédente${precedent ? ` (${precedent})` : ""}`, precedent && existsSync(join(precedent, "competitions.json")) ? compare(A, sans(indexe(lire(join(precedent, "competitions.json"))), ignore)) : null);
   bloc(`Par rapport à la référence${reference?.releve_le ? ` du ${reference.releve_le}` : ""}`, reference ? compare(A, indexeReference(reference), { reference: true }) : null);
   return res;
 }
@@ -132,7 +139,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     // après examen d'un changement accepté : les compétitions suivies prennent les règles de la collecte la plus récente
     const ref = reference || { version: 1, competitions: {} };
     for (const [k, a] of indexe(lire(join(actuel, "competitions.json")))) {
-      if (k === "set") continue;
+      if (k === "set" || ref.competitions[k]?.suivie === false) continue; // non suivie : laissée telle quelle
       ref.competitions[k] = { ...(ref.competitions[k] || {}), sport: a.sport, nom: a.nom, suivie: true, regles: a.regles, ...(a.cles ? { regles_cles: a.cles } : {}), ...a.champs };
     }
     ref.releve_le = new Date().toISOString().slice(0, 10); ref.source = `${ref.source || ""} Mise à jour depuis ${actuel}.`.trim();

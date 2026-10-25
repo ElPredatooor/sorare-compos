@@ -36,7 +36,7 @@
   "nba_limited_in_season_contender": {
    "sport": "NBA",
    "nom": "NBA In-Season Contender",
-   "suivie": true,
+   "suivie": false,
    "gameweek_relevee": "nba-26-30-oct-2026",
    "regles": [
     "5x Limited Cartes",
@@ -60,7 +60,8 @@
    "max_par_club": 4,
    "capitaine_pct": 0,
    "max_compos": 1,
-   "cout_inscription": 0
+   "cout_inscription": 0,
+   "non_suivie_raison": "Non jouée : décision de l'utilisateur du 25/10/2026 (retirée de NBA_COMPS, plus collectée)."
   },
   "nba_limited_champion": {
    "sport": "NBA",

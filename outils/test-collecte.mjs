@@ -134,6 +134,8 @@ const f = a.files;
 for (const k of ["joueurs", "compos", "competitions", "jours", "changements", "calibration", "resume", "cartes", "matchs", "paliers"]) ok(Array.isArray(f[k]), "jeu manquant : " + k);
 const compsNba = f.competitions.filter((c) => c.sport === "NBA").sort((x, y) => x.rang - y.rang);
 ok(compsNba[0] && compsNba[0].competition === "NBA In-Season Champion", "NBA : In-Season Champion doit être la priorité 1, trouvé : " + (compsNba[0] || {}).competition);
+// NBA In-Season Contender : non jouée (décision de l'utilisateur du 25/10/2026). L'API simulée la propose encore : ni ligne, ni compo.
+ok(!f.competitions.some((c) => /In-Season Contender/.test(c.competition)) && !f.compos.some((l) => /In-Season Contender/.test(l.competition)), "NBA : In-Season Contender encore produite (non jouée depuis le 25/10/2026)");
 // Option sans In-Season retenue par evalueRentabilite (choix de l'utilisateur du 25/10/2026) : In-Season à 0 compo, statut explicite
 const sansIS = /^non recommandé cette semaine : /.test(compsNba[0]?.statut || "");
 ok(sansIS || f.compos.some((l) => l.competition === "NBA In-Season Champion"), "NBA : aucune compo In-Season Champion alors que 4 cartes In-Season sont disponibles");
@@ -180,11 +182,12 @@ ok(f.paliers.some((p) => p.type === "salon") && f.paliers.some((p) => p.sport ==
     ok(new Set(sol.picks.map((x) => x.r.slug)).size === 5, "optimise : deux cartes du même joueur dans une compo In-Season");
     ok(sol.picks.some((x) => x.r.slug === "star"), "optimise : la star (5★) devrait compléter la compo In-Season (10,5 + 5 ≤ 16)");
   }
-  // In-Season Contender (11★) : impossible (10,5★ + au moins 1★), et le statut doit l'expliquer ; le joueur sans niveau compte 1★
+  // Règle générique (plafond 11★ + min 4 In-Season ; ex-In-Season Contender, non jouée depuis le 25/10/2026) : impossible
+  // (10,5★ + au moins 1★), et le statut doit l'expliquer ; le joueur sans niveau compte 1★
   const cont = { sport: "NBA", capStars: 11, minInSeason: 4, maxParClub: 4 };
-  ok(optimise(cont, pool) === null, "optimise : compo In-Season Contender fictive (10,5★ + joueur sans niveau compté 0★)");
+  ok(optimise(cont, pool) === null, "optimise : compo 11★ + 4 In-Season fictive (10,5★ + joueur sans niveau compté 0★)");
   const raison = missingReason(cont, pool, 4);
-  ok(/10,5★/.test(raison) && /0,5★/.test(raison), "missingReason In-Season Contender peu explicite : " + raison);
+  ok(/10,5★/.test(raison) && /0,5★/.test(raison), "missingReason 11★ + 4 In-Season peu explicite : " + raison);
   // sans minimum In-Season, le résultat ne dépend pas des cartes In-Season : les 5 meilleures valeurs sous le plafond
   const classic = optimise({ sport: "NBA", capStars: 16, maxParClub: 4 }, pool);
   ok(classic && classic.picks.map((x) => x.r.slug).sort().join() === ["star", "fort-0", "fort-1", "fort-2", "fort-3"].sort().join(), "optimise : compo Classic modifiée par le correctif In-Season");
@@ -228,15 +231,16 @@ ok(f.paliers.some((p) => p.type === "salon") && f.paliers.some((p) => p.sport ==
   for (const c of o2.compRows) ok(c.nb_compos === 0 && /0 point/.test(c.statut), `compo à 0 point : statut peu clair pour ${c.competition} : ${c.statut}`);
 }
 
-// Proposition 11 (NBA) : In-Season Contender sans carte In-Season parce qu'In-Season Champion les a prises
+// Proposition 11 (NBA) : seconde compétition à min In-Season sans carte In-Season parce qu'In-Season Champion les a prises.
+// Règle générique de raisonInSeasonPrises gardée : compétition fictive (In-Season Contender n'est plus jouée depuis le 25/10/2026).
 {
   const { calculeCompos } = await import(pathToFileURL(join(racine, "sorare-compos", "compos.mjs")).href);
   const r = (slug, etoiles, score, inSeason) => ({ joueur: slug, slug, sport: "NBA", modes: "NBA", score_attendu: score, matchs_gw: 2, etoiles, _games: [], _cv: 0.3, _clubSlug: "c-" + slug, _cards: [{ slug: slug + "-l", rarity: "limited", inSeason, power: 1.05, skinBonus: 1, season: inSeason ? 2026 : 2024 }] });
   const rows = [r("dosunmu", 2.5, 32, true), r("missi", 2.5, 20, true), r("holiday", 3, 34, true), r("gordon", 2.5, 36, true), r("jokic", 5, 60, false), r("wade", 1.5, 15, false), r("joe", 2, 21, false)];
-  const comps = [{ nom: "NBA In-Season Champion", sport: "NBA", nbaDef: { rang: 0, compos: 1 }, capStars: 16, minInSeason: 4, maxParClub: 4 }, { nom: "NBA In-Season Contender", sport: "NBA", nbaDef: { rang: 1, compos: 1 }, capStars: 11, minInSeason: 4, maxParClub: 4 }];
+  const comps = [{ nom: "NBA In-Season Champion", sport: "NBA", nbaDef: { rang: 0, compos: 1 }, capStars: 16, minInSeason: 4, maxParClub: 4 }, { nom: "NBA In-Season fictive 11★", sport: "NBA", nbaDef: { rang: 1, compos: 1 }, capStars: 11, minInSeason: 4, maxParClub: 4 }];
   const o = calculeCompos({ comps, currentSet: "x", setName: "x", fixtures: { FOOTBALL: { cutOffDate: "x" }, NBA: {} }, advRank: () => ({}) }, rows, null);
-  const cont = o.compRows.find((c) => c.competition === "NBA In-Season Contender");
-  ok(/tes 4 cartes In-Season sont dans la compo NBA In-Season Champion \(priorité 1\)/.test(cont.statut) && /10,5★/.test(cont.statut), "In-Season Contender : raison peu explicite : " + cont.statut);
+  const cont = o.compRows.find((c) => c.competition === "NBA In-Season fictive 11★");
+  ok(/tes 4 cartes In-Season sont dans la compo NBA In-Season Champion \(priorité 1\)/.test(cont.statut) && /10,5★/.test(cont.statut), "In-Season 11★ fictive : raison peu explicite : " + cont.statut);
 }
 
 // Audit des règles du 25/10/2026 (sources : API so5Leaderboard.displayedTypedRules « EntryItem », so5Appearances{ bonus },

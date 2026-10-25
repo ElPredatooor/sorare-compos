@@ -17,7 +17,8 @@ const USER = "elpredatooor";
 const NBA_COMPS = [
   // In-Season en priorite 1 (decision de l'utilisateur du 24/10/2026) : min 4 cartes de la saison en cours
   { suffix: "nba_limited_in_season_champion", nom: "NBA In-Season Champion", rang: 0, compos: 1 },
-  { suffix: "nba_limited_in_season_contender", nom: "NBA In-Season Contender", rang: 1, compos: 1 },
+  // NBA In-Season Contender (nba_limited_in_season_contender, rang 1) : non jouee, ni calculee ni produite
+  // (decision de l'utilisateur du 25/10/2026) ; marquee « suivie: false » dans docs/regles-reference.json.
   { suffix: "nba_limited_champion", nom: "NBA Classic Champion", rang: 2, compos: 3 },
   { suffix: "nba_limited_contender", nom: "NBA Classic Contender", rang: 3, compos: 3 },
   // essences : cout d'inscription en essences Limited, repli seulement. La source est la regle API « EntryItem »
@@ -866,6 +867,8 @@ function calculeCompos({ comps, currentSet, setName, fixtures, advRank, europe }
   const used = new Set();
   const order = [...comps].sort((a, b) => rank(a) - rank(b));
   // Option A : ordre de priorite actuel (In-Season NBA en priorite 1, decision de l'utilisateur du 24/10/2026)
+  // NBA In-Season : seule In-Season Champion est jouee (In-Season Contender retiree de NBA_COMPS, utilisateur 25/10/2026) ;
+  // le choix A / B, les raisons et la rentabilite restent generiques (toute competition NBA In-Season presente).
   const { lineups, compRows } = affecteCompetitions(order, rows, used);
   // Option B (NBA seulement, choix de l'utilisateur du 25/10/2026 : « recommander la meilleure au lieu d'appliquer la
   // priorite 1 aveuglement ») : memes competitions NBA sans les In-Season, les cartes In-Season restant disponibles pour
@@ -1322,7 +1325,7 @@ function rank(c) { // ordre de priorite d'affectation des cartes
 
 // Etoiles comptees sous un plafond (NBA uniquement, seul sport avec capStars). Niveau inconnu (gameplayTier absent,
 // etoiles null) : compte comme DNP = 1 etoile, le plus petit niveau du bareme (regles-nba, table des etoiles),
-// et non 0, sinon un joueur sans niveau permettait une compo fictive (In-Season Contender a 10,5 + 0 etoile).
+// et non 0, sinon un joueur sans niveau permettait une compo fictive (ex-In-Season Contender, 11★ : 10,5 + 0 etoile ; non jouee depuis le 25/10/2026).
 const etoilesCap = (x) => x.r.etoiles ?? 1;
 
 // Choix de 5 cartes maximisant le score sous contraintes (recherche exhaustive sur les meilleurs candidats)

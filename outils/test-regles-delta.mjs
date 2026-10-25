@@ -45,7 +45,17 @@ try {
   ecrit(join(tmp, "seul", "x"), "competitions.json", [comp("nba-26-30-oct-2026", "nba_limited_champion", { cout_inscription: 150 })]);
   r = lance(join(tmp, "seul", "x"));
   ok(r.status === 2 && /cout_inscription 0 → 150/.test(r.stdout), "référence : coût d'inscription modifié non signalé :\n" + r.stdout);
+  // 5. Compétition marquée « suivie: false » (NBA In-Season Contender, non jouée, utilisateur 25/10/2026) : ni nouvelle, ni disparue
+  const ref2 = { ...ref, competitions: { ...ref.competitions, nba_limited_in_season_contender: { sport: "NBA", nom: "NBA In-Season Contender", suivie: false } } };
+  const ref2Path = join(tmp, "ref2.json"); writeFileSync(ref2Path, JSON.stringify(ref2));
+  const coll5 = join(tmp, "ns", "sorare-donnes", "collectes");
+  ecrit(join(coll5, "2026-10-25_07h48"), "competitions.json", [comp("nba-26-30-oct-2026", "nba_limited_champion"), comp("nba-26-30-oct-2026", "nba_limited_in_season_contender", { competition: "NBA In-Season Contender", cap_etoiles: 11 })]);
+  ecrit(join(coll5, "2026-10-26_07h00"), "competitions.json", [comp("nba-26-30-oct-2026", "nba_limited_champion")]);
+  r = spawnSync(process.execPath, [outil, join(tmp, "ns"), "--reference", ref2Path], { encoding: "utf8" });
+  ok(r.status === 0 && !/In-Season Contender/.test(r.stdout), "compétition non suivie signalée : code " + r.status + "\n" + r.stdout);
+  r = spawnSync(process.execPath, [outil, join(coll5, "2026-10-25_07h48"), "--reference", ref2Path], { encoding: "utf8" });
+  ok(r.status === 0 && !/In-Season Contender/.test(r.stdout), "compétition non suivie présente dans la collecte signalée : code " + r.status + "\n" + r.stdout);
 } finally { rmSync(tmp, { recursive: true, force: true }); }
 
 if (erreurs.length) { console.error("ÉCHEC regles-delta :\n  - " + erreurs.join("\n  - ")); process.exit(1); }
-console.log("OK : regles-delta (Mac, dépôt GitHub, règle modifiée, compétition nouvelle et disparue, référence).");
+console.log("OK : regles-delta (Mac, dépôt GitHub, règle modifiée, compétition nouvelle et disparue, référence, compétition non suivie).");
