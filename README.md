@@ -4,7 +4,7 @@ Chaque matin (05:15 UTC), GitHub Actions collecte les données Sorare du compte 
 (football et NBA, lecture seule : aucun achat, aucune vente), calcule les projections et les compos conseillées,
 puis publie un site public.
 
-**Site : https://baptisteperez96.github.io/sorare-compos/**
+**Site : https://elpredatooor.github.io/sorare-compos/**
 
 ## Fonctionnement
 - `.github/workflows/collecte.yml` : vérifie que l'API Sorare est joignable, lance la collecte
