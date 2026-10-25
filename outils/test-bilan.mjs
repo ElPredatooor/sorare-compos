@@ -72,9 +72,15 @@ const FX = {
 const upcoming = (sport) => ({ ...FX[sport][0], cutOffDate: FX[sport][0].startDate, gameWeek: 1,
   so5Leaderboards: sport === "NBA"
     ? ["nba_limited_champion", "nba_limited_arena_140"].map((x) => ({ slug: FX.NBA[0].slug + "-" + x, displayName: x, mainRarityType: "limited", teamsCap: /arena/.test(x) ? null : 3, format: null }))
-    : [{ slug: FX.FOOTBALL[0].slug + "-seasonal-jupiler-in_season_jupiler_limited", displayName: "Limited", mainRarityType: "limited", teamsCap: 4, format: { title: "In-Season" } }] });
+    : [{ slug: FX.FOOTBALL[0].slug + "-seasonal-jupiler-in_season_jupiler_limited", displayName: "Limited", mainRarityType: "limited", teamsCap: 4, format: { title: "In-Season" } },
+       // Cap 260 : salon de base + salons de 10 suffixés d'un uuid (comme l'API le 23-27/10/2026) -> une seule compétition attendue
+       ...["", "-d71b9290-e149-40ac-bf7b-a0e1c0355404", "-189718fc-2f97-4d72-831a-eed3fd339a4d"].reverse().map((u) => ({ slug: FX.FOOTBALL[0].slug + "-seasonal-jupiler-all_seasons_jupiler_arena_limited" + u, displayName: "Cap 260", mainRarityType: "limited", teamsCap: null, format: null }))] });
+// Règle EntryItem (texte vide, coût dans entryItem) : 150 Limited pour les Rooms (valeur réelle) ; 280 pour le Cap 260,
+// valeur FICTIVE (réel : 300) pour vérifier que le coût lu dans l'API prime sur le repli de compos.mjs.
+const entree = (quantity) => ({ key: "EntryItem", descriptions: [], entryItem: { quantity, rarity: "limited" } });
 const rules = (slug) => { const d = (key, t) => ({ key, descriptions: [{ title: t, items: [] }] });
-  return /jupiler/.test(slug) ? [d("CaptainScarcity", "Capitaine +50%"), d("SeasonBonus", "Min 4 cartes In-Season")] : [d("SameActiveClub", "Max 4 joueurs"), d("AverageScores", "Cap de 16 étoiles")]; };
+  if (/arena_limited/.test(slug)) return [d("CaptainScarcity", "Capitaine +20%"), d("SumOfAverageScores", "Cap de 260 points"), entree(280)];
+  return /jupiler/.test(slug) ? [d("CaptainScarcity", "Capitaine +50%"), d("SeasonBonus", "Min 4 cartes In-Season")] : [d("SameActiveClub", "Max 4 joueurs"), d("AverageScores", "Cap de 16 étoiles"), ...(/arena_140/.test(slug) ? [entree(150)] : [])]; };
 const futureGames = (s) => [{ id: s, date: iso(NOW.getTime() + 3 * J), competition: { name: NBA[s] ? "NBA" : "First Division A" }, homeTeam: { slug: "x", name: "X" }, awayTeam: { slug: "y", name: "Y" },
   homeStats: null, awayStats: null, playerGameScore: { projectedScore: 40, projection: { grade: "B", reliabilityBasisPoints: 6000 }, anyPlayerGameStats: null } }];
 // Paliers de la collecte en cours : NBA nba-20-23 (classement Classic Champion, salons Rooms), football football-13-17
@@ -94,7 +100,7 @@ async function fetchSimule(url, opts = {}) {
   requetes.push(query);
   let data;
   if (query.includes("user(slug")) data = { user: { cards: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: cards } } };
-  else if (query.includes("so5Fixture(type:UPCOMING")) data = { so5: { so5Fixture: upcoming(v.sport) } };
+  else if (query.includes("so5Fixture(type:UPCOMING")) data = { so5: { so5Fixture: upcoming(v.sport), ...(query.includes("live: so5Fixture(type:LIVE") ? { live: FX[v.sport][1] } : {}) } };
   else if (query.includes("displayedTypedRules")) data = { so5: { so5Leaderboard: { slug: v.s, displayedTypedRules: rules(v.s) } } };
   else if (query.includes("players(slugs")) data = { players: v.s.map(node) };
   else if (query.includes("anyFutureGames")) data = { anyPlayer: { slug: v.slug, anyFutureGames: { nodes: futureGames(v.slug) } } };
@@ -116,11 +122,12 @@ const composA = [
   L(CC, "NBA", 1, "Ancien Joueur", "ancien-joueur", 2, 30), L(CC, "NBA", 1, "Dean Wade", "dean-wade", 6, 20),
   L(CC, "NBA", 2, "Luka Dončić", "luka-doncic", 5, 55), L(CC, "NBA", 2, "OG Anunoby", "og-anunoby", 4, 40), L(CC, "NBA", 2, "Keldon Johnson", "keldon-johnson", 3, 25),
   L(CC, "NBA", 2, "Isaiah Joe", "isaiah-joe", 2, 20), L(CC, "NBA", 2, "Jrue Holiday", "jrue-holiday", 0, 10),
-  ...[["Ayo Dosunmu", "ayo-dosunmu", 40], ["Yves Missi", "yves-missi", 30], ["Aaron Gordon", "aaron-gordon", 35], ["James Harden", "james-harden", 30], ["Cam Whitmore", "cam-whitmore", 25]].map(([j, s, v]) => L(RC, "NBA", 1, j, s, 0, v)),
+  // Rooms : bonus de carte non nul dans la compo, mais ignoré au bilan (salon « arena » : aucun bonus de carte)
+  ...[["Ayo Dosunmu", "ayo-dosunmu", 40], ["Yves Missi", "yves-missi", 30], ["Aaron Gordon", "aaron-gordon", 35], ["James Harden", "james-harden", 30], ["Cam Whitmore", "cam-whitmore", 25]].map(([j, s, v]) => L(RC, "NBA", 1, j, s, 5, v)),
   L(JI, "Football", 1, "Koffi", "koffi", 8, 40), L(JI, "Football", 1, "Sylla", "sylla", 8, 35), L(JI, "Football", 1, "Abid", "abid", 8, 45),
   L(JI, "Football", 1, "Forbs", "forbs", 8, 81, "Oui"), L(JI, "Football", 1, "Nielsen", "nielsen", 8, 30),
 ];
-const compsA = [{ competition: CC, sport: "NBA", scores_compos: "193 150", capitaine_pct: 0 }, { competition: RC, sport: "NBA", scores_compos: "160", capitaine_pct: 0 },
+const compsA = [{ competition: CC, sport: "NBA", scores_compos: "193 150", capitaine_pct: 0 }, { competition: RC, slug: "nba-20-23-oct-2026-nba_limited_arena_140", sport: "NBA", scores_compos: "160", capitaine_pct: 0 },
   { competition: JI, sport: "Football", scores_compos: "231", contraintes: "min 4 cartes In-Season, capitaine +50 %" }]; // pas de capitaine_pct : lu dans le texte
 const palA = [ // paliers connus au moment de la collecte A (gameweeks précédentes) : servent à palier_vise
   ...[[1, 290, "1000 $"], [100, 240, "1000 essences Limited"], [400, 190, "500 XP Limited"]].map(([rang, score, recompense]) => ({ sport: "NBA", competition: CC, gw_reference: "nba-16-20-oct-2026", type: "classement", rang, score, recompense })),
@@ -172,16 +179,24 @@ const attendu = [
   [CC, 2, { score_prevu: 150, score_reel: 270.7, ecart: 120.7, palier_vise: "aucun palier", palier_atteint: "top 100 : 1000 essences Limited" }],
   // NBA Rooms : 45 + 40 + 38 + 36 (Harden : 80 avant la fenêtre ignoré) + 36 = 195 ; salons 217/200/190/180/176
   [RC, 1, { score_prevu: 160, score_reel: 195, ecart: 35, palier_vise: "5e du salon : 150 essences Limited", palier_atteint: "3e du salon : 225 essences Limited" }],
-  // Jupiler : 50×1,08 + 30×1,08 + 60×1,08 + 70×1,08×1,5 (capitaine, 95 de la gameweek précédente ignoré) + 0 = 264,6 ; paliers football-20-23 pas relevés
-  [JI, 1, { sport: "Football", gw: "football-20-23-oct-2026", score_prevu: 231, score_reel: 264.6, ecart: 33.6, palier_vise: "aucun palier", palier_atteint: null }],
+  // Jupiler : 50×1,08 + 30×1,08 + 60×1,08 + 70×(1 + 0,08 + 0,5) (capitaine additif, 95 de la gameweek précédente ignoré) + 0 = 261,8 ; paliers football-20-23 pas relevés
+  [JI, 1, { sport: "Football", gw: "football-20-23-oct-2026", score_prevu: 231, score_reel: 261.8, ecart: 30.8, palier_vise: "aucun palier", palier_atteint: null }],
 ];
 for (const [c, n, att] of attendu) { const r = ligne(c, n); for (const [k, v] of Object.entries(att)) eq(r[k], v, `${c} compo ${n}, ${k}`); }
 eq(ligne(CC, 1).joueurs, "Nikola Jokić 60→73,5 ; Tyrese Maxey 45→57,2 ; Josh Hart 38→35 ; Ancien Joueur 30→49 ; Dean Wade 20→0", "détail des joueurs NBA");
-ok(/^Forbs \(C\) 81→113,4$/.test(ligne(JI, 1).joueurs.split(" ; ")[3] || ""), "capitaine football mal noté : " + ligne(JI, 1).joueurs);
+ok(/^Forbs \(C\) 81→110,6$/.test(ligne(JI, 1).joueurs.split(" ; ")[3] || ""), "capitaine football mal noté : " + ligne(JI, 1).joueurs);
 ok(!b.some((r) => r.score_prevu === 999), "une compo leurre (collecte après la date limite ou gameweek non finie) a été prise");
 for (const r of b) ok(r.sport === (r.competition.startsWith("NBA") ? "NBA" : "Football"), "sport mélangé dans le bilan : " + r.competition);
+// Compétitions : salons Cap 260 dédoublonnés, coût d'inscription lu dans la règle EntryItem
+const cap = sans.files.competitions.filter((c) => /arena_limited/.test(c.slug || ""));
+eq(cap.map((c) => c.slug), [FX.FOOTBALL[0].slug + "-seasonal-jupiler-all_seasons_jupiler_arena_limited"], "Cap 260 : une seule compétition (salon de base, sans uuid)");
+eq(cap[0]?.cout_inscription, 280, "Cap 260 : coût d'inscription lu dans l'API (EntryItem) prioritaire sur le repli 300");
+eq(sans.files.competitions.find((c) => c.competition === RC)?.cout_inscription, 150, "Rooms : coût d'inscription (EntryItem)");
+ok(requetes.some((q) => q.includes("So5CardShardsEntryItem")), "requête des règles sans le fragment EntryItem");
 // resume v3 : fenêtres des gameweeks à venir
 const res = avec.files.resume[0];
+// resume v4 : fenêtre Arcade = gameweek football en cours (alias « live » de la requête UPCOMING, aucun appel de plus)
+eq([res.arcade_debut, res.arcade_fin], [FX.FOOTBALL[1].startDate, FX.FOOTBALL[1].endDate], "resume : arcade_debut / arcade_fin (gameweek football LIVE)");
 eq([res.gw_debut_football, res.gw_fin_football, res.gw_debut_nba, res.gw_fin_nba], [FX.FOOTBALL[0].startDate, FX.FOOTBALL[0].endDate, FX.NBA[0].startDate, FX.NBA[0].endDate], "resume : gw_debut_* / gw_fin_*");
 
 console.log(`Test du bilan : ${appelsSans} appels simulés sans bilan, ${appelsAvec} avec (+${appelsAvec - appelsSans}), ${b.length} lignes de bilan.`);

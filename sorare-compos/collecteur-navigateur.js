@@ -20,6 +20,9 @@ const NBA_COMPS = [
   { suffix: "nba_limited_in_season_contender", nom: "NBA In-Season Contender", rang: 1, compos: 1 },
   { suffix: "nba_limited_champion", nom: "NBA Classic Champion", rang: 2, compos: 3 },
   { suffix: "nba_limited_contender", nom: "NBA Classic Contender", rang: 3, compos: 3 },
+  // essences : cout d'inscription en essences Limited, repli seulement. La source est la regle API « EntryItem »
+  // (displayedTypedRules, So5CardShardsEntryItem { quantity rarity }), lue en section 2 dans coutInscription :
+  // 150 Limited pour nba_limited_arena_140, verifie le 25/10/2026.
   { suffix: "nba_limited_arena_140", nom: "NBA Rooms Champion", rang: 4, compos: 2, essences: 150, salon: true },
 ];
 const POS = { Goalkeeper: "Gardien", Defender: "Défenseur", Midfielder: "Milieu", Forward: "Attaquant" };
@@ -94,18 +97,35 @@ async function collecte({ apiKey, oddsKey = null, espn = true, history = { sampl
   // ---------- 2. Gameweeks et competitions ----------
   log("Compétitions…");
   const fixtures = {};
+  // Football : la gameweek EN COURS (type LIVE) est demandee dans la meme requete (alias « live », 0 appel de plus) ;
+  // le mode Set / Arcade se joue dessus (contrat v4, resume.arcade_debut / arcade_fin). Verifie le 25/10/2026 :
+  // LIVE = football-23-27-oct-2026 (aasmState started), UPCOMING = football-27-30-oct-2026. Sans gameweek en cours
+  // (live null), fixtures.LIVE_FOOTBALL reprend la fenetre de la gameweek a venir.
   for (const sport of ["FOOTBALL", "NBA"]) {
-    const d = await gq(`query($sport:Sport!){ so5{ so5Fixture(type:UPCOMING sport:$sport){ slug cutOffDate startDate endDate gameWeek so5Leaderboards{ slug displayName mainRarityType teamsCap format{ title } } } } }`, { sport });
+    const live = sport === "FOOTBALL" ? " live: so5Fixture(type:LIVE sport:$sport){ slug aasmState startDate endDate }" : "";
+    const d = await gq(`query($sport:Sport!){ so5{ so5Fixture(type:UPCOMING sport:$sport){ slug cutOffDate startDate endDate gameWeek so5Leaderboards{ slug displayName mainRarityType teamsCap format{ title } } }${live} } }`, { sport });
     fixtures[sport] = d.so5.so5Fixture;
+    if (sport === "FOOTBALL") {
+      const l = d.so5.live, u = d.so5.so5Fixture;
+      fixtures.LIVE_FOOTBALL = l?.slug ? { slug: l.slug, startDate: l.startDate || null, endDate: l.endDate || null, enCours: true }
+        : { slug: u.slug, startDate: u.startDate || null, endDate: u.endDate || null, enCours: false };
+    }
   }
+  // Salons (Cap 260 « ..._jupiler_arena_limited ») : l'API liste le salon de base puis chaque salon de 10
+  // « ..._arena_limited-<uuid> » (21 salons la gameweek du 23-27/10/2026). Une seule entree par slug sans uuid, la plus
+  // courte (le salon de base) ; suffix est calcule sans uuid pour que collectePaliers retrouve les salons.
+  const sansUuid = (s) => s.replace(/-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/, "");
+  const vus = new Set();
   const wanted = [
     ...fixtures.FOOTBALL.so5Leaderboards.filter((l) => /jupiler/.test(l.slug) && l.mainRarityType === "limited"),
     ...fixtures.NBA.so5Leaderboards.filter((l) => NBA_COMPS.some((n) => l.slug.endsWith("-" + n.suffix))),
-  ];
+  ].sort((a, b) => a.slug.length - b.slug.length).filter((l) => { const k = sansUuid(l.slug); if (vus.has(k)) return false; vus.add(k); return true; });
   const comps = [];
   for (const l of wanted) {
-    const d = await gq(`query($s:String!){ so5{ so5Leaderboard(slug:$s){ slug displayedTypedRules{ key descriptions{ title items{ title } } } } } }`, { s: l.slug });
+    const d = await gq(`query($s:String!){ so5{ so5Leaderboard(slug:$s){ slug displayedTypedRules{ key descriptions{ title items{ title } } ... on So5EntryItemRule { entryItem{ ... on So5CardShardsEntryItem { quantity rarity } } } } } } }`, { s: l.slug });
     const rules = d.so5.so5Leaderboard.displayedTypedRules.map((r) => ({ key: r.key, text: r.descriptions.map((x) => [x.title, ...(x.items || []).map((i) => i.title)].filter(Boolean).join(" ")).join(" ; ") }));
+    // Cout d'inscription (regle EntryItem, texte vide) : 150 Limited Rooms NBA, 300 Limited Cap 260, releve le 25/10/2026
+    const entry = d.so5.so5Leaderboard.displayedTypedRules.find((r) => r.key === "EntryItem")?.entryItem;
     const num = (key) => { const r = rules.find((x) => x.key === key); const m = r && r.text.match(/(\d+)/); return m ? Number(m[1]) : null; };
     const sport = l.slug.startsWith("nba") ? "NBA" : "FOOTBALL";
     const nbaDef = NBA_COMPS.find((n) => l.slug.endsWith("-" + n.suffix));
@@ -113,9 +133,10 @@ async function collecte({ apiKey, oddsKey = null, espn = true, history = { sampl
       slug: l.slug, sport, fixture: (sport === "NBA" ? fixtures.NBA : fixtures.FOOTBALL).slug,
       nom: nbaDef ? nbaDef.nom : "Jupiler " + l.displayName + (l.format?.title && l.format.title !== l.displayName ? " (" + l.format.title + ")" : ""),
       cutoff: (sport === "NBA" ? fixtures.NBA : fixtures.FOOTBALL).cutOffDate,
-      equipes: l.teamsCap, inSeason: /in_season/.test(l.slug), salon: /arena/.test(l.slug), suffix: l.slug.slice(((sport === "NBA" ? fixtures.NBA : fixtures.FOOTBALL).slug + "-").length),
+      equipes: l.teamsCap, inSeason: /in_season/.test(l.slug), salon: /arena/.test(l.slug), suffix: sansUuid(l.slug).slice(((sport === "NBA" ? fixtures.NBA : fixtures.FOOTBALL).slug + "-").length),
       capPoints: num("SumOfAverageScores"), capStars: num("AverageScores"), capitaine: num("CaptainScarcity"),
       minInSeason: num("SeasonBonus"), maxParClub: num("SameActiveClub"),
+      coutInscription: entry?.rarity === "limited" ? entry.quantity : undefined,
       regles: rules.filter((r) => r.text).map((r) => r.text).join(" | "),
     });
   }
@@ -432,7 +453,10 @@ async function collecteBilan({ gq, batched, fixturesRecentes, players }, precede
       for (const l of t5) {
         const cap = l.capitaine === "Oui";
         const base = scoreFenetre(dataDe(slugDe(l)), SP, c.debut, c.fin);
-        const v = base == null ? null : base * (1 + (Number(l.bonus) || 0) / 100) * (cap ? 1 + pct / 100 : 1);
+        // Bonus de carte et capitaine s'additionnent (score × (1 + bonus + capitaine)) ; salons (slug « arena », Rooms NBA
+        // et Cap 260) : aucun bonus de carte, seul le capitaine compte (cf. sansBonusCarte dans compos.mjs).
+        const bonusCarte = /arena/.test(comp?.slug || "") ? 0 : (Number(l.bonus) || 0) / 100;
+        const v = base == null ? null : base * (1 + bonusCarte + (cap ? pct / 100 : 0));
         reel = reel == null || v == null ? null : reel + v;
         detail.push(`${l.joueur}${cap ? " (C)" : ""} ${fr(l.score_final)}→${fr(v)}`);
       }
@@ -720,15 +744,18 @@ return { calculeJoueurs, jourDuMatch, absentLeJour };
 // ===== compos.mjs =====
 const __m_compos = (() => {
   const { POS, round, day, cardLabel } = __m_collecte;
+  const { jourDuMatch } = __m_modele;
 // Compositions Sorare pour Elpredatooor : sections 8 a 12 de l'ancien core.mjs
 // (compos, meilleurs par jour, changements, cartes et calendrier NBA pour le dashboard).
-// calculeCompos(contexte de collecte.mjs, rows de modele.mjs, prev) -> { lineups, compRows, jours, changes, cartes, matchs }
+// calculeCompos(contexte de collecte.mjs, rows de modele.mjs, prev, now) -> { lineups, compRows, jours, changes, cartes, matchs, plan_arcade }
+// planArcade(rows, { currentSet, debut, fin, recompte }) : plan de piste du mode Set / Arcade (football, contrat v4).
 // evalueRentabilite(compRows, lineups, paliers, rows) : apres les paliers (core.mjs), colonnes v3 de competitions et choix
 // NBA entre In-Season en priorite 1 et l'option sans In-Season (modifie compRows et lineups en place).
 
 
 
-function calculeCompos({ comps, currentSet, setName, fixtures, advRank }, rows, prev) {
+
+function calculeCompos({ comps, currentSet, setName, fixtures, advRank }, rows, prev, now = new Date()) {
   // ---------- 8. Compositions ----------
   const used = new Set();
   const order = [...comps].sort((a, b) => rank(a) - rank(b));
@@ -786,13 +813,174 @@ function calculeCompos({ comps, currentSet, setName, fixtures, advRank }, rows, 
     if (!ok) continue;
     cartes.push({ sport: nba ? "NBA" : "Football", slug: r.slug, joueur: r.joueur, carte_id: k.slug, label: cardLabel(k), rarete: k.rarity, saison: k.season, puissance: k.power, skin: k.skinBonus, in_season: k.inSeason, set_courant: k.rarity === "common" && k.set === currentSet });
   }
-  // ---------- 12. Calendrier NBA : un match par ligne dans la gameweek ----------
+  // ---------- 12. Calendrier : NBA (matchs de la gameweek) et football Set (periode Arcade, contrat v4) ----------
   const matchs = [];
   for (const r of rows.filter((x) => x.sport === "NBA")) for (const g of r._games.filter((x) => x.inWindow)) {
     const ar = advRank(g.adversaire, "NBA");
     matchs.push({ sport: "NBA", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: day(new Date(g.t - 5 * 3600e3).toISOString()), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: g.b2b, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null });
   }
-  return { lineups, compRows, jours, changes, cartes, matchs };
+  // Football (contrat v4) : joueurs du Set, matchs dont le coup d'envoi tombe entre now et la fin de la periode Arcade
+  // (gameweek EN COURS, fixtures.LIVE_FOOTBALL de collecte.mjs ; repli : gameweek a venir). jour = date a Bruxelles.
+  const fen = fenetreArcade(fixtures, now);
+  for (const r of rows.filter((x) => x.sport !== "NBA" && x._inSet)) for (const g of r._games.filter((x) => x.t >= fen.debut && x.t <= fen.fin)) {
+    const ar = advRank(g.adversaire, r.sport);
+    matchs.push({ sport: "Football", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: jourDuMatch(g.t, false), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: null, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null });
+  }
+  // ---------- 12 bis. Plan de piste Arcade (Set, football ; contrat v4) ----------
+  const plan_arcade = planArcade(rows, { currentSet, debut: fen.debut, fin: fen.fin });
+  return { lineups, compRows, jours, changes, cartes, matchs, plan_arcade };
+}
+
+// Periode Arcade : de now (ou du debut de la gameweek en cours s'il est plus tard) a la fin de la gameweek football EN COURS
+// (fixtures.LIVE_FOOTBALL, ajoute par l'agent donnees le 25/10/2026 = resume.arcade_debut / arcade_fin ; sans gameweek
+// en cours, enCours: false et collecte.mjs y met deja la fenetre de la gameweek a venir) ; repli : fixtures.FOOTBALL.
+function fenetreArcade(fixtures, now) {
+  const f = fixtures?.LIVE_FOOTBALL?.endDate ? fixtures.LIVE_FOOTBALL : fixtures?.FOOTBALL || {};
+  const t0 = new Date(now).getTime();
+  return { debut: Math.max(t0, Date.parse(f.startDate) || t0), fin: Date.parse(f.endDate) || t0 };
+}
+
+// ---------- Mode Arcade (Set football, cartes Common du set en cours) ----------
+// Regles (utilisateur 25/10/2026 + aide Sorare « What is Arcade? ») : 6 paliers aux seuils ci-dessous ; a chaque palier,
+// jusqu'a 4 compos engagees en meme temps (4 vies) ; une seule qui atteint le seuil suffit pour passer au palier suivant ;
+// si les 4 echouent, retour au palier 1. Une carte jouee ne resert plus. Compo G/D/M/A + 1 joueur de champ, bonus de carte
+// × skin, pas de capitaine. Resultat d'un lot connu au plus tard 1h50 apres le dernier coup d'envoi de ses joueurs (marge
+// de l'utilisateur) : le lot suivant ne prend que des joueurs dont le match commence a partir de ce moment.
+// Bonus de collection (jusqu'a 5 % pour plusieurs joueurs du meme club) : IGNORE (bareme exact non publie, pas modelisable proprement).
+const ARCADE_SEUILS = [260, 300, 360, 400, 440, 480]; // utilisateur 25/10/2026
+const ARCADE_DELAI = 110 * 60e3; // 1h50, marge choisie par l'utilisateur le 25/10/2026
+const ARCADE_VIES = 4; // 4 compos par palier (aide Sorare « What is Arcade? »)
+// Largeur d'un creneau (choix du stratege) : coups d'envoi entre t et t + largeur, largeur 0 (une seule vague), 1 h ou
+// 2 h. Plus large = plus de joueurs mais resultat plus tardif ; la recherche choisit pour chaque lot la largeur la
+// plus rentable (au palier 1 aussi : jouer au plus tot, mais sans bloquer la vague suivante si ce n'est pas utile).
+const ARCADE_LARGEURS = [0, 3600e3, 2 * 3600e3];
+// Objectif : nombre espere de paliers franchis d'ici la fin (demande de l'orchestrateur, 25/10/2026). false (choix du
+// stratege, a confirmer par l'utilisateur) = seuls les paliers au-dessus du plus haut deja atteint comptent, un echec est
+// donc une vraie perte ; true = un palier refranchi apres un retour au palier 1 compte de nouveau (si Sorare redonne la
+// recompense a chaque passage ; l'aide « What is Arcade? » ne le dit pas). Avec true, le plan ne conseille presque jamais
+// d'attendre (echouer au palier 6 a 15 % reste rentable car on recompte 1 a 5).
+const ARCADE_RECOMPTE = false;
+const ARCADE_PAR_POSTE = 6; // candidats par poste dans la recherche exhaustive d'une compo
+
+const heureBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" }).format(new Date(t)).replace(":", "h"); } catch { return new Date(t).toISOString().slice(11, 16).replace(":", "h"); } };
+const jourBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", weekday: "long" }).format(new Date(t)); } catch { return ""; } };
+const quand = (t, ref) => (jourDuMatch(t, false) === jourDuMatch(ref, false) ? heureBx(t) : jourBx(t) + " " + heureBx(t));
+
+// Meilleure compo (chance de depasser le seuil) parmi les unites { r, g, card, value, sd } ; un joueur une seule fois.
+function meilleureCompoArcade(units, seuil) {
+  const best = new Map();
+  for (const u of units) { const o = best.get(u.r.slug); if (!o || u.value > o.value) best.set(u.r.slug, u); }
+  const l = [...best.values()].sort((a, b) => b.value - a.value);
+  const par = (p) => l.filter((u) => u.r._pos === p).slice(0, ARCADE_PAR_POSTE);
+  const G = par("Goalkeeper"), D = par("Defender"), M = par("Midfielder"), F = par("Forward");
+  if (!G.length || !D.length || !M.length || !F.length) return null;
+  const E = [...D, ...M, ...F];
+  let top = null;
+  for (const g of G) for (const d of D) for (const m of M) for (const f of F) {
+    const m4 = g.value + d.value + m.value + f.value, v4 = g.sd ** 2 + d.sd ** 2 + m.sd ** 2 + f.sd ** 2;
+    for (const e of E) {
+      if (e === d || e === m || e === f) continue;
+      const mean = m4 + e.value, sd = Math.sqrt(v4 + e.sd ** 2);
+      const p = pAbove(mean, sd, seuil);
+      // a chance egale (souvent 0 % ou 100 %), la plus haute moyenne
+      if (!top || p > top.p + 1e-12 || (Math.abs(p - top.p) <= 1e-12 && mean > top.mean)) top = { p, mean, sd, picks: [[g, "Gardien"], [d, "Défenseur"], [m, "Milieu"], [f, "Attaquant"], [e, "Extra"]] };
+    }
+  }
+  return top;
+}
+// Lot : jusqu'a 4 compos sans carte commune, composees de facon gloutonne (meilleure chance d'abord)
+function lotArcade(units, seuil) {
+  let rest = units; const compos = [];
+  while (compos.length < ARCADE_VIES) {
+    const c = meilleureCompoArcade(rest, seuil);
+    if (!c) break;
+    compos.push(c);
+    const pris = new Set(c.picks.map(([u]) => u.card.slug));
+    rest = rest.filter((u) => !pris.has(u.card.slug));
+  }
+  if (!compos.length) return null;
+  const ts = compos.flatMap((c) => c.picks.map(([u]) => u.g.t));
+  return { compos, p: 1 - compos.reduce((q, c) => q * (1 - c.p), 1), creneau: Math.min(...ts), resultat: Math.max(...ts) + ARCADE_DELAI };
+}
+
+// Plan pour chaque palier de depart (1 a 6) maximisant le nombre espere de paliers franchis d'ici fin.
+// Programmation dynamique sur (palier, premier coup d'envoi autorise) : V(k, i) = max sur la largeur ( jouer le creneau i :
+// p (1 + V(k+1, j)) + (1 − p) V(1, j) ), attendre : V(k, i+1) ), j = premier coup d'envoi >= resultat du lot. Palier 1 : rien a perdre, on joue
+// le premier creneau jouable. Apres le palier 6, plus rien a gagner (V = 0). La recherche ignore la consommation des cartes
+// (un joueur ne joue en principe qu'un match par periode) ; le plan affiche, lui, retire les cartes deja jouees.
+function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_RECOMPTE }) {
+  const units = [];
+  for (const r of rows) {
+    if (r.sport === "NBA" || !r._inSet) continue;
+    const cards = (r._cards || []).filter((k) => k.rarity === "common" && k.set === currentSet);
+    for (const g of r._games || []) {
+      if (!(g.t >= debut && g.t <= fin) || !(g.pPlay > 0)) continue;
+      for (const card of cards) {
+        // meme loi que loiCompo (Set : bonus de carte × skin, pas de capitaine), avec la projection et la proba du match
+        const value = g.proj * g.pPlay * card.power * card.skinBonus;
+        units.push({ r, g, card, value, sd: ecartTypeJoueur({ sport: r.sport, regularite: r.regularite, proba_titulaire: g.pPlay * 100 }, value) });
+      }
+    }
+  }
+  if (!units.length) return [];
+  const T = [...new Set(units.map((u) => u.g.t))].sort((a, b) => a - b);
+  const n = T.length, K = ARCADE_SEUILS.length;
+  const dansCreneau = (i, w, exclus) => units.filter((u) => u.g.t >= T[i] && u.g.t <= T[i] + ARCADE_LARGEURS[w] && !exclus.has(u.card.slug));
+  const memoLot = new Map();
+  const lot = (i, k, w) => { const key = (i * 8 + k) * 8 + w; if (!memoLot.has(key)) memoLot.set(key, lotArcade(dansCreneau(i, w, new Set()), ARCADE_SEUILS[k - 1])); return memoLot.get(key); };
+  const suivant = (t) => { let j = 0; while (j < n && T[j] < t) j++; return j; };
+  const memo = new Map();
+  // V(k, b, i) -> { v, i (creneau joue ou -1), w (largeur), j } ; b = plus haut palier deja franchi (pour ARCADE_RECOMPTE)
+  const gain = (k, b) => (recompte || k > b ? 1 : 0);
+  const V = (k, b, i) => {
+    if (k > K || i >= n) return { v: 0, i: -1 };
+    if (recompte) b = 0;
+    const key = (k * 8 + b) * 1000 + i; if (memo.has(key)) return memo.get(key);
+    let res = { v: 0, i: -1 }, jouable = false;
+    ARCADE_LARGEURS.forEach((_, w) => {
+      const L = lot(i, k, w); if (!L) return;
+      jouable = true;
+      const j = suivant(L.resultat), v = L.p * (gain(k, b) + V(k + 1, Math.max(b, k), j).v) + (1 - L.p) * V(1, b, j).v;
+      if (res.i < 0 || v > res.v + 1e-9) res = { v, i, w, j };
+    });
+    if (k > 1 || !jouable) { const a = V(k, b, i + 1); if (a.v > res.v + 1e-9) res = a; }
+    memo.set(key, res); return res;
+  };
+  for (let i = n - 1; i >= 0; i--) for (let k = K; k >= 1; k--) for (let b = 0; b <= K; b++) V(k, b, i); // memo sans recursion profonde
+  const plan = [];
+  const fmtJ = ([u, poste]) => `${poste} ${u.r.joueur} (${u.r.club}, ${quand(u.g.t, debut)}) ${String(round(u.value)).replace(".", ",")}`;
+  const pc = (p) => (p >= 0.995 ? "> 99 %" : p < 0.005 ? "< 1 %" : Math.round(p * 100) + " %");
+  for (let depart = 1; depart <= K; depart++) {
+    // chemin des reussites : depart, depart + 1, ... ; chaque conseil dit quoi faire en cas d'echec (retour au palier 1)
+    const exclus = new Set(); let k = depart, i = 0, etape = 0, b = depart - 1;
+    const esp = V(depart, b, 0).v;
+    while (k <= K && i < n) {
+      const d = V(k, b, i); if (d.i < 0) break;
+      const L = lotArcade(dansCreneau(d.i, d.w, exclus), ARCADE_SEUILS[k - 1]);
+      if (!L) break;
+      etape++;
+      const j = suivant(L.resultat);
+      const echec = V(1, b, j);
+      const apresEchec = echec.i >= 0 ? ` En cas d'échec des ${L.compos.length} : retour au palier 1, rejouer dès ${quand(T[echec.i], debut)}.` : " En cas d'échec : retour au palier 1, plus de créneau avant la fin de la gameweek.";
+      const nC = L.compos.length === 1 ? "1 compo" : L.compos.length + " compos";
+      let conseil;
+      if (k === 1) conseil = `Jouer ${nC} dès ${quand(L.creneau, debut)} : rien à perdre au palier 1.`;
+      else {
+        const premier = ARCADE_LARGEURS.map((_, w) => lot(i, k, w)).filter(Boolean).sort((a, b) => b.p - a.p)[0];
+        const auLieu = premier && d.i > i ? (premier.p < L.p - 0.005 ? ` (${pc(premier.p)} en jouant dès ${quand(premier.creneau, debut)})` : ` (jouer dès ${quand(premier.creneau, debut)} bloquerait les créneaux suivants)`) : "";
+        conseil = d.i > i ? `Attendre le créneau de ${quand(L.creneau, debut)} et y jouer ${nC} : ${pc(L.p)} de passer le palier ${k}${auLieu}.` : `Jouer ${nC} dès ${quand(L.creneau, debut)} : ${pc(L.p)} de passer le palier ${k}.`;
+        conseil += apresEchec;
+      }
+      if (etape === 1) conseil += ` Nouveaux paliers espérés d'ici la fin de la gameweek : ${String(round(esp, 2)).replace(".", ",")}.`;
+      L.compos.forEach((c, ci) => {
+        plan.push({ depart, etape, palier: k, seuil: ARCADE_SEUILS[k - 1], creneau: new Date(L.creneau).toISOString().slice(0, 16), resultat_vers: new Date(L.resultat).toISOString().slice(0, 16),
+          compo: ci + 1, joueurs: c.picks.map(fmtJ).join(" ; "), score_attendu: round(c.mean), proba_compo: round(c.p * 100), proba_palier: round(L.p * 100), conseil });
+        for (const [u] of c.picks) exclus.add(u.card.slug);
+      });
+      b = Math.max(b, k); k++; i = j;
+    }
+  }
+  return plan;
 }
 
 // NBA In-Season (slug in_season ou regle API "SeasonBonus")
@@ -813,7 +1001,7 @@ function affecteCompetitions(order, rows, used, sauter = null) {
     if (c.inSeason && !c.minInSeason) c.minInSeason = 4;
     // nombre de compos a proposer : regle propre a l'utilisateur (NBA) sinon le maximum autorise par Sorare
     const maxTeams = c.nbaDef?.compos ?? (c.equipes > 0 ? c.equipes : 1);
-    const contraintes = [c.capPoints ? "somme des moyennes ≤ " + c.capPoints : "", c.capStars ? "somme des étoiles ≤ " + c.capStars : "", c.minInSeason ? "min " + c.minInSeason + " cartes In-Season" : "", c.maxParClub ? "max " + c.maxParClub + " par équipe" : "", c.capitaine ? "capitaine +" + c.capitaine + " %" : "", c.nbaDef?.essences ? "inscription : " + c.nbaDef.essences + " essences Limited par compo" : ""].filter(Boolean).join(", ");
+    const contraintes = [c.capPoints ? "somme des moyennes ≤ " + c.capPoints : "", c.capStars ? "somme des étoiles ≤ " + c.capStars : "", c.minInSeason ? "min " + c.minInSeason + " cartes In-Season" : "", c.maxParClub ? "max " + c.maxParClub + " par équipe" : "", c.capitaine ? "capitaine +" + c.capitaine + " %" : "", sansBonusCarte(c) ? "sans bonus de carte (salon)" : "", coutInscription(c) ? "inscription : " + coutInscription(c) + " essences Limited par compo" : ""].filter(Boolean).join(", ");
     const scores = []; let raison = ""; let elig0 = null;
     const saut = sauter ? sauter(c) : null;
     for (let k = 1; k <= maxTeams; k++) {
@@ -824,7 +1012,7 @@ function affecteCompetitions(order, rows, used, sauter = null) {
         for (const card of r._cards) {
           if (used.has(card.slug)) continue;
           if (c.sport === "NBA" ? card.rarity !== "limited" : !["limited", "rare", "super_rare", "unique"].includes(card.rarity)) continue;
-          pool.push({ r, card, value: r.score_attendu * card.power });
+          pool.push({ r, card, value: r.score_attendu * (sansBonusCarte(c) ? 1 : card.power) });
         }
       }
       const elig = new Set(pool.map((x) => x.r.slug)).size;
@@ -846,19 +1034,30 @@ function affecteCompetitions(order, rows, used, sauter = null) {
       for (const x of sol.picks) {
         used.add(x.card.slug); prisPar.set(x.card.slug, { nom: c.nom, priorite: priorite.get(c) });
         lineups.push({ competition: c.nom, sport: c.sport === "NBA" ? "NBA" : "Football", numero: k, slot: x.slot, joueur: x.r.joueur, slug: x.r.slug, carte_id: x.card.slug, carte: cardLabel(x.card), capitaine: c.capitaine && x === sol.captain ? "Oui" : "",
-          score_attendu: x.r.score_attendu, gain_etoiles: x.r.gain_etoiles, bonus: round((x.card.power - 1) * 100), score_final: round(x.value * (x === sol.captain ? 1 + (c.capitaine || 0) / 100 : 1)),
+          score_attendu: x.r.score_attendu, gain_etoiles: x.r.gain_etoiles, bonus: sansBonusCarte(c) ? 0 : round((x.card.power - 1) * 100), score_final: round(x.value + (x === sol.captain ? x.r.score_attendu * (c.capitaine || 0) / 100 : 0)),
           etoiles: x.r.etoiles, moyenne_cap: c.capPoints ? x.r._l15 : null, adversaire: x.r.adversaire, match: x.r.match, adv_attaque_rang: x.r.adv_attaque_rang, adv_defense_rang: x.r.adv_defense_rang, adv_nb_equipes: x.r.adv_nb_equipes });
       }
     }
     compRows.push({ competition: c.nom, slug: c.slug, sport: c.sport === "NBA" ? "NBA" : "Football", date_limite: c.cutoff, joueurs_eligibles: elig0 ?? 0, contraintes,
       max_compos: maxTeams, nb_compos: scores.length, scores_compos: scores.join(" "), score_compo: scores.length ? scores[0] : null,
       statut: scores.length === maxTeams ? (maxTeams > 1 ? `${maxTeams} compos proposées` : "Compo proposée") : scores.length ? `${scores.length} compo${scores.length > 1 ? "s" : ""} sur ${maxTeams} possible${maxTeams > 1 ? "s" : ""} : ${raison}` : raison,
-      regles: c.regles, ...colonnesV3(c.nbaDef?.essences || 0), type: c.sport === "NBA" ? "NBA" : "JPL", rang: rank(c), cap_points: c.capPoints, cap_etoiles: c.capStars, min_in_season: c.minInSeason || null, max_par_club: c.maxParClub, capitaine_pct: c.capitaine || 0 });
+      regles: c.regles, ...colonnesV3(coutInscription(c)), type: c.sport === "NBA" ? "NBA" : "JPL", rang: rank(c), cap_points: c.capPoints, cap_etoiles: c.capStars, min_in_season: c.minInSeason || null, max_par_club: c.maxParClub, capitaine_pct: c.capitaine || 0 });
   }
   return { lineups, compRows };
 }
 // Colonnes v3 de competitions (contrat-donnees.md), remplies par evalueRentabilite() une fois les paliers connus.
-// Cout d'inscription : Rooms NBA 150 essences Limited par compo (NBA_COMPS de collecte.mjs, releve sur sorare.com) ; 0 sinon.
+// Cout d'inscription en essences Limited par compo. Source : API Sorare, so5Leaderboard.displayedTypedRules, regle
+// « EntryItem » (So5EntryItemRule.entryItem { ... on So5CardShardsEntryItem { quantity rarity } }), relevee le 25/10/2026 :
+// NBA Rooms Champion (nba_limited_arena_140) 150 ; Jupiler Cap 260 (salons ..._jupiler_arena_limited) 300.
+// c.coutInscription (si collecte.mjs lit un jour cette regle) prime ; sinon NBA_COMPS (Rooms 150) ; sinon 300 pour un
+// salon football (Cap 260) ; 0 ailleurs. Avant le 25/10/2026, le Cap 260 etait compte gratuit (ecart corrige).
+const coutInscription = (c) => c.coutInscription ?? c.nbaDef?.essences ?? (c.sport === "FOOTBALL" && sansBonusCarte(c) ? 300 : 0);
+// Salons (Rooms NBA « arena_140 », Cap 260 football « arena_limited ») : AUCUN bonus de carte (niveau / XP, In-Season,
+// collection). Sources : aide Sorare « What is the Arena? How does it work? » (NBA, art. 30758177419165 : « No Bonuses …
+// no XP, Collection, or Season bonuses applied to scores ») et API so5Rankings…so5Appearances{ score bonus } du 25/10/2026 :
+// bonus = 1,0 pour toutes les cartes des salons NBA arena_140 et des salons Cap 260 (sauf capitaine 1,2), contre 1,04 a 1,13
+// en Classic et In-Season. Les deux sports sont concernes (verifie sur chacun). Avant le 25/10/2026 : score × puissance.
+const sansBonusCarte = (c) => /arena/.test(c?.slug || "");
 const colonnesV3 = (cout) => ({ cout_inscription: cout, gains_esperes: "", gain_net_espere: null, autres_recompenses: "", rentable: "", recommandation: "", alternative: "" });
 
 // Statuts sans compo (proposition 2) : textes communs aux deux sports
@@ -983,9 +1182,13 @@ function optimise(c, pool) {
     if (c.maxParClub) { const m = new Map(); let bad = false; for (const x of t) { const k = x.r._clubSlug; m.set(k, (m.get(k) || 0) + 1); if (m.get(k) > c.maxParClub) bad = true; } if (bad) continue; }
     let slots = null;
     if (!nba) { slots = assignFootball(t); if (!slots) continue; }
-    // capitaine : meilleur score ajuste du risque
-    const cap = t.slice().sort((x, y) => y.value * (1 - 0.3 * y.r._cv) - x.value * (1 - 0.3 * x.r._cv))[0];
-    const total = t.reduce((s, x) => s + x.value, 0) + cap.value * capt;
+    // capitaine : meilleur score ajuste du risque. Bonus capitaine ADDITIF : il s'ajoute au bonus de la carte et porte sur
+    // le score du joueur (sans bonus). Source : API so5Rankings…so5Appearances{ bonus } du 25/10/2026, Jupiler In-Season :
+    // capitaine 1,64 / 1,65 pour des cartes a 1,14 / 1,15 (1 + 0,14 + 0,50), et non 1,14 × 1,5 = 1,71 ; aide Sorare
+    // « How does scoring work in Sorare Football? » (bonus de carte ajoutes au score du joueur). Football seulement
+    // (pas de capitaine en NBA). Avant le 25/10/2026 : valeur de la carte × (1 + bonus capitaine).
+    const cap = t.slice().sort((x, y) => y.r.score_attendu * (1 - 0.3 * y.r._cv) - x.r.score_attendu * (1 - 0.3 * x.r._cv))[0];
+    const total = t.reduce((s, x) => s + x.value, 0) + cap.r.score_attendu * capt;
     if (!best || total > best.total) best = { total, picks: t, captain: cap, slots };
   }
   if (!best) return null;
@@ -1043,7 +1246,7 @@ function assignFootball(t) {
 // ---------- 14. Rentabilite des competitions (contrat v3) et choix In-Season NBA ----------
 // Loi normale identique a celle de dashboard/index.html (fonctions erf, pAbove, dist et mkCand) pour que la page et
 // les donnees affichent les memes chances : moyenne = somme des score_final de la compo ; ecart-type de la compo =
-// racine de la somme des carres des ecarts-types des joueurs (capitaine : × (1 + bonus capitaine)) ; ecart-type
+// racine de la somme des carres des ecarts-types des joueurs (capitaine : × (1 + bonus capitaine / puissance), bonus additif depuis le 25/10/2026) ; ecart-type
 // d'un joueur = sqrt(p × (proj × cv)² + p × (1 − p) × proj²), avec value = score_attendu × puissance de la carte
 // (× skin en Set), p = proba_titulaire / 100 bornee a [0,05 ; 1] (0,8 si absente), proj = value / p,
 // cv = regularite / 100 (40 % si absente), × 0,8 en NBA. Fourchette 10–90 % = moyenne ± 1,2816 écart-type.
@@ -1062,8 +1265,10 @@ function loiCompo(picks, comp, bySlug) {
   const sd = Math.sqrt(picks.reduce((s, l) => {
     const r = bySlug.get(l.slug); const k = r?._cards?.find((x) => x.slug === l.carte_id);
     // comme la page : sans joueur ou sans carte connus, ecart-type = 40 % du score
-    const sdj = r && k ? ecartTypeJoueur(r, (Number(r.score_attendu) || 0) * (Number(k.power) || 1) * (set ? Number(k.skinBonus) || 1 : 1)) : (Number(l.score_final) || 0) * 0.4;
-    return s + (sdj * (l.capitaine ? 1 + capt : 1)) ** 2;
+    // salon : pas de bonus de carte (sansBonusCarte) ; capitaine additif : ecart-type × (1 + bonus capitaine / puissance)
+    const pw = sansBonusCarte(comp) ? 1 : Number(k?.power) || 1;
+    const sdj = r && k ? ecartTypeJoueur(r, (Number(r.score_attendu) || 0) * pw * (set ? Number(k.skinBonus) || 1 : 1)) : (Number(l.score_final) || 0) * 0.4;
+    return s + (sdj * (l.capitaine ? 1 + capt / pw : 1)) ** 2;
   }, 0));
   return { mean, sd };
 }
@@ -1170,7 +1375,7 @@ function evalueLigne(cr, lus, tiers, bySlug) {
   return out;
 }
 
-return { calculeCompos, affecteCompetitions, calculeChangements, raisonInSeasonPrises, rank, optimise, missingReason, plafondEtoiles, assignFootball, pAbove, ecartTypeJoueur, loiCompo, gainCompo, evalueRentabilite };
+return { calculeCompos, fenetreArcade, ARCADE_SEUILS, ARCADE_DELAI, ARCADE_VIES, ARCADE_LARGEURS, ARCADE_RECOMPTE, planArcade, affecteCompetitions, coutInscription, sansBonusCarte, calculeChangements, raisonInSeasonPrises, rank, optimise, missingReason, plafondEtoiles, assignFootball, pAbove, ecartTypeJoueur, loiCompo, gainCompo, evalueRentabilite };
 })();
 
 // ===== core.mjs =====
@@ -1193,7 +1398,7 @@ async function collect({ apiKey, oddsKey = null, espn = true, prev = null, histo
   const ctx = await collecte({ apiKey, oddsKey, espn, history, now, log });
   const { gq, comps, cards, players, setName, fixtures, odds, samples, w, calib } = ctx;
   const { rows, newSamples } = calculeJoueurs(ctx, now);
-  const { lineups, compRows, jours, changes, cartes, matchs } = calculeCompos(ctx, rows, prev);
+  const { lineups, compRows, jours, changes, cartes, matchs, plan_arcade } = calculeCompos(ctx, rows, prev, now);
 
   // ---------- 13. Paliers de recompense de la derniere gameweek terminee ----------
   let paliers = [];
@@ -1216,8 +1421,8 @@ async function collect({ apiKey, oddsKey = null, espn = true, prev = null, histo
   log(`${ctx.appels()} appels API`);
   return {
     files: {
-      joueurs: clean, compos: lineups, competitions: compRows, jours, changements: changes, calibration: calib, cartes, matchs, paliers, bilan,
-      resume: [{ maj: now.toISOString(), cartes: cards.length, joueurs: players.length, set: setName, gw_football: fixtures.FOOTBALL.slug, gw_nba: fixtures.NBA.slug, limite_football: fixtures.FOOTBALL.cutOffDate, limite_nba: fixtures.NBA.cutOffDate, gw_debut_football: fixtures.FOOTBALL.startDate || null, gw_fin_football: fixtures.FOOTBALL.endDate || null, gw_debut_nba: fixtures.NBA.startDate || null, gw_fin_nba: fixtures.NBA.endDate || null, poids_sorare: w, cotes_externes: odds.length > 0 ? "oui" : "non", appels_api: ctx.appels() }],
+      joueurs: clean, compos: lineups, competitions: compRows, jours, changements: changes, calibration: calib, cartes, matchs, plan_arcade, paliers, bilan,
+      resume: [{ maj: now.toISOString(), cartes: cards.length, joueurs: players.length, set: setName, gw_football: fixtures.FOOTBALL.slug, gw_nba: fixtures.NBA.slug, limite_football: fixtures.FOOTBALL.cutOffDate, limite_nba: fixtures.NBA.cutOffDate, gw_debut_football: fixtures.FOOTBALL.startDate || null, gw_fin_football: fixtures.FOOTBALL.endDate || null, gw_debut_nba: fixtures.NBA.startDate || null, gw_fin_nba: fixtures.NBA.endDate || null, arcade_debut: fixtures.LIVE_FOOTBALL?.startDate ?? fixtures.FOOTBALL.startDate ?? null, arcade_fin: fixtures.LIVE_FOOTBALL?.endDate ?? fixtures.FOOTBALL.endDate ?? null, poids_sorare: w, cotes_externes: odds.length > 0 ? "oui" : "non", appels_api: ctx.appels() }],
     },
     history: { samples: allSamples, calibration: calib.slice(-90) },
   };

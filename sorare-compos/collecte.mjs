@@ -11,6 +11,9 @@ const NBA_COMPS = [
   { suffix: "nba_limited_in_season_contender", nom: "NBA In-Season Contender", rang: 1, compos: 1 },
   { suffix: "nba_limited_champion", nom: "NBA Classic Champion", rang: 2, compos: 3 },
   { suffix: "nba_limited_contender", nom: "NBA Classic Contender", rang: 3, compos: 3 },
+  // essences : cout d'inscription en essences Limited, repli seulement. La source est la regle API « EntryItem »
+  // (displayedTypedRules, So5CardShardsEntryItem { quantity rarity }), lue en section 2 dans coutInscription :
+  // 150 Limited pour nba_limited_arena_140, verifie le 25/10/2026.
   { suffix: "nba_limited_arena_140", nom: "NBA Rooms Champion", rang: 4, compos: 2, essences: 150, salon: true },
 ];
 export const POS = { Goalkeeper: "Gardien", Defender: "Défenseur", Midfielder: "Milieu", Forward: "Attaquant" };
@@ -85,18 +88,35 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
   // ---------- 2. Gameweeks et competitions ----------
   log("Compétitions…");
   const fixtures = {};
+  // Football : la gameweek EN COURS (type LIVE) est demandee dans la meme requete (alias « live », 0 appel de plus) ;
+  // le mode Set / Arcade se joue dessus (contrat v4, resume.arcade_debut / arcade_fin). Verifie le 25/10/2026 :
+  // LIVE = football-23-27-oct-2026 (aasmState started), UPCOMING = football-27-30-oct-2026. Sans gameweek en cours
+  // (live null), fixtures.LIVE_FOOTBALL reprend la fenetre de la gameweek a venir.
   for (const sport of ["FOOTBALL", "NBA"]) {
-    const d = await gq(`query($sport:Sport!){ so5{ so5Fixture(type:UPCOMING sport:$sport){ slug cutOffDate startDate endDate gameWeek so5Leaderboards{ slug displayName mainRarityType teamsCap format{ title } } } } }`, { sport });
+    const live = sport === "FOOTBALL" ? " live: so5Fixture(type:LIVE sport:$sport){ slug aasmState startDate endDate }" : "";
+    const d = await gq(`query($sport:Sport!){ so5{ so5Fixture(type:UPCOMING sport:$sport){ slug cutOffDate startDate endDate gameWeek so5Leaderboards{ slug displayName mainRarityType teamsCap format{ title } } }${live} } }`, { sport });
     fixtures[sport] = d.so5.so5Fixture;
+    if (sport === "FOOTBALL") {
+      const l = d.so5.live, u = d.so5.so5Fixture;
+      fixtures.LIVE_FOOTBALL = l?.slug ? { slug: l.slug, startDate: l.startDate || null, endDate: l.endDate || null, enCours: true }
+        : { slug: u.slug, startDate: u.startDate || null, endDate: u.endDate || null, enCours: false };
+    }
   }
+  // Salons (Cap 260 « ..._jupiler_arena_limited ») : l'API liste le salon de base puis chaque salon de 10
+  // « ..._arena_limited-<uuid> » (21 salons la gameweek du 23-27/10/2026). Une seule entree par slug sans uuid, la plus
+  // courte (le salon de base) ; suffix est calcule sans uuid pour que collectePaliers retrouve les salons.
+  const sansUuid = (s) => s.replace(/-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/, "");
+  const vus = new Set();
   const wanted = [
     ...fixtures.FOOTBALL.so5Leaderboards.filter((l) => /jupiler/.test(l.slug) && l.mainRarityType === "limited"),
     ...fixtures.NBA.so5Leaderboards.filter((l) => NBA_COMPS.some((n) => l.slug.endsWith("-" + n.suffix))),
-  ];
+  ].sort((a, b) => a.slug.length - b.slug.length).filter((l) => { const k = sansUuid(l.slug); if (vus.has(k)) return false; vus.add(k); return true; });
   const comps = [];
   for (const l of wanted) {
-    const d = await gq(`query($s:String!){ so5{ so5Leaderboard(slug:$s){ slug displayedTypedRules{ key descriptions{ title items{ title } } } } } }`, { s: l.slug });
+    const d = await gq(`query($s:String!){ so5{ so5Leaderboard(slug:$s){ slug displayedTypedRules{ key descriptions{ title items{ title } } ... on So5EntryItemRule { entryItem{ ... on So5CardShardsEntryItem { quantity rarity } } } } } } }`, { s: l.slug });
     const rules = d.so5.so5Leaderboard.displayedTypedRules.map((r) => ({ key: r.key, text: r.descriptions.map((x) => [x.title, ...(x.items || []).map((i) => i.title)].filter(Boolean).join(" ")).join(" ; ") }));
+    // Cout d'inscription (regle EntryItem, texte vide) : 150 Limited Rooms NBA, 300 Limited Cap 260, releve le 25/10/2026
+    const entry = d.so5.so5Leaderboard.displayedTypedRules.find((r) => r.key === "EntryItem")?.entryItem;
     const num = (key) => { const r = rules.find((x) => x.key === key); const m = r && r.text.match(/(\d+)/); return m ? Number(m[1]) : null; };
     const sport = l.slug.startsWith("nba") ? "NBA" : "FOOTBALL";
     const nbaDef = NBA_COMPS.find((n) => l.slug.endsWith("-" + n.suffix));
@@ -104,9 +124,10 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
       slug: l.slug, sport, fixture: (sport === "NBA" ? fixtures.NBA : fixtures.FOOTBALL).slug,
       nom: nbaDef ? nbaDef.nom : "Jupiler " + l.displayName + (l.format?.title && l.format.title !== l.displayName ? " (" + l.format.title + ")" : ""),
       cutoff: (sport === "NBA" ? fixtures.NBA : fixtures.FOOTBALL).cutOffDate,
-      equipes: l.teamsCap, inSeason: /in_season/.test(l.slug), salon: /arena/.test(l.slug), suffix: l.slug.slice(((sport === "NBA" ? fixtures.NBA : fixtures.FOOTBALL).slug + "-").length),
+      equipes: l.teamsCap, inSeason: /in_season/.test(l.slug), salon: /arena/.test(l.slug), suffix: sansUuid(l.slug).slice(((sport === "NBA" ? fixtures.NBA : fixtures.FOOTBALL).slug + "-").length),
       capPoints: num("SumOfAverageScores"), capStars: num("AverageScores"), capitaine: num("CaptainScarcity"),
       minInSeason: num("SeasonBonus"), maxParClub: num("SameActiveClub"),
+      coutInscription: entry?.rarity === "limited" ? entry.quantity : undefined,
       regles: rules.filter((r) => r.text).map((r) => r.text).join(" | "),
     });
   }
@@ -423,7 +444,10 @@ export async function collecteBilan({ gq, batched, fixturesRecentes, players }, 
       for (const l of t5) {
         const cap = l.capitaine === "Oui";
         const base = scoreFenetre(dataDe(slugDe(l)), SP, c.debut, c.fin);
-        const v = base == null ? null : base * (1 + (Number(l.bonus) || 0) / 100) * (cap ? 1 + pct / 100 : 1);
+        // Bonus de carte et capitaine s'additionnent (score × (1 + bonus + capitaine)) ; salons (slug « arena », Rooms NBA
+        // et Cap 260) : aucun bonus de carte, seul le capitaine compte (cf. sansBonusCarte dans compos.mjs).
+        const bonusCarte = /arena/.test(comp?.slug || "") ? 0 : (Number(l.bonus) || 0) / 100;
+        const v = base == null ? null : base * (1 + bonusCarte + (cap ? pct / 100 : 0));
         reel = reel == null || v == null ? null : reel + v;
         detail.push(`${l.joueur}${cap ? " (C)" : ""} ${fr(l.score_final)}→${fr(v)}`);
       }

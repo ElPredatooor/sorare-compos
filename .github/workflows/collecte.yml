@@ -54,6 +54,7 @@ jobs:
         run: |
           node outils/test-collecte.mjs
           node outils/test-bilan.mjs
+          node outils/test-regles-delta.mjs
 
       # Environ 400 à 500 appels Sorare (limite : environ 1 000 par 10 minutes), 2 appels The Odds API
       - name: Collecter les données Sorare
@@ -64,6 +65,30 @@ jobs:
 
       - name: Vérifier le contrat de données (erreur bloquante = pas de publication)
         run: node outils/verifier.mjs data/latest
+
+      # Non bloquant : compare les règles relues (competitions.json) à la veille (data/archive) et à docs/regles-reference.json.
+      # Code 2 = règle modifiée, compétition nouvelle ou disparue : avertissement, la publication continue.
+      - name: Changements de règles Sorare
+        continue-on-error: true
+        run: |
+          set +e
+          sortie=$(node outils/regles-delta.mjs . 2>&1)
+          code=$?
+          set -e
+          echo "$sortie"
+          {
+            echo "### Changements de règles Sorare"
+            echo
+            echo '```'
+            echo "$sortie"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ $code -eq 2 ]; then
+            echo "::warning title=Règles Sorare modifiées::Règles Sorare modifiées depuis la veille ou la référence : à examiner avant de mettre à jour docs/regles-reference.json (voir le résumé de l'exécution)."
+          elif [ $code -ne 0 ]; then
+            echo "::warning title=Contrôle des règles::regles-delta.mjs a échoué (code $code) : données introuvables ?"
+          fi
+          exit 0
 
       # Même règle que outils/collecte-locale.mjs : plus de 30 jours supprimés, en gardant toujours les 3 dernières
       - name: Supprimer les archives de plus de 30 jours

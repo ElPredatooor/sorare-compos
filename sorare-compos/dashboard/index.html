@@ -5,6 +5,28 @@
   .sx-sport { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--color-border-line); border-radius: 999px; background: var(--color-panel); width: max-content; max-width: 100%; }
   .sx-sport button { appearance: none; border: 0; background: none; font: inherit; color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-lg); border-radius: 999px; cursor: pointer; }
   .sx-sport button[aria-selected="true"] { background: var(--color-fg); color: var(--color-bg); font-weight: var(--cds-font-weight-medium); }
+  /* Second niveau : Pro (Limited et plus) / Set (Common, mode Arcade) */
+  .sx-switch { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-md); align-items: center; }
+  .sx-mode { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); max-width: 100%; }
+  .sx-mode button { appearance: none; border: 0; background: none; font: inherit; color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-md); border-radius: var(--cds-radius); cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline; }
+  .sx-mode button .sx-lbl { font-size: var(--cds-font-size-caption); }
+  .sx-mode button[aria-selected="true"] { background: var(--color-panel); color: var(--color-fg); font-weight: var(--cds-font-weight-medium); box-shadow: inset 0 0 0 1px var(--color-border-line); }
+  .sx-mode button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+  /* Planificateur Arcade (Football Set) */
+  .sx-piste { list-style: none; margin: var(--cds-gap-sm) 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; counter-reset: none; }
+  .sx-piste li { border: 1px solid var(--color-border-line); border-top: 4px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-xs) var(--cds-pad-sm); background: var(--color-bg); display: grid; gap: 2px; min-width: 0; font-size: var(--cds-font-size-caption); }
+  .sx-piste li .sx-v { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-heading); font-variant-numeric: tabular-nums; }
+  .sx-piste li.sx-done { border-top-color: var(--color-ok); color: var(--color-fg-muted); }
+  .sx-piste li[aria-current="step"] { border-color: var(--color-fg); border-top-color: var(--color-fg); background: var(--color-panel); }
+  .sx-steps { display: grid; gap: var(--cds-gap-md); margin-top: var(--cds-gap-sm); }
+  .sx-step { border: 1px solid var(--color-border-line); border-left: 4px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); background: var(--color-bg); display: grid; gap: var(--cds-gap-xs); min-width: 0; }
+  .sx-step.sx-on { border-left-color: var(--color-fg); background: var(--color-panel); }
+  .sx-step.sx-past { opacity: .7; }
+  .sx-step h3 { margin: 0; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); }
+  .sx-step p { margin: 0; font-size: var(--cds-font-size-caption); }
+  .sx-step ul { margin: 0; padding-left: 1.1rem; }
+  .sx-rules { margin: var(--cds-gap-xs) 0 0; padding-left: 1.2rem; display: grid; gap: 2px; font-size: var(--cds-font-size-caption); }
+  @media (max-width: 600px) { .sx-piste { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .sx-tabs { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs); border-bottom: 1px solid var(--color-border-line); }
   .sx-tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; padding: var(--cds-pad-sm) var(--cds-pad-md); font: inherit; color: var(--color-fg-muted); cursor: pointer; }
   .sx-tab[aria-selected="true"] { color: var(--color-fg); border-bottom-color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
@@ -29,7 +51,7 @@
   .sx-dots { display: inline-flex; gap: 4px; }
   .sx-dot { appearance: none; border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg-muted); font: inherit; font-size: var(--cds-font-size-caption); min-width: 1.6rem; height: 1.6rem; border-radius: 999px; cursor: pointer; font-variant-numeric: tabular-nums; }
   .sx-dot.on { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
-  .sx-arrow:focus-visible, .sx-dot:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+  .sx-arrow:focus-visible, .sx-dot:focus-visible, .sx-dec:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
   .sx-tools { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-md); align-items: center; margin-bottom: var(--cds-gap-sm); }
   .sx-tools input[type=search], .sx-tools select, .sx-sel { padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); font: inherit; }
   .sx-tools input[type=search] { flex: 1 1 14rem; min-width: 0; }
@@ -153,15 +175,27 @@
     <p id="lead" data-source="resume">—</p>
   </header>
 
-  <div class="sx-sport" role="tablist" aria-label="Sport">
-    <button role="tab" id="football" data-sport="FOOTBALL" aria-selected="true">Football</button>
-    <button role="tab" id="nba" data-sport="NBA" aria-selected="false">NBA</button>
+  <div class="sx-switch">
+    <div class="sx-sport" role="tablist" aria-label="Sport">
+      <button role="tab" id="football" data-sport="FOOTBALL" aria-selected="true">Football</button>
+      <button role="tab" id="nba" data-sport="NBA" aria-selected="false">NBA</button>
+    </div>
+    <div class="sx-mode" role="tablist" aria-label="Type de cartes">
+      <button role="tab" id="m-pro" data-mode="PRO" aria-selected="true" title="Cartes Limited et plus : compétitions classées et salons">Pro <span class="sx-lbl">Limited et plus</span></button>
+      <button role="tab" id="m-set" data-mode="SET" aria-selected="false" title="Cartes Common du set en cours : mode Arcade">Set <span class="sx-lbl">Common, Arcade</span></button>
+    </div>
+  </div>
+
+  <div class="sx-card sx-empty-gw" id="mode-vide" role="status" data-source="competitions joueurs cartes" hidden>
+    <div class="sx-lbl" id="mode-vide-lbl"></div>
+    <h2 id="mode-vide-titre"></h2>
+    <p class="sx-note" id="mode-vide-txt"></p>
   </div>
 
   <section class="sx-kpis" id="kpis" aria-label="Indicateurs clés de la gameweek">
-    <div class="sx-kpi" id="k-time"><div class="sx-lbl">Temps restant</div><div class="sx-kpi-v" id="k-time-v" data-source="resume">—</div><div class="sx-kpi-x" id="k-time-x"></div></div>
-    <div class="sx-kpi" id="k-compos"><div class="sx-lbl">Compos à inscrire</div><div class="sx-kpi-v" id="k-compos-v" data-source="nb_compos competitions" data-field="n">—</div><div class="sx-kpi-x" id="k-compos-x"></div></div>
-    <div class="sx-kpi" id="k-gain"><div class="sx-lbl">Gain net espéré</div><div class="sx-kpi-v" id="k-gain-v" data-source="gain_net competitions paliers" data-field="n">—</div><div class="sx-kpi-x" id="k-gain-x"></div></div>
+    <div class="sx-kpi" id="k-time"><div class="sx-lbl" id="k-time-l">Temps restant</div><div class="sx-kpi-v" id="k-time-v" data-source="resume plan_arcade">—</div><div class="sx-kpi-x" id="k-time-x"></div></div>
+    <div class="sx-kpi" id="k-compos"><div class="sx-lbl">Compos à inscrire</div><div class="sx-kpi-v" id="k-compos-v" data-source="kpi_mode competitions" data-field="compos">—</div><div class="sx-kpi-x" id="k-compos-x"></div></div>
+    <div class="sx-kpi" id="k-gain"><div class="sx-lbl">Gain net espéré</div><div class="sx-kpi-v" id="k-gain-v" data-source="kpi_mode competitions paliers" data-field="gain_net">—</div><div class="sx-kpi-x" id="k-gain-x"></div></div>
     <div class="sx-kpi" id="k-risk"><div class="sx-lbl">Joueurs à risque dans les compos</div><div class="sx-kpi-v" id="k-risk-v" data-source="compos joueurs matchs">—</div><div class="sx-kpi-x" id="k-risk-x"></div></div>
     <div class="sx-kpi" id="k-fresh"><div class="sx-lbl">Fraîcheur des données</div><div class="sx-kpi-v" id="k-fresh-v" data-source="resume" data-row="0" data-field="maj">—</div><div class="sx-kpi-x" id="k-fresh-x"></div></div>
   </section>
@@ -177,7 +211,31 @@
 
   <!-- DECIDER (compos) -->
   <section class="sx-page" id="p-compos" role="tabpanel" aria-labelledby="t-compos">
-    <div class="sx-card sx-empty-gw" id="gw-vide" data-sport-only="FOOTBALL" data-source="resume competitions joueurs" role="status" hidden>
+    <div class="sx-card" id="arcade" data-sport-only="FOOTBALL" data-mode-only="SET" data-source="plan_arcade resume" hidden>
+      <h2>Plan de piste Arcade</h2>
+      <p class="sx-note" id="arc-note">Indique ton palier actuel : le plan dit quand jouer tes 4 compos et avec quels joueurs, étape par étape. Heures de Bruxelles.</p>
+      <ol class="sx-piste" id="arc-piste" aria-label="Piste des paliers"></ol>
+      <div class="sx-tools">
+        <label for="arc-palier">Je suis au palier</label>
+        <select id="arc-palier" class="sx-sel"></select>
+        <button class="sx-btn sx-strong" id="arc-ok">Palier réussi</button>
+        <button class="sx-btn" id="arc-ko" title="Les 4 compos du lot ont échoué : retour au palier 1">Lot perdu : retour au palier 1</button>
+      </div>
+      <p class="sx-reason" id="arc-empty" role="status" hidden></p>
+      <div class="sx-steps" id="arc-steps" data-source="plan_arcade"></div>
+      <details class="sx-fold" id="arc-regles" open>
+        <summary>Règles de l’Arcade à garder en tête</summary>
+        <ul class="sx-rules">
+          <li>Tu joues 4 compos en même temps sur un palier : ce sont tes 4 vies.</li>
+          <li>Une seule compo au-dessus du seuil suffit : tu passes au palier suivant.</li>
+          <li>Les 4 compos sous le seuil : retour au palier 1.</li>
+          <li>Une carte jouée ne peut plus resservir.</li>
+          <li>Attends 1h50 après le dernier coup d’envoi du lot pour connaître le résultat avant de jouer l’étape suivante.</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="sx-card sx-empty-gw" id="gw-vide" data-sport-only="FOOTBALL" data-mode-only="PRO" data-source="resume competitions joueurs" role="status" hidden>
       <div class="sx-lbl" id="gw-vide-dates"></div>
       <h2 id="gw-vide-titre"></h2>
       <p class="sx-note" id="gw-vide-txt"></p>
@@ -240,7 +298,7 @@
       </div>
     </details>
 
-    <details class="sx-card" id="calendrier" data-sport-only="NBA" open>
+    <details class="sx-card" id="calendrier" data-sport-only="NBA" data-mode-only="PRO" open>
       <summary><h2>Calendrier de la gameweek</h2></summary>
       <p class="sx-note">Un match par case, avec le score attendu. Couleur = défense adverse (vert : parmi les plus faibles, rouge : parmi les meilleures). « 2e soir » : second match de deux soirs de suite, risque de repos. Jours à l’heure de New York (soirée américaine).</p>
       <div class="sx-tools">
@@ -253,7 +311,7 @@
       <p class="sx-note" id="tl-empty" hidden>Le calendrier jour par jour arrivera avec la prochaine collecte.</p>
     </details>
 
-    <details class="sx-card" id="etoiles" data-sport-only="NBA">
+    <details class="sx-card" id="etoiles" data-sport-only="NBA" data-mode-only="PRO">
       <summary><h2>Étoiles qui vont bouger</h2></summary>
       <p class="sx-note">Les étoiles suivent la moyenne des 10 derniers matchs joués (L10) : 50 = 5★, 45 = 4,5★, 40 = 4★, 35 = 3,5★, 30 = 3★, 25 = 2,5★, 20 = 2★, 15 = 1,5★. Si chaque joueur joue ses matchs prévus avec son score attendu par match, voici sa L10 après la gameweek. Un joueur qui perd une étoile coûte moins cher sous le plafond la semaine suivante.</p>
       <div class="sx-wrap" style="max-height: 26rem">
@@ -265,7 +323,7 @@
       <p class="sx-note" id="et-empty" hidden>Aucun changement d’étoiles en vue cette gameweek.</p>
     </details>
 
-    <details class="sx-card" id="role" data-sport-only="NBA">
+    <details class="sx-card" id="role" data-sport-only="NBA" data-mode-only="PRO">
       <summary><h2>Rôle élargi probable</h2></summary>
       <p class="sx-note">Joueurs dont des coéquipiers importants sont déclarés Out par ESPN : les minutes libérées (moyenne des 5 derniers matchs des absents) profitent souvent aux remplaçants et aux joueurs du même poste. Ce signal n’est pas ajouté au score attendu : à toi de juger.</p>
       <div class="sx-wrap">
@@ -277,7 +335,7 @@
       <p class="sx-note" id="role-empty" hidden>Aucun joueur concerné dans cette collecte.</p>
     </details>
 
-    <details class="sx-card" id="bonnes-affaires" data-sport-only="NBA">
+    <details class="sx-card" id="bonnes-affaires" data-sport-only="NBA" data-mode-only="PRO">
       <summary><h2>Les bonnes affaires en étoiles</h2></summary>
       <p class="sx-note">Joueurs à 3 étoiles ou moins dont le score attendu dépasse le plus le score habituel de leur niveau. Les aligner libère des étoiles pour tes joueurs à 4 ou 5 étoiles.</p>
       <div class="sx-wrap">
@@ -289,7 +347,7 @@
     </details>
 
     <details class="sx-card" id="a-revoir" open>
-      <summary><h2>À revoir depuis hier</h2> <span class="sx-lbl" id="st-ch" data-source="nb_changements" data-field="n"></span></summary>
+      <summary><h2>À revoir depuis hier</h2> <span class="sx-lbl" id="st-ch" data-source="changements"></span></summary>
       <p class="sx-note" id="ch-note">—</p>
       <div class="sx-wrap" style="max-height: 16rem">
         <table class="sx-table sx-cards" id="t-ch" data-source="changements" data-row-key="joueur,type">
@@ -309,11 +367,6 @@
       <p class="sx-note" id="j-note">—</p>
       <p class="sx-reason" id="j-flags" data-sport-only="NBA" data-source="joueurs" hidden></p>
       <div class="sx-tools" id="j-tools">
-        <select id="f-mode" class="sx-sel" aria-label="Mode">
-          <option value="JPL">Jupiler Pro League</option>
-          <option value="SET">Set HyperGlitch (Common)</option>
-          <option value="">Tous</option>
-        </select>
         <input type="search" id="f-q" placeholder="Joueur, équipe, adversaire" aria-label="Chercher">
         <label><input type="checkbox" id="f-gw" checked> Avec un match cette gameweek</label>
         <label data-sport-only="FOOTBALL"><input type="checkbox" id="f-na" checked> Masquer les non alignés</label>
@@ -402,8 +455,9 @@
 
   <!-- METHODE -->
   <section class="sx-page" id="p-meth" role="tabpanel" aria-labelledby="t-meth" hidden>
-    <div class="sx-card sx-method" id="meth-FOOTBALL">
-      <h2>Comment les compos football sont calculées</h2>
+    <div class="sx-card sx-method" id="meth-FOOTBALL" data-sport-only="FOOTBALL" data-mode-only="PRO">
+      <h2>Comment les compos football Pro sont calculées</h2>
+      <p>Vue Pro : cartes Limited et plus, compétitions Jupiler (In-Season et Cap 260). Les cartes Common du set en cours sont dans la vue Set.</p>
       <h3>Lire la page</h3>
       <p>En tête : le temps restant avant la date limite, les compos à inscrire, le gain net espéré en essences, les joueurs à risque dans les compos et la fraîcheur des données (orange après 12 h, rouge après 24 h ou si des matchs de football ont été joués depuis la collecte : des blessures ont pu changer). Puis une carte de décision par compétition : vert = inscrire, orange = à surveiller (un joueur à risque), gris = rien à jouer, rouge = non rentable. Le détail des joueurs vient ensuite. Heures de Bruxelles.</p>
       <h3>Score attendu d’un joueur</h3>
@@ -415,10 +469,10 @@
       <h3>Niveau de l’adversaire</h3>
       <p>Pour chaque match, le rang de l’adversaire dans son championnat : en attaque (buts marqués par match, 1er = meilleure attaque) et en défense (buts encaissés par match, 1er = meilleure défense). En vert, ce qui est favorable à ton joueur (adversaire dans le dernier tiers), en rouge ce qui est défavorable (premier tiers). Source : classements ESPN.</p>
       <h3>Bonus et capitaine</h3>
-      <p>Le score final multiplie le score attendu par le bonus de la carte (niveau, collection, saison), et en Set par le bonus de skin (shiny, holo). Le capitaine est le joueur au meilleur score attendu corrigé de sa variabilité ; son bonus vient des règles de la compétition (+50 % en In-Season, +20 % en Cap 260).</p>
+      <p>Le score final multiplie le score attendu par le bonus de la carte (niveau, collection, saison). Exception : dans les salons (Cap 260), aucun bonus de carte ne s’applique, le score final est le score attendu. Le capitaine est choisi sur son score attendu de base, corrigé de sa variabilité. Son bonus s’ajoute à celui de la carte et porte sur le score du joueur : total de la compo = somme des scores finaux + score attendu du capitaine × bonus capitaine (+50 % en In-Season, +20 % en Cap 260). Exemple : une carte à +14 % capitaine en In-Season compte 1 + 0,14 + 0,50 = 1,64 fois le score, et non 1,14 × 1,5. Dans le calcul des chances, l’écart-type du capitaine est augmenté dans la même proportion.</p>
       <h3>Règles respectées et ordre de priorité</h3>
-      <p>Ordre de priorité : Jupiler In-Season Limited, puis Jupiler Cap 260, puis Set ; une carte n’est utilisée que dans une seule compo, dans cet ordre. <span id="mf-ordre"></span></p>
-      <p>Jupiler In-Season Limited : jusqu’à 4 compos (limite Sorare), chacune avec au moins 4 cartes In-Season. Les cartes In-Season restent toujours candidates, même quand le joueur a une autre carte mieux notée ; un joueur n’a qu’une carte par compo. Jupiler Cap 260 : somme des moyennes L15 ≤ 260. Si une compo de plus est impossible, le dashboard dit pourquoi. Pas de compo si aucun de tes joueurs ne joue dans la gameweek, ou si la meilleure compo possible vaut 0 point : la raison est affichée à la place (par exemple « Aucun de tes joueurs du Set ne joue cette gameweek »).</p>
+      <p>Ordre de priorité : Jupiler In-Season Limited, puis Jupiler Cap 260 ; une carte n’est utilisée que dans une seule compo, dans cet ordre. <span id="mf-ordre"></span></p>
+      <p>Jupiler In-Season Limited : jusqu’à 4 compos (limite Sorare), chacune avec au moins 4 cartes In-Season. Les cartes In-Season restent toujours candidates, même quand le joueur a une autre carte mieux notée ; un joueur n’a qu’une carte par compo. Jupiler Cap 260 : somme des moyennes L15 ≤ 260, salons de 10 joueurs, sans bonus de carte, inscription payante en essences Limited (montant lu dans la collecte, 300 par compo à défaut). Si une compo de plus est impossible, le dashboard dit pourquoi. Pas de compo si aucun de tes joueurs ne joue dans la gameweek, ou si la meilleure compo possible vaut 0 point : la raison est affichée à la place .</p>
       <h3>Objectifs de score et chances</h3>
       <p>Pour chaque compétition, les scores réellement atteints à chaque palier de récompense lors de la dernière gameweek terminée. <span id="mf-ref"></span> La chance d’atteindre un palier suppose que le score de la compo suit une loi normale : moyenne = somme des scores attendus, écart-type tiré de la variabilité de chaque joueur et du risque qu’il ne soit pas titulaire. La fourchette 10–90 % donne le plancher et le plafond probables.</p>
       <h3>Gain espéré et rentabilité</h3>
@@ -431,13 +485,13 @@
       <p>Pour chaque poste, le meilleur joueur encore libre (carte non utilisée ailleurs) qui respecte les règles de la compo, avec l’écart de points. Utile si un joueur est annoncé forfait juste avant la date limite.</p>
       <h3>Limites</h3>
       <ul>
-        <li>Les règles du mode Set dépendent de ton compte : la compo Set est une compo générique gardien, défenseur, milieu, attaquant + extra. Pas de classement public pour ce mode, donc pas d’objectif de score.</li>
         <li>Si un joueur a deux matchs dans la gameweek, seul le premier (de Jupiler pour les joueurs belges) est compté.</li>
         <li>Certaines gameweeks n’ont pas de compétition Jupiler, ou aucun de tes joueurs n’y joue (trêve, gameweek courte de milieu de semaine). L’onglet Compos le dit alors en tête, avec les dates de la gameweek ; les matchs affichés « hors GW » sont en dehors de la gameweek et ne comptent pas.</li>
       </ul>
     </div>
-    <div class="sx-card sx-method" id="meth-NBA" hidden>
-      <h2>Comment les compos NBA sont calculées</h2>
+    <div class="sx-card sx-method" id="meth-NBA" data-sport-only="NBA" data-mode-only="PRO" hidden>
+      <h2>Comment les compos NBA Pro sont calculées</h2>
+      <p>Vue Pro : cartes Limited (Classic, In-Season et Rooms). Les cartes Common NBA relèvent de la vue Set.</p>
       <h3>Lire la page</h3>
       <p>En tête : le temps restant avant la date limite, les compos à inscrire, le gain net espéré en essences, les joueurs à risque dans les compos et la fraîcheur des données (orange après 12 h, rouge après 24 h ou si des matchs NBA ont été joués depuis la collecte : des blessures ont pu changer). Puis une carte de décision par compétition : vert = inscrire, orange = à surveiller (un joueur à risque), gris = rien à jouer, rouge = non rentable. Le détail des joueurs vient ensuite. Heures de Bruxelles.</p>
       <h3>Score attendu d’un joueur</h3>
@@ -451,9 +505,9 @@
       <p>Les étoiles vont par demi-points selon la L10 : 5★ dès 50, 4,5★ dès 45, 4★ dès 40, 3,5★ dès 35, 3★ dès 30, 2,5★ dès 25, 2★ dès 20, 1,5★ dès 15, 1★ en dessous. Une carte sans niveau connu compte 1★ sous le plafond. Le gain est l’écart entre le score attendu et ce seuil. La L10 après la gameweek remplace autant d’anciens matchs que de matchs prévus (supposés valoir la L10 actuelle) par le score attendu par match ; c’est une estimation, Sorare recalcule les étoiles à chaque gameweek.</p>
       <h3>Compétitions et ordre de priorité</h3>
       <p>Ordre de priorité (ton choix du 24/10) : <span id="mn-ordre">In-Season Champion puis In-Season Contender (16 et 11 étoiles, min 4 cartes In-Season, une compo chacune), puis jusqu’à 3 compos en Classic Champion (16 étoiles), 3 en Classic Contender (11 étoiles) et 2 en Rooms Champion (16 étoiles, 150 essences Limited par compo).</span></p>
-      <p>Cartes Limited uniquement. Une carte n’est utilisée qu’une fois, au maximum 4 joueurs de la même équipe, pas de capitaine. Dans les compétitions In-Season, toutes tes cartes In-Season restent candidates, même quand le joueur a une autre carte mieux notée ; un joueur n’a qu’une carte par compo. Le score final multiplie le score attendu par le bonus de la carte.</p>
+      <p>Cartes Limited uniquement. Une carte n’est utilisée qu’une fois, au maximum 4 joueurs de la même équipe, pas de capitaine. Dans les compétitions In-Season, toutes tes cartes In-Season restent candidates, même quand le joueur a une autre carte mieux notée ; un joueur n’a qu’une carte par compo. Le score final multiplie le score attendu par le bonus de la carte (niveau, In-Season, collection), sauf en Rooms : les salons n’appliquent aucun bonus de carte, le score final y est le score attendu.</p>
       <h3>In-Season : choix automatique</h3>
-      <p>Tes cartes In-Season ne vont en In-Season que si c’est la meilleure option chiffrée (ton choix du 25/10) : le modèle compare les essences espérées avec ces cartes en In-Season et avec les mêmes cartes laissées en Classic et Rooms, et garde l’option qui rapporte le plus. La carte de décision In-Season affiche cette comparaison quand la collecte la fournit.</p>
+      <p>Tes cartes In-Season ne vont en In-Season que si c’est la meilleure option chiffrée (ton choix du 25/10) : le modèle compare les essences espérées avec ces cartes en In-Season et avec les mêmes cartes laissées en Classic et Rooms, et garde l’option qui rapporte le plus. Quand la collecte fournit cette comparaison, la première carte In-Season (In-Season Champion) donne le choix retenu et l’écart en essences et en points, avec le détail replié ; In-Season Contender renvoie à cette carte.</p>
       <h3>Objectifs de score et chances</h3>
       <p>Scores réellement atteints à chaque palier lors de la dernière gameweek terminée. <span id="mn-ref"></span> La chance d’atteindre un palier suppose un score de compo de loi normale, avec la variabilité de chaque joueur et son risque de ne pas jouer.</p>
       <h3>Gain espéré et rentabilité</h3>
@@ -468,6 +522,26 @@
       <p>Une variation de projection n’est signalée que si le joueur a des matchs dans la gameweek des deux côtés (hier et aujourd’hui). Entre deux gameweeks différentes, la comparaison se fait par match (détail « par match, nouvelle gameweek : … »). Les joueurs de tes compos passent en premier ; les variations de projection des autres joueurs sont repliées.</p>
       <h3>Cotes</h3>
       <p>The Odds API : probabilité de victoire et total de points attendu du match. <span id="mn-cotes"></span></p>
+    </div>
+    <div class="sx-card sx-method" id="meth-SET" data-sport-only="FOOTBALL" data-mode-only="SET" hidden>
+      <h2>Le mode Set : l’Arcade</h2>
+      <p>Vue Set : tes cartes Common du set en cours<span id="ms-set"></span>. Sorare appelle désormais ce mode « Arcade ». Les cartes Limited et plus sont dans la vue Pro.</p>
+      <h3>Règles de l’Arcade</h3>
+      <ul>
+        <li>Une piste de paliers : chaque palier a un seuil de score à dépasser.</li>
+        <li>4 vies par palier : tu peux inscrire 4 compos sur le même palier ; une seule au-dessus du seuil suffit.</li>
+        <li>Si toutes les vies sont perdues, retour au palier 1.</li>
+        <li>La progression est immédiate dès que le score est validé : le score est connu dans les 5 minutes après la fin du match. Pas de gameweek ni de classement : chacun avance à son rythme.</li>
+        <li>Compo : un gardien, un défenseur, un milieu, un attaquant et un joueur de champ au choix.</li>
+        <li>Bonus de collection jusqu’à 5 %.</li>
+      </ul>
+      <p>Source : aide Sorare « What is Arcade? ».</p>
+      <h3>Plan de piste</h3>
+      <p>Pour chaque palier de départ possible, le plan propose des étapes : le palier visé et son seuil, le créneau (premier coup d’envoi des joueurs du lot), l’heure vers laquelle le résultat est connu (dernier coup d’envoi + 1h50), les 4 compos avec leur score attendu et leur chance de dépasser le seuil, et la chance qu’au moins une des 4 passe. Une carte jouée dans une étape ne resert pas dans les suivantes. Ta progression n’est pas lisible dans l’API : indique ton palier dans le planificateur, il est mémorisé dans ce navigateur. <span id="ms-fin"></span></p>
+      <h3>Score attendu et chances</h3>
+      <p>Même modèle de joueur que la vue Pro : projection Sorare et forme récente, multipliées par la probabilité d’être titulaire. Le score final multiplie le score attendu par le bonus de la carte et de skin. La chance de dépasser un seuil suppose un score de compo de loi normale (variabilité de chaque joueur et risque qu’il ne soit pas titulaire).</p>
+      <h3>Compo de la gameweek</h3>
+      <p>La carte « Set » de l’onglet Décider garde une compo générique sur la gameweek football (gardien, défenseur, milieu, attaquant + extra) : utile pour voir tes meilleures cartes Common, mais c’est le plan de piste qui suit les règles de l’Arcade. Pas de classement public : ni palier de récompense en essences ni gain espéré.</p>
     </div>
   </section>
 </div>
@@ -508,8 +582,14 @@
     }
     return g;
   }
-  // Coût d'inscription d'une compo : colonne cout_inscription (contrat v3), sinon « inscription : N essences » dans les contraintes
-  const sxCout = (c) => { if (sxHas(c.cout_inscription)) return Number(c.cout_inscription) || 0; const m = /inscription\s*:\s*(\d+)\s*essences/i.exec(String(c.contraintes || '')); return m ? Number(m[1]) : 0; };
+  // Salons (slug contenant « arena » : Rooms NBA, Cap 260 football) : aucun bonus de carte (sansBonusCarte de compos.mjs)
+  const sxSalon = (c) => /arena/.test(String((c && c.slug) || ''));
+  // Coût d'inscription d'une compo : colonne cout_inscription (contrat v3), sinon « inscription : N essences » dans les contraintes,
+  // sinon déduit comme coutInscription de compos.mjs : salon football (Cap 260) = 300 essences Limited par compo
+  const sxCout = (c) => { if (sxHas(c.cout_inscription) && Number(c.cout_inscription) > 0) return Number(c.cout_inscription); const m = /inscription\s*:\s*(\d+)\s*essences/i.exec(String(c.contraintes || '')); if (m) return Number(m[1]); if (sxHas(c.cout_inscription) && !sxSalon(c)) return 0; return c.sport !== 'NBA' && sxSalon(c) ? 300 : 0; };
+  // Sous-onglet d'une compétition : Set (cartes Common, type SET) ou Pro (JPL, NBA)
+  const sxModeOf = (c) => (c.type === 'SET' || (!c.type && /(^|[^a-z])set([^a-z]|$)|common/i.test(String(c.slug || '') + ' ' + String(c.competition || ''))) ? 'SET' : 'PRO');
+  const SX_VUES = [['FOOTBALL', 'PRO'], ['FOOTBALL', 'SET'], ['NBA', 'PRO'], ['NBA', 'SET']];
   // Rang d'un palier (« Top 1000 » → 1000, « 3e du salon » → 3) ; Infinity si aucun palier
   const sxPalierRang = (txt) => { const s = String(txt || ''); if (!s || /aucun|rien|^[—-]$/i.test(s)) return Infinity; const m = /(\d[\d\s ]*)/.exec(s); return m ? Number(m[1].replace(/[\s ]/g, '')) : Infinity; };
   const sxSport = (r) => (r.sport === 'NBA' ? 'NBA' : 'FOOTBALL');
@@ -524,17 +604,28 @@
     }),
   });
 
+  dash.calc('kpi_mode', {
+    inputs: ['competitions'],
+    title: 'Compos à inscrire et gain net espéré par sport et par sous-onglet (Pro / Set)',
+    description: 'Pour chaque sport (FOOTBALL, NBA) et sous-onglet (PRO : compétitions JPL ou NBA ; SET : cartes Common), cle = SPORT-MODE : somme de competitions.nb_compos, et somme de competitions.gain_net_espere (null si la collecte ne fournit pas cette colonne).',
+    fn: (competitions) => SX_VUES.map(([sport, mode]) => {
+      const rows = competitions.filter((c) => sxSport(c) === sport && sxModeOf(c) === mode);
+      const g = rows.filter((c) => sxHas(c.gain_net_espere));
+      return { cle: sport + '-' + mode, sport, mode, competitions: rows.length, compos: rows.reduce((s, c) => s + (Number(c.nb_compos) || 0), 0), gain_net: g.length ? Math.round(g.reduce((s, c) => s + Number(c.gain_net_espere), 0)) : null };
+    }),
+  });
+
   dash.calc('bilan_synthese', {
     inputs: ['bilan'],
     title: 'Synthèse du bilan de la gameweek passée',
-    description: 'Pour chaque sport : nombre de compos, écart moyen (score réel − score prévu), total prévu et réel, et nombre de compos qui ont atteint ou dépassé leur palier visé.',
-    fn: (bilan) => ['FOOTBALL', 'NBA'].map((sport) => {
-      const rows = bilan.filter((b) => sxSport(b) === sport && sxHas(b.score_prevu) && sxHas(b.score_reel));
+    description: 'Pour chaque sport et sous-onglet (cle = SPORT-MODE, Pro ou Set selon le nom de la compétition) : nombre de compos, écart moyen (score réel − score prévu), total prévu et réel, et nombre de compos qui ont atteint ou dépassé leur palier visé.',
+    fn: (bilan) => SX_VUES.map(([sport, mode]) => {
+      const rows = bilan.filter((b) => sxSport(b) === sport && sxModeOf(b) === mode && sxHas(b.score_prevu) && sxHas(b.score_reel));
       const n = rows.length;
       const prevu = rows.reduce((s, b) => s + Number(b.score_prevu), 0), reel = rows.reduce((s, b) => s + Number(b.score_reel), 0);
       const vises = rows.filter((b) => sxHas(b.palier_vise) && Number.isFinite(sxPalierRang(b.palier_vise)));
       return {
-        sport, compos: n, gw: rows[0] ? rows[0].gw : null,
+        cle: sport + '-' + mode, sport, mode, compos: n, gw: rows[0] ? rows[0].gw : null,
         ecart_moyen: n ? Math.round((reel - prevu) / n * 10) / 10 : null,
         ecart_abs_moyen: n ? Math.round(rows.reduce((s, b) => s + Math.abs(Number(b.score_reel) - Number(b.score_prevu)), 0) / n * 10) / 10 : null,
         total_prevu: Math.round(prevu * 10) / 10, total_reel: Math.round(reel * 10) / 10,
@@ -676,6 +767,14 @@
     }
 
     let sport = 'FOOTBALL';
+    // Sous-onglet : PRO (cartes Limited et plus : Jupiler, NBA Classic, In-Season, Rooms) ou SET (cartes Common, mode Arcade)
+    let mode = 'PRO';
+    const MODE_CODES = { PRO: ['JPL', 'NBA'], SET: ['SET'] };
+    const modeLbl = () => (mode === 'SET' ? 'Set' : 'Pro');
+    const vueLbl = () => (sport === 'NBA' ? 'NBA ' : 'football ') + modeLbl();
+    // joueurs.modes / changements.modes : codes séparés par une espace
+    const inMode = (modes, md = mode) => String(modes || '').split(' ').some((x) => MODE_CODES[md].includes(x));
+    const jourMode = (m) => (/^Set /.test(String(m)) ? 'SET' : 'PRO');
     const compoIdx = new Map();
     let current = 'p-compos';
 
@@ -691,19 +790,22 @@
     const ok = (id) => { const d = dash.data(id); return d.status === 'ok' ? d.data : null; };
     const jMap = () => new Map((ok('joueurs') || []).map((r) => [r.slug, r]));
     const compType = (c) => c.type || (c.sport === 'NBA' ? 'NBA' : /set/i.test(c.slug || c.competition) ? 'SET' : 'JPL');
-    const compsOf = (sp) => (ok('competitions') || []).filter((c) => sportOfRow(c) === sp).slice().sort((a, b) => (Number(a.rang) || 0) - (Number(b.rang) || 0));
+    const compsOf = (sp, md = mode) => (ok('competitions') || []).filter((c) => sportOfRow(c) === sp && (!md || sxModeOf(c) === md)).slice().sort((a, b) => (Number(a.rang) || 0) - (Number(b.rang) || 0));
 
     // Candidat = une carte d'un joueur, valorisée pour une compétition
     function mkCand(r, k, c, style) {
       const set = compType(c) === 'SET';
-      const power = Number(k.puissance) || 1, skin = set ? Number(k.skin) || 1 : 1;
-      const value = (Number(r.score_attendu) || 0) * power * skin;
+      // Salons (Rooms NBA, Cap 260) : aucun bonus de carte, valeur = score attendu (sansBonusCarte de compos.mjs)
+      const power = sxSalon(c) ? 1 : Number(k.puissance) || 1, skin = set ? Number(k.skin) || 1 : 1;
+      const base = Number(r.score_attendu) || 0;
+      const value = base * power * skin;
       const p = Math.min(1, Math.max(0.05, r.proba_titulaire == null || r.proba_titulaire === '' ? 0.8 : Number(r.proba_titulaire) / 100));
       const cv = (r.regularite == null || r.regularite === '' ? 40 : Number(r.regularite)) / 100 * (r.sport === 'NBA' ? 0.8 : 1);
       const proj = value / p;
       const sd = Math.sqrt(p * (proj * cv) ** 2 + p * (1 - p) * proj ** 2);
       const adj = style === 'sure' ? value - 0.84 * sd : style === 'explosive' ? value + 0.84 * sd : value;
-      return { r, k, slug: r.slug, id: k.carte_id, value, sd, adj, cv, stars: r.sport === 'NBA' ? Number(r.etoiles) || 1 : 0, l15: Number(r.l15) || 0, club: r.club || '', pos: r.poste || '', ins: yes(k.in_season), bonus: Math.round((power * skin - 1) * 100) };
+      // base / baseAdj : score du joueur sans bonus de carte (le bonus capitaine, additif, porte dessus)
+      return { r, k, slug: r.slug, id: k.carte_id, value, sd, adj, cv, base, baseAdj: adj / (power * skin), pw: power, stars: r.sport === 'NBA' ? Number(r.etoiles) || 1 : 0, l15: Number(r.l15) || 0, club: r.club || '', pos: r.poste || '', ins: yes(k.in_season), bonus: Math.round((power * skin - 1) * 100) };
     }
     function eligibleCard(k, r, c) {
       const t = compType(c);
@@ -747,7 +849,8 @@
       if (compType(c) !== 'NBA' && !assignFoot(team)) return false;
       return true;
     }
-    const captainOf = (team) => team.slice().sort((x, y) => y.value * (1 - 0.3 * y.cv) - x.value * (1 - 0.3 * x.cv))[0];
+    // Capitaine : meilleur score attendu de base (sans bonus de carte) corrigé de la variabilité, comme compos.mjs
+    const captainOf = (team) => team.slice().sort((x, y) => y.base * (1 - 0.3 * y.cv) - x.base * (1 - 0.3 * x.cv))[0];
 
     // Recherche exhaustive avec élagage (bornes sur le score restant, le plafond d'étoiles et de moyennes)
     function optimise(c, pool, forced) {
@@ -795,7 +898,8 @@
         if (depth === need) {
           if (!valid(c, team)) return;
           const cap = capt ? captainOf(team) : null;
-          const score = sum + (cap ? cap.adj * capt : 0);
+          // Bonus capitaine ADDITIF : score attendu de base × bonus (et non valeur de la carte × (1 + bonus))
+          const score = sum + (cap ? cap.baseAdj * capt : 0);
           if (!best || score > best.score) best = { score, picks: team.slice(), cap };
           return;
         }
@@ -853,7 +957,7 @@
       const comps = compsOf(sp);
       const cardMap = new Map((ok('cartes') || []).map((k) => [k.carte_id, k]));
       const custom = isCustom(sp);
-      const key = sp + '|' + JSON.stringify(RG[sp]) + '|' + (ok('compos') || []).length + '|' + (ok('cartes') || []).length + '|' + J.size + '|' + comps.length;
+      const key = sp + '|' + mode + '|' + JSON.stringify(RG[sp]) + '|' + (ok('compos') || []).length + '|' + (ok('cartes') || []).length + '|' + J.size + '|' + comps.length;
       if (custom && cache.key === key) return cache.res;
       const out = [];
       if (!custom) {
@@ -900,7 +1004,7 @@
           if (sp === 'FOOTBALL' && !(sol.picks.reduce((s, x) => s + x.value, 0) > 0)) { reason = zeroReason(c, true); break; }
           const capt = (Number(c.capitaine_pct) || 0) / 100;
           const slots = compType(c) === 'NBA' ? null : assignFoot(sol.picks);
-          const picks = sol.picks.slice().sort((a, b) => b.value - a.value).map((x, i) => ({ row: null, cand: x, slug: x.slug, id: x.id, slot: slots ? slots.get(x) : 'Joueur ' + (i + 1), captain: x === sol.cap, final: x.value * (x === sol.cap ? 1 + capt : 1) }));
+          const picks = sol.picks.slice().sort((a, b) => b.value - a.value).map((x, i) => ({ row: null, cand: x, slug: x.slug, id: x.id, slot: slots ? slots.get(x) : 'Joueur ' + (i + 1), captain: x === sol.cap, final: x.value + (x === sol.cap ? x.base * capt : 0) }));
           if (slots) picks.sort((a, b) => ['Gardien', 'Défenseur', 'Milieu', 'Attaquant', 'Extra'].indexOf(a.slot) - ['Gardien', 'Défenseur', 'Milieu', 'Attaquant', 'Extra'].indexOf(b.slot));
           sol.picks.forEach((x) => used.add(x.id));
           list.push({ numero: n, picks });
@@ -941,7 +1045,8 @@
     function dist(c, picks) {
       const capt = (Number(c.capitaine_pct) || 0) / 100;
       const mean = picks.reduce((s, p) => s + p.final, 0);
-      const sd = Math.sqrt(picks.reduce((s, p) => s + ((p.cand ? p.cand.sd : p.final * 0.4) * (p.captain ? 1 + capt : 1)) ** 2, 0));
+      // Capitaine (bonus additif) : écart-type × (1 + bonus / puissance de la carte), comme loiCompo de compos.mjs
+      const sd = Math.sqrt(picks.reduce((s, p) => s + ((p.cand ? p.cand.sd : p.final * 0.4) * (p.captain ? 1 + capt / (p.cand ? p.cand.pw : 1) : 1)) ** 2, 0));
       return { mean, sd, lo: mean - 1.2816 * sd, hi: mean + 1.2816 * sd };
     }
     const pct = (p) => (p >= 0.995 ? '> 99 %' : p < 0.005 ? '< 1 %' : Math.round(p * 100) + ' %');
@@ -968,13 +1073,13 @@
 
     // ---------- Navigation ----------
     const sportBtns = [...document.querySelectorAll('.sx-sport button')];
+    const modeBtns = [...document.querySelectorAll('.sx-mode button')];
     const tabs = [...document.querySelectorAll('.sx-tab')];
     const applySport = () => {
       sportBtns.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.sport === sport)));
-      document.querySelectorAll('[data-sport-only]').forEach((n) => (n.hidden = n.dataset.sportOnly !== sport));
-      $('#f-mode').hidden = sport !== 'FOOTBALL';
-      $('#meth-FOOTBALL').hidden = sport !== 'FOOTBALL';
-      $('#meth-NBA').hidden = sport !== 'NBA';
+      modeBtns.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
+      // Un élément marqué n'apparaît que dans son sport (data-sport-only) et dans son sous-onglet (data-mode-only)
+      document.querySelectorAll('[data-sport-only], [data-mode-only]').forEach((n) => (n.hidden = (!!n.dataset.sportOnly && n.dataset.sportOnly !== sport) || (!!n.dataset.modeOnly && n.dataset.modeOnly !== mode)));
       $('#th-poste').hidden = sport === 'NBA';
       $('#j-mode').value = '';
       if (!COLS[sport].some((c) => c.k === sortK)) sortK = 'score_final';
@@ -985,9 +1090,22 @@
       tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.page === pageId)));
       document.querySelectorAll('.sx-page').forEach((p) => (p.hidden = p.id !== pageId));
     };
-    sportBtns.forEach((b) => b.addEventListener('click', () => { sport = b.dataset.sport; sortK = 'score_final'; sortDir = -1; applySport(); dash.setLink(b.id); draw(); }));
-    tabs.forEach((t) => t.addEventListener('click', () => { showPage(t.dataset.page); dash.setLink(t.id); draw(); }));
-    ['#f-mode', '#f-gw', '#f-na', '#f-inj', '#f-sus', '#f-doubt', '#f-min'].forEach((s) => $(s).addEventListener('change', () => draw()));
+    // Vue mémorisée dans l'adresse (#football-set, #nba-pro, #nba-pro-meth…) et dans ce navigateur
+    const PAGES = { compos: 'p-compos', joueurs: 'p-joueurs', jours: 'p-jours', bilan: 'p-bilan', fiab: 'p-fiab', meth: 'p-meth' };
+    const pageKey = () => Object.keys(PAGES).find((k) => PAGES[k] === current) || 'compos';
+    const saveVue = () => {
+      dash.setLink(sport.toLowerCase() + '-' + mode.toLowerCase() + (current !== 'p-compos' ? '-' + pageKey() : ''));
+      try { localStorage.setItem('sx-vue-v1', JSON.stringify({ sport, mode })); } catch (e) { /* stockage indisponible */ }
+    };
+    sportBtns.forEach((b) => b.addEventListener('click', () => { sport = b.dataset.sport; sortK = 'score_final'; sortDir = -1; applySport(); saveVue(); draw(); }));
+    modeBtns.forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode; sortK = 'score_final'; sortDir = -1; applySport(); saveVue(); draw(); }));
+    tabs.forEach((t) => t.addEventListener('click', () => { showPage(t.dataset.page); saveVue(); draw(); }));
+    // Flèches gauche / droite entre les onglets d'un même groupe (rôle tab)
+    for (const group of [sportBtns, modeBtns, tabs]) group.forEach((b, i) => b.addEventListener('keydown', (e) => {
+      const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (!d) return;
+      const n = group[(i + d + group.length) % group.length]; n.focus(); n.click();
+    }));
+    ['#f-gw', '#f-na', '#f-inj', '#f-sus', '#f-doubt', '#f-min'].forEach((s) => $(s).addEventListener('change', () => draw()));
     $('#f-q').addEventListener('input', () => draw());
     $('#j-mode').addEventListener('change', () => draw());
     $('#j-all').addEventListener('change', () => draw());
@@ -1025,23 +1143,28 @@
       // En-tête construit à partir des compétitions réellement présentes dans les données
       const comps = compsOf(sport);
       const names = comps.map((c) => shortComp(c.competition));
-      if (sport === 'NBA') {
+      if (sport === 'NBA' && mode === 'SET') {
+        lead.textContent = 'NBA Set : aucune carte Common NBA, rien à jouer.';
+      } else if (sport === 'NBA') {
         lead.textContent = `Gameweek ${gwText(x.gw_nba)} : ` + (names.length ? `${joinFr(names)}, sans capitaine et sous plafond d’étoiles.` : 'aucune compétition NBA dans les données.');
+      } else if (mode === 'SET') {
+        const fin = has(x.arcade_fin) ? x.arcade_fin : x.gw_fin_football;
+        lead.textContent = 'Set ' + (x.set || '') + ' (cartes Common), mode Arcade : piste de paliers à ton rythme' + (fin ? ', période en cours jusqu’au ' + fmtWhen(fin) : ', gameweek ' + gwText(x.gw_football)) + '.';
       } else {
         const jpl = comps.some((c) => compType(c) === 'JPL' && Number(c.max_compos) > 0);
         const open = comps.filter((c) => Number(c.max_compos) > 0 || compType(c) !== 'JPL').map((c) => shortComp(c.competition));
         lead.textContent = `Gameweek ${gwText(x.gw_football)} : ` + (jpl
           ? `${joinFr(open)}, chaque carte utilisée une seule fois.`
-          : (open.length ? `${joinFr(open)} seulement, ` : 'aucune compétition, ') + 'pas de Jupiler Pro League cette semaine.');
+          : (open.length ? `${joinFr(open)} seulement, ` : '') + 'pas de Jupiler Pro League cette semaine.');
       }
-      const n = ok('nb_changements'); const st = $('#st-ch'); st.dataset.where = 'sport=' + sport;
-      const row = n ? n.find((y) => y.sport === sport) : null; st.textContent = row ? '(' + plural(Number(row.n), 'changement', 'changements') + ')' : '';
+      const ch = ok('changements'); const st = $('#st-ch');
+      st.textContent = ch ? '(' + plural(ch.filter((c) => sportOfChange(c) === sport && inMode(c.modes)).length, 'changement', 'changements') + ')' : '';
     }
 
     // Football : la gameweek a-t-elle de la Jupiler, et au moins un de tes joueurs avec un match ?
     function footGw() {
-      const comps = compsOf('FOOTBALL');
-      const J = (ok('joueurs') || []).filter((r) => sportOfRow(r) === 'FOOTBALL');
+      const comps = compsOf('FOOTBALL', 'PRO');
+      const J = (ok('joueurs') || []).filter((r) => sportOfRow(r) === 'FOOTBALL' && inMode(r.modes, 'PRO'));
       const jplRows = comps.filter((c) => compType(c) === 'JPL');
       const jpl = jplRows.some((c) => Number(c.max_compos) > 0);
       return { comps, jpl, jplStatut: jplRows.map((c) => c.statut).find(Boolean) || '', loaded: !!ok('joueurs') && !!ok('competitions'), noMatch: J.length > 0 && !J.some((r) => Number(r.matchs_gw) > 0) };
@@ -1049,18 +1172,18 @@
     function drawGwVide() {
       const box = $('#gw-vide');
       const f = footGw();
-      if (sport !== 'FOOTBALL' || !f.loaded || (f.jpl && !f.noMatch)) { box.hidden = true; return; }
+      if (sport !== 'FOOTBALL' || mode !== 'PRO' || !f.loaded || (f.jpl && !f.noMatch)) { box.hidden = true; return; }
       box.hidden = false;
       const x = (ok('resume') || [])[0] || {};
       const g = gwOf('FOOTBALL') || {};
       const per = g.debut ? 'du ' + fmtWDM(g.debut) + ' au ' + fmtWDM(g.fin) : gwText(x.gw_football);
       $('#gw-vide-dates').textContent = 'Gameweek ' + per + (x.limite_football ? ' · date limite ' + fmtWhen(x.limite_football) : '');
-      $('#gw-vide-titre').textContent = !f.jpl ? 'Rien à jouer en Jupiler cette semaine' : 'Aucun de tes joueurs ne joue cette gameweek';
-      const others = f.comps.filter((c) => compType(c) !== 'JPL').map((c) => shortComp(c.competition));
+      $('#gw-vide-titre').textContent = !f.jpl ? 'Rien à jouer en Jupiler cette semaine' : 'Aucun de tes joueurs Jupiler ne joue cette gameweek';
+      const others = [];
       const parts = [];
       if (!f.jpl) parts.push('Aucune compétition Jupiler n’est ouverte pour cette gameweek' + (f.jplStatut && !/comp[ée]tition jupiler/i.test(f.jplStatut) ? ' (' + f.jplStatut + ')' : '') + '.');
-      if (f.noMatch) parts.push('Aucun de tes joueurs de football n’a de match ' + (g.debut ? 'entre le ' + fmtDM(g.debut) + ' et le ' + fmtDM(g.fin) : 'dans la gameweek') + (others.length ? ' : rien à inscrire non plus en ' + joinFr(others) + '.' : ' : rien à inscrire.'));
-      else if (others.length) parts.push('Seul ' + joinFr(others) + ' est à jouer.');
+      if (f.noMatch) parts.push('Aucun de tes joueurs Jupiler n’a de match ' + (g.debut ? 'entre le ' + fmtDM(g.debut) + ' et le ' + fmtDM(g.fin) : 'dans la gameweek') + (others.length ? ' : rien à inscrire non plus en ' + joinFr(others) + '.' : ' : rien à inscrire.'));
+      if (compsOf('FOOTBALL', 'SET').length) parts.push('Tes cartes Common se jouent dans la vue Set (Arcade).');
       parts.push('Les matchs marqués « hors GW » sont en dehors de la gameweek et ne comptent pas.');
       $('#gw-vide-txt').textContent = parts.join(' ');
       // Prochains matchs Jupiler de tes joueurs, d'après le jeu jours
@@ -1106,7 +1229,7 @@
       const inWin = (d) => { const t = toDate(d).getTime(); return t > from && t < to; };
       for (const r of ok('joueurs') || []) if (sportOfRow(r) === sp && has(r.match) && inWin(r.match)) dates.add(String(r.match).slice(0, 16) + r.adversaire);
       for (const r of ok('jours') || []) if ((r.mode === 'NBA' ? 'NBA' : 'FOOTBALL') === sp && has(r.match) && inWin(r.match)) dates.add(String(r.match).slice(0, 16) + r.adversaire);
-      if (sp === 'NBA') for (const m of ok('matchs') || []) if (has(m.date) && inWin(m.date)) dates.add(String(m.date).slice(0, 16) + m.adversaire);
+      for (const m of ok('matchs') || []) if (sportOfRow(m) === sp && has(m.date) && inWin(m.date)) dates.add(String(m.date).slice(0, 16) + m.adversaire);
       return dates.size;
     }
     function drawKpis(lineups) {
@@ -1115,7 +1238,15 @@
       const sp = sport === 'NBA' ? 'NBA' : 'de football';
       // 1. Temps restant
       const cut = x ? (sport === 'NBA' ? x.limite_nba : x.limite_football) : null;
-      if (!cut) setKpi('k-time', '—', 'Date limite inconnue dans cette collecte.', '');
+      // Football Set (Arcade) : pas de date limite, compte à rebours avant le prochain créneau du plan (palier choisi)
+      const arcade = sport === 'FOOTBALL' && mode === 'SET';
+      $('#k-time-l').textContent = arcade ? 'Prochain créneau Arcade' : 'Temps restant';
+      const nextArc = arcade ? (ok('plan_arcade') || []).filter((r) => Number(r.depart) === arcPalier && has(r.creneau) && toDate(r.creneau).getTime() > now).sort((a, b) => toDate(a.creneau) - toDate(b.creneau))[0] : null;
+      if (arcade) {
+        const fin = x && has(x.arcade_fin) ? x.arcade_fin : x ? x.gw_fin_football : null;
+        if (nextArc) { const ms = toDate(nextArc.creneau).getTime() - now; setKpi('k-time', countdown(ms).replace(/^dans /, ''), 'Étape ' + nextArc.etape + ' (palier ' + nextArc.palier + ') : ' + fmtWhen(nextArc.creneau) + '.', ms < 36e5 ? 'warn' : ''); }
+        else setKpi('k-time', '—', 'Aucun créneau à venir dans le plan depuis le palier ' + arcPalier + (fin ? ' ; période Arcade jusqu’au ' + fmtWhen(fin) : '') + '.', 'mut');
+      } else if (!cut) setKpi('k-time', '—', 'Date limite inconnue dans cette collecte.', '');
       else {
         const ms = toDate(cut).getTime() - now;
         if (ms > 0) {
@@ -1126,11 +1257,11 @@
       // 2. Compos à inscrire
       const n = lineups.reduce((s, L) => s + L.list.length, 0);
       const max = lineups.reduce((s, L) => s + (Number(L.c.max_compos) || 0), 0);
-      const kc = $('#k-compos-v'); kc.dataset.where = 'sport=' + sport;
+      const kc = $('#k-compos-v'); kc.dataset.where = 'cle=' + sport + '-' + mode;
       const short = lineups.filter((L) => L.list.length < (Number(L.c.max_compos) || 0));
-      const vide = sport === 'FOOTBALL' && footGw().noMatch;
+      const vide = sport === 'FOOTBALL' && mode === 'PRO' && footGw().noMatch;
       setKpi('k-compos', n + ' / ' + max,
-        !lineups.length ? 'Aucune compétition ' + sp + ' dans les données.'
+        !lineups.length ? 'Aucune compétition ' + vueLbl() + ' dans les données.'
           : !short.length ? 'Toutes les compos possibles sont prêtes.'
           : !n ? (vide ? 'Aucun de tes joueurs ne joue cette gameweek : rien à inscrire.' : 'Aucune compo possible (raisons dans les cartes ci-dessous).')
           : 'Manque : ' + short.map((L) => shortComp(L.c.competition) + ' ' + L.list.length + '/' + L.c.max_compos).join(', ') + ' (raison dans sa carte).',
@@ -1138,15 +1269,15 @@
       // 3. Gain net espéré
       const D = lineups.map((L) => decisionFor(L));
       const custom = isCustom(sport);
-      const calc = (ok('gain_net') || []).find((y) => y.sport === sport);
-      const kg = $('#k-gain-v'); kg.dataset.where = 'sport=' + sport;
+      const calc = (ok('kpi_mode') || []).find((y) => y.cle === sport + '-' + mode);
+      const kg = $('#k-gain-v'); kg.dataset.where = 'cle=' + sport + '-' + mode;
       const known = D.filter((d) => d.net != null);
       const cost = D.reduce((s, d) => s + d.cost * d.rows.length, 0);
       // Colonne gain_net_espere (calcul gain_net) quand toutes les compétitions chiffrées la fournissent ; sinon somme des cartes de décision (colonne ou estimation de la page, compétition par compétition)
       const allCols = !custom && known.length > 0 && known.every((d) => has(d.c.gain_net_espere));
-      const net = allCols && calc && calc.n != null ? Number(calc.n) : known.length ? known.reduce((s, d) => s + d.net, 0) : null;
+      const net = allCols && calc && calc.gain_net != null ? Number(calc.gain_net) : known.length ? known.reduce((s, d) => s + d.net, 0) : null;
       const estimated = !allCols;
-      if (net == null) setKpi('k-gain', '—', n ? 'Pas de palier de récompense connu pour ces compétitions' + (sport === 'FOOTBALL' ? ' (le Set n’a pas de classement public).' : '.') : 'Aucune compo, donc aucun gain espéré.', 'mut');
+      if (net == null) setKpi('k-gain', '—', mode === 'SET' ? 'Pas de classement public en Arcade : pas de gain espéré en essences.' : n ? 'Pas de palier de récompense connu pour ces compétitions.' : 'Aucune compo, donc aucun gain espéré.', 'mut');
       else setKpi('k-gain', (net > 0 ? '+' : net < 0 ? '−' : '') + ess(Math.abs(net)),
         'Essences Limited espérées sur ' + plural(n, 'compo', 'compos') + (cost ? ', après ' + ess(cost) + ' d’inscription' : ', sans frais d’inscription') + '.' + (estimated ? ' Estimation de la page à partir des paliers' + (custom ? ' (compos recalculées)' : '') + '.' : ''),
         net < 0 ? 'bad' : net > 0 ? 'ok' : 'mut');
@@ -1211,14 +1342,31 @@
       }
       return { c, L, rows, cost, net, rentable, losing, autres, alternative: has(c.alternative) ? String(c.alternative) : '', risks, tone, tag, reco, custom, fromCols: !custom && has(c.gains_esperes) };
     }
+    // Comparaison In-Season (competitions.alternative, écrite par compos.mjs sur chaque ligne In-Season) :
+    // « Avec In-Season : A pts et X essences nettes espérées … ; sans In-Season (…) : B pts et Y essences … »
+    // → phrase courte (choix retenu, écart en essences et en points) ; texte complet replié sur une seule carte.
+    const numFr = (t) => Number(String(t).replace(/[\s\u00a0\u202f]/g, '').replace('−', '-').replace(',', '.'));
+    function altShort(d) {
+      const t = d.alternative; const c = d.c;
+      const m = /avec in-season\s*:\s*(-?[\d\s\u00a0\u202f]+(?:,\d+)?)\s*pts?\s+et\s+(-?[\d\s\u00a0\u202f]+(?:,\d+)?)\s*essences[\s\S]*?sans in-season[^:]*:\s*(-?[\d\s\u00a0\u202f]+(?:,\d+)?)\s*pts?\s+et\s+(-?[\d\s\u00a0\u202f]+(?:,\d+)?)\s*essences/i.exec(t);
+      const sansIS = /^ne pas jouer/i.test(String(c.recommandation || '')) || /non recommand/i.test(String(c.statut || ''));
+      if (!m) return 'Choix retenu : ' + (sansIS ? 'ne pas jouer In-Season' : 'jouer In-Season') + (has(c.recommandation) && !/^(ne pas )?jouer in-season$/i.test(c.recommandation) ? ' (' + String(c.recommandation).replace(/^(ne pas )?jouer in-season\s*:\s*/i, '') + ')' : '') + '.';
+      const [aPts, aEss, bPts, bEss] = [m[1], m[2], m[3], m[4]].map(numFr);
+      const avec = !sansIS && (aEss > bEss || (aEss === bEss && aPts >= bPts));
+      const dE = avec ? aEss - bEss : bEss - aEss, dP = avec ? aPts - bPts : bPts - aPts;
+      const sg = (v, u) => (v > 0 ? '+' : v < 0 ? '−' : '') + (u === 'ess' ? ess(Math.abs(v)) + ' espérées' : dec(Math.abs(v)) + ' pts');
+      return 'Choix retenu : ' + (avec ? 'jouer In-Season' : 'ne pas jouer In-Season (cartes In-Season en Classic et Rooms)') + ', ' + sg(dE, 'ess') + ' et ' + sg(dP, 'pts') + ' par rapport à l’autre option.';
+    }
     function drawDecisions(D) {
       const grid = $('#dec-grid'); grid.replaceChildren();
+      // Carte qui porte la comparaison In-Season : la première compétition (ordre de priorité) qui en a une
+      const altOwner = D.find((d) => d.alternative);
       const custom = isCustom(sport);
-      $('#dec-note').textContent = !D.length ? 'Aucune compétition ' + (sport === 'NBA' ? 'NBA' : 'de football') + ' dans les données.'
+      $('#dec-note').textContent = !D.length ? 'Aucune compétition ' + vueLbl() + ' dans les données.'
         : 'Dans l’ordre de priorité des compétitions. Score attendu en points Sorare, fourchette = 8 chances sur 10, gains en essences Limited.' + (custom ? ' Compos recalculées avec tes réglages : recommandations et gains estimés par la page.' : '');
       D.forEach((d, i) => {
         const c = d.c;
-        const card = el('article', 'sx-dec'); card.dataset.tone = d.tone; card.setAttribute('aria-label', shortComp(c.competition) + ' : ' + d.tag);
+        const card = el('article', 'sx-dec'); card.id = 'dec-' + sport.toLowerCase() + '-' + i; card.tabIndex = -1; card.dataset.tone = d.tone; card.setAttribute('aria-label', shortComp(c.competition) + ' : ' + d.tag);
         card.append(el('span', 'sx-tag sx-' + d.tone, d.tag), el('h3', '', shortComp(c.competition)), el('p', 'sx-reco', d.reco.charAt(0).toUpperCase() + d.reco.slice(1)));
         if (d.rows.length) {
           const best = d.rows[0];
@@ -1242,7 +1390,15 @@
           if (d.risks.length) { const p = el('p', 'sx-warn'); p.append('À vérifier : ' + d.risks.map((r) => r.name + ' (' + r.is[0].split(' : ')[0].split(' · ')[0] + (d.rows.length > 1 ? ', compo ' + r.numero : '') + ')').join(' ; ')); card.append(p); }
           if (!d.fromCols && d.net != null) card.append(el('p', 'sx-mut', 'Gains estimés par la page à partir des paliers de la dernière gameweek.'));
         }
-        if (d.alternative) { const p = el('p'); p.append(el('span', 'sx-lbl', 'Comparaison In-Season : '), d.alternative + (d.custom ? ' (calculée sur les compos proposées)' : '')); card.append(p); }
+        if (d === altOwner) {
+          const p = el('p'); p.append(el('span', 'sx-lbl', 'In-Season ou pas ? '), altShort(d) + (d.custom ? ' (calculé sur les compos proposées)' : '')); card.append(p);
+          const det = el('details', 'sx-fold'); det.append(el('summary', '', 'Détail de la comparaison'), el('p', '', d.alternative)); card.append(det);
+        } else if (altOwner && (d.alternative || Number(c.min_in_season) > 0)) {
+          const p = el('p', 'sx-mut'); p.append('Comparaison avec ou sans In-Season : voir la carte ' + shortComp(altOwner.c.competition) + '. ');
+          const b = el('button', 'sx-btn', 'Voir la comparaison'); b.setAttribute('aria-controls', 'dec-' + sport.toLowerCase() + '-' + D.indexOf(altOwner));
+          b.addEventListener('click', () => { const t = document.getElementById('dec-' + sport.toLowerCase() + '-' + D.indexOf(altOwner)); if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'start' }); t.focus(); } });
+          p.append(b); card.append(p);
+        }
         if (d.L.reason) { const p = el('p', 'sx-mut'); p.append((d.rows.length ? 'Pourquoi pas plus : ' : 'Pourquoi : ') + d.L.reason.charAt(0).toUpperCase() + d.L.reason.slice(1) + (/[.!]$/.test(d.L.reason) ? '' : '.')); card.append(p); }
         if (d.rows.length) {
           const go = el('button', 'sx-btn', 'Voir les joueurs');
@@ -1295,7 +1451,7 @@
     const chOpen = { FOOTBALL: false, NBA: false };
     function drawChanges(lineups, J) {
       const ch = ok('changements'); const tb = $('#t-ch tbody'); tb.replaceChildren();
-      const rowsCh = ch ? ch.filter((c) => sportOfChange(c) === sport) : [];
+      const rowsCh = ch ? ch.filter((c) => sportOfChange(c) === sport && inMode(c.modes)) : [];
       const inLu = new Set(lineups.flatMap((L) => L.list.flatMap((x) => x.picks.map((p) => J.get(p.slug)?.joueur || p.row?.joueur))).filter(Boolean));
       const rank = (t) => { const i = CH_ORDER.indexOf(t); return i < 0 ? CH_ORDER.length : i; };
       const sorted = rowsCh.slice().sort((a, b) => (inLu.has(b.joueur) - inLu.has(a.joueur)) || rank(a.type) - rank(b.type) || String(a.joueur).localeCompare(String(b.joueur), 'fr'));
@@ -1361,7 +1517,7 @@
         head.append(el('h2', '', c.competition), el('span', 'sx-comp-score', picks.length ? dec(total) + ' pts' : ''));
         const sum = el('summary'); sum.append(head); card.append(sum);
         const nav = el('div', 'sx-cnav');
-        const vide = !isNba && !nums.length && footGw().noMatch;
+        const vide = !isNba && !nums.length && (mode === 'PRO' ? footGw().noMatch : /ne joue/i.test(L.reason || c.statut || ''));
         nav.append(el('span', 'sx-cbadge' + (nums.length >= maxC && nums.length ? ' sx-ok' : nums.length ? ' sx-warn' : vide ? ' sx-mut' : ' sx-bad'), nums.length ? `${nums.length} compo${nums.length > 1 ? 's' : ''} à inscrire sur ${maxC} possible${maxC > 1 ? 's' : ''}` : maxC ? `Aucune compo à inscrire sur ${maxC} possible${maxC > 1 ? 's' : ''}` : 'Aucune compo possible'));
         if (nums.length > 1) {
           const go = (n) => { compoIdx.set(c.competition, n); drawCompos(); document.getElementById(card.id)?.querySelector('.sx-cnav button[data-n="' + n + '"]')?.focus(); };
@@ -1452,7 +1608,8 @@
         list.append(card);
       });
 
-      if (isNba) { drawTimeline(lineups); drawEtoiles(); drawRole(lineups); drawBonnes(); }
+      if (isNba && mode === 'PRO') { drawTimeline(lineups); drawEtoiles(); drawRole(lineups); drawBonnes(); }
+      if (!isNba && mode === 'SET') drawArcade();
     }
 
     function drawBonnes() {
@@ -1465,7 +1622,7 @@
     }
 
     function drawTimeline(lineups) {
-      const M = ok('matchs') || [];
+      const M = (ok('matchs') || []).filter((m) => sportOfRow(m) === 'NBA');
       const t = $('#t-tl'); const head = t.querySelector('thead tr'); const tb = t.querySelector('tbody');
       head.replaceChildren(); tb.replaceChildren();
       $('#tl-empty').hidden = M.length > 0;
@@ -1594,7 +1751,7 @@
         { k: 'grade_sorare', label: 'Note', narrow: true },
         { k: 'score_attendu', label: 'Attendu (pts)', n: true },
         { k: 'bonus', label: 'Bonus %', n: true, narrow: true, fmt: signed },
-        { k: 'bonus_skin', label: 'Skin %', n: true, narrow: true, fmt: signed },
+        { k: 'bonus_skin', label: 'Skin %', n: true, narrow: true, fmt: signed, modeOnly: 'SET' },
         { k: 'score_final', label: 'Final (pts)', n: true },
         { k: 'regularite', label: 'Variabilité %', n: true, narrow: true },
         { k: 'part_decisive', label: 'Décisif %', n: true, narrow: true },
@@ -1631,9 +1788,11 @@
       ],
     };
     let sortK = 'score_final', sortDir = -1;
+    // Colonnes du sport, sans celles réservées à l'autre sous-onglet (bonus de skin : Set seulement)
+    const colsNow = () => COLS[sport].filter((c) => !c.modeOnly || c.modeOnly === mode);
     function buildHead() {
       const tr = $('#t-j thead tr'); tr.replaceChildren();
-      for (const c of COLS[sport]) {
+      for (const c of colsNow()) {
         const th = el('th', [c.n ? 'num' : '', c.narrow ? 'sx-hide-narrow' : ''].filter(Boolean).join(' '));
         th.dataset.field = c.k;
         if (c.nosort) th.append(el('span', '', c.label));
@@ -1644,7 +1803,8 @@
     }
     function drawJoueurs() {
       buildHead();
-      $('#j-title').textContent = sport === 'NBA' ? 'Tes joueurs NBA' : 'Tes joueurs de football';
+      const xr = (ok('resume') || [])[0] || {};
+      $('#j-title').textContent = sport === 'NBA' ? 'Tes joueurs NBA (cartes Limited)' : mode === 'SET' ? 'Tes joueurs du Set ' + (xr.set || '') + ' (cartes Common)' : 'Tes joueurs Jupiler (cartes Limited et plus)';
       $('#j-note').textContent = sport === 'NBA'
         ? 'Clique un en-tête pour trier. Forme : les 10 derniers scores. L10 et étoiles après la gameweek : estimation si le joueur joue ses matchs prévus. Survole un statut pour lire le commentaire ESPN. Heures de Bruxelles.'
         : 'Clique un en-tête pour trier. Forme : les 10 derniers scores, du plus ancien au plus récent. Heures de Bruxelles.';
@@ -1652,14 +1812,14 @@
       if (!d) return;
       // NBA : joueurs sans étoiles ou sans équipe (proposition 15)
       if (sport === 'NBA') {
-        const N = d.filter((r) => r.sport === 'NBA');
+        const N = d.filter((r) => r.sport === 'NBA' && inMode(r.modes));
         const noStar = N.filter((r) => !has(r.etoiles)), noTeam = N.filter((r) => !has(r.club));
         $('#j-flags').textContent = noStar.length || noTeam.length ? [noStar.length ? plural(noStar.length, 'joueur', 'joueurs') + ' sans étoiles, comptés 1★ sous le plafond (' + noStar.slice(0, 5).map((r) => r.joueur).join(', ') + (noStar.length > 5 ? '…' : '') + ')' : '', noTeam.length ? plural(noTeam.length, 'joueur', 'joueurs') + ' sans équipe : introuvables chez ESPN, donc sans match ni projection (décoche « Avec un match cette gameweek » pour les voir)' : ''].filter(Boolean).join(' ; ') + '.' : '';
       }
       const q = $('#f-q').value.trim().toLowerCase();
       let rows = d.filter((r) => sportOfRow(r) === sport);
       if (sport === 'NBA') { const P = new Map((ok('progression_l10') || []).map((p) => [p.slug, p])); rows = rows.map((r) => { const p = P.get(r.slug); return p ? { ...r, l10_projete: p.l10_projete, etoiles_apres: p.etoiles_apres } : r; }); }
-      if (sport === 'FOOTBALL') { const mode = $('#f-mode').value; if (mode) rows = rows.filter((r) => String(r.modes).split(' ').includes(mode)); }
+      rows = rows.filter((r) => inMode(r.modes));
       if (q) rows = rows.filter((r) => [r.joueur, r.club, r.adversaire].join(' ').toLowerCase().includes(q));
       if ($('#f-gw').checked) rows = rows.filter((r) => Number(r.matchs_gw) > 0);
       if ($('#f-inj').checked) rows = rows.filter((r) => !injured(r));
@@ -1668,16 +1828,16 @@
         if ($('#f-na').checked) rows = rows.filter((r) => r.statut !== 'NOT_PLAYING' && r.statut !== 'RESERVE' && Number(r.proba_titulaire ?? 1) > 0);
         if ($('#f-sus').checked) rows = rows.filter((r) => !r.suspension);
       } else if ($('#f-min').checked) rows = rows.filter((r) => r.minutes_tendance !== 'en baisse');
-      const col = COLS[sport].find((c) => c.k === sortK);
+      const col = colsNow().find((c) => c.k === sortK);
       rows.sort((a, b) => { const x = a[sortK], y = b[sortK]; if (col && col.n) return ((x ?? -1e9) - (y ?? -1e9)) * sortDir; return String(x ?? '').localeCompare(String(y ?? ''), 'fr') * sortDir; });
       for (const r of rows.slice(0, 400)) {
         const tr = el('tr'); tr.dataset.key = r.slug;
-        for (const c of COLS[sport]) {
+        for (const c of colsNow()) {
           if (c.cell) { const td = c.cell(r); if (c.narrow) td.classList.add('sx-hide-narrow'); tr.append(td); continue; }
           const v = r[c.k];
           tr.append(el('td', [c.n ? 'num' : '', c.narrow ? 'sx-hide-narrow' : '', c.cls ? c.cls(r) : ''].filter(Boolean).join(' '), c.fmt ? c.fmt(v) : c.n ? dec(v) : num(v)));
         }
-        mainFirst(tr, COLS[sport].map((c) => c.label));
+        mainFirst(tr, colsNow().map((c) => c.label));
         tb.append(tr);
       }
     }
@@ -1687,7 +1847,7 @@
       const d = ok('jours'); const sel = $('#j-mode'); const tb = $('#t-jours tbody'); tb.replaceChildren();
       const empty = $('#jr-empty'); empty.hidden = true;
       if (!d) return;
-      const modes = [...new Set(d.map((r) => r.mode))].filter((m) => (m === 'NBA' ? 'NBA' : 'FOOTBALL') === sport);
+      const modes = [...new Set(d.map((r) => r.mode))].filter((m) => (m === 'NBA' ? 'NBA' : 'FOOTBALL') === sport && jourMode(m) === mode);
       const cur = sel.value;
       sel.replaceChildren(...modes.map((m) => new Option(m, m)));
       sel.hidden = modes.length < 2;
@@ -1696,6 +1856,7 @@
       // Un match compte s'il tombe dans la gameweek (jour calculé depuis l'heure du match, sinon le jour de la ligne)
       const inGw = (r) => { if (!g.debut || !g.fin) return false; const j = has(r.match) ? gwDay(sport, r.match) : String(r.jour); return j >= g.debut && j <= g.fin; };
       const rows = d.filter((x) => x.mode === sel.value);
+      if (!modes.length) { empty.hidden = false; empty.textContent = 'Aucun match de tes joueurs ' + vueLbl() + ' dans cette collecte.'; }
       const nGw = rows.filter(inGw).length;
       const all = $('#j-all').checked || !nGw;
       const per = g.debut ? 'du ' + fmtWDM(g.debut) + ' au ' + fmtWDM(g.fin) : '';
@@ -1724,10 +1885,10 @@
 
     // ---------- Bilan de la gameweek passée ----------
     function drawBilan() {
-      const B = (ok('bilan') || []).filter((b) => sportOfRow(b) === sport);
-      const S = (ok('bilan_synthese') || []).find((y) => y.sport === sport);
+      const B = (ok('bilan') || []).filter((b) => sportOfRow(b) === sport && sxModeOf(b) === mode);
+      const S = (ok('bilan_synthese') || []).find((y) => y.cle === sport + '-' + mode);
       const tb = $('#t-bi tbody'); tb.replaceChildren();
-      const sp = sport === 'NBA' ? 'NBA' : 'football';
+      const sp = vueLbl();
       const empty = $('#bi-empty');
       $('#bi-kpis').hidden = !B.length; $('#bi-synth').hidden = !B.length; $('#bi-wrap').hidden = !B.length; empty.hidden = !!B.length;
       if (!B.length) {
@@ -1742,7 +1903,7 @@
       }
       $('#bi-title').textContent = 'Bilan de la gameweek ' + gwText(B[0].gw);
       // Synthèse (calcul bilan_synthese)
-      ['#bi-k1-v', '#bi-k2-v', '#bi-k3-v'].forEach((k) => ($(k).dataset.where = 'sport=' + sport));
+      ['#bi-k1-v', '#bi-k2-v', '#bi-k3-v'].forEach((k) => ($(k).dataset.where = 'cle=' + sport + '-' + mode));
       const m = S ? S.ecart_moyen : null;
       setKpi('bi-k1', m == null ? '—' : signed(m) + ' pts', S ? 'Sur ' + plural(S.compos, 'compo', 'compos') + ' ; écart absolu moyen ' + dec(S.ecart_abs_moyen) + ' pts.' : '', m == null ? '' : Math.abs(m) < 5 ? 'ok' : m < 0 ? 'bad' : 'warn');
       setKpi('bi-k2', S && S.paliers_vises ? S.paliers_atteints + ' / ' + S.paliers_vises : '—', S && S.paliers_vises ? 'Compos qui ont atteint ou dépassé le palier qu’elles avaient plus de 50 % de chances d’atteindre.' : 'Aucun palier visé (pas de classement pour ces compétitions).', S && S.paliers_vises ? (S.paliers_atteints >= S.paliers_vises / 2 ? 'ok' : 'warn') : 'mut');
@@ -1846,7 +2007,7 @@
     function refText(sp) {
       const P = (ok('paliers') || []).filter((p) => sportOfRow(p) === sp);
       const byComp = new Map(); for (const p of P) if (!byComp.has(p.competition)) byComp.set(p.competition, p);
-      const order = new Map(compsOf(sp).map((c, i) => [c.competition, i]));
+      const order = new Map(compsOf(sp, 'PRO').map((c, i) => [c.competition, i]));
       const parts = [...byComp.values()].sort((a, b) => (order.get(a.competition) ?? 99) - (order.get(b.competition) ?? 99)).map((p) => {
         const ref = String(p.gw_reference || '');
         const salons = /(\d+)\s+salons/.exec(ref);
@@ -1854,7 +2015,7 @@
         return shortComp(p.competition) + ' : gameweek ' + gwText(slug) + (p.type === 'salon' ? (salons ? ', médiane de ' + salons[1] + ' salons de ' + (p.participants || 10) + ' joueurs' : ', médiane des salons') : has(p.participants) ? ', ' + Number(p.participants).toLocaleString('fr-BE') + ' compos inscrites' : '');
       });
       if (parts.length) return 'Références de cette collecte : ' + parts.join(' ; ') + '.';
-      return sp === 'NBA' ? 'Aucun palier dans cette collecte.' : 'Aucun palier dans cette collecte : pas de compétition Jupiler classée cette gameweek (le Set n’a pas de classement public).';
+      return sp === 'NBA' ? 'Aucun palier dans cette collecte.' : 'Aucun palier dans cette collecte : pas de compétition Jupiler classée cette gameweek.';
     }
     function drawMethode() {
       $('#mf-poids').textContent = poidsText('FOOTBALL', 'du match');
@@ -1862,13 +2023,13 @@
       $('#mf-ref').textContent = refText('FOOTBALL');
       $('#mn-ref').textContent = refText('NBA');
       // Football : compétitions de cette gameweek, dans l'ordre de priorité
-      const fc = compsOf('FOOTBALL');
+      const fc = compsOf('FOOTBALL', 'PRO');
       const fopen = fc.filter((c) => Number(c.max_compos) > 0).map((c) => shortComp(c.competition));
       $('#mf-ordre').textContent = !ok('competitions') ? '' : fc.some((c) => compType(c) === 'JPL' && Number(c.max_compos) > 0)
         ? 'Cette gameweek : ' + fopen.join(', puis ') + '.'
-        : 'Cette gameweek, pas de compétition Jupiler' + (fopen.length ? ' : seul ' + joinFr(fopen) + ' est ouvert.' : '.');
+        : 'Cette gameweek, pas de compétition Jupiler.';
       // NBA : ordre de priorité et contraintes lus dans competitions
-      const nc = compsOf('NBA');
+      const nc = compsOf('NBA', 'PRO');
       if (nc.length) {
         $('#mn-ordre').textContent = nc.map((c) => {
           const bits = [];
@@ -1882,11 +2043,14 @@
       }
       // Coûts d'inscription lus dans les compétitions
       for (const [sp, id] of [['FOOTBALL', '#mf-cout'], ['NBA', '#mn-cout']]) {
-        const paid = compsOf(sp).filter((c) => sxCout(c) > 0);
+        const paid = compsOf(sp, 'PRO').filter((c) => sxCout(c) > 0);
         $(id).textContent = !ok('competitions') ? '' : paid.length ? 'Cette gameweek : ' + paid.map((c) => shortComp(c.competition) + ' ' + ess(sxCout(c)) + ' par compo').join(', ') + ' ; les autres compétitions sont gratuites.' : 'Cette gameweek, aucune compétition ' + (sp === 'NBA' ? 'NBA' : 'de football') + ' ne demande d’inscription payante.';
       }
       // NBA : cotes des matchs
       const x = (ok('resume') || [])[0] || {};
+      // Set (Arcade) : nom du set et fin de la période
+      $('#ms-set').textContent = has(x.set) ? ' (' + x.set + ')' : '';
+      $('#ms-fin').textContent = has(x.arcade_fin) ? 'Période Arcade de cette collecte : jusqu’au ' + fmtWhen(x.arcade_fin) + '.' : '';
       const M = (ok('matchs') || []).filter((m) => sportOfRow(m) === 'NBA');
       const nOdds = M.filter((m) => has(m.proba_victoire) || has(m.total)).length;
       $('#mn-cotes').textContent = x.cotes_externes === 'non' ? 'Désactivées dans cette collecte.'
@@ -1894,8 +2058,118 @@
         : 'Pas encore fournies match par match dans cette collecte : le calendrier les affichera dès qu’elles arriveront.';
     }
 
+    // ---------- Planificateur Arcade (Football Set) ----------
+    // Piste relevée sur la capture de l'utilisateur du 25/10/2026 ; les seuils sont remplacés par ceux de plan_arcade quand il les donne.
+    const ARCADE_PISTE = [
+      { palier: 1, seuil: 260, lot: '' }, { palier: 2, seuil: 300, lot: 'une carte' }, { palier: 3, seuil: 360, lot: 'des essences' },
+      { palier: 4, seuil: 400, lot: 'des essences' }, { palier: 5, seuil: 440, lot: 'une récompense en € + « 1 K »' }, { palier: 6, seuil: 480, lot: 'une récompense en € + « 1 K »' },
+    ];
+    let arcPalier = 1;
+    try { const v = Number(localStorage.getItem('sx-arcade-palier')); if (v >= 1 && v <= ARCADE_PISTE.length) arcPalier = Math.round(v); } catch (e) { /* stockage indisponible */ }
+    const setArcPalier = (v) => { arcPalier = Math.min(ARCADE_PISTE.length, Math.max(1, v)); try { localStorage.setItem('sx-arcade-palier', String(arcPalier)); } catch (e) { /* stockage indisponible */ } drawKpis(lineupsFor(sport)); drawArcade(); };
+    $('#arc-palier').replaceChildren(...ARCADE_PISTE.map((p) => new Option(String(p.palier), String(p.palier))));
+    $('#arc-palier').addEventListener('change', (e) => setArcPalier(Number(e.target.value)));
+    $('#arc-ok').addEventListener('click', () => setArcPalier(arcPalier + 1));
+    $('#arc-ko').addEventListener('click', () => setArcPalier(1));
+    const hmBxl = (s) => { const t = fmtDate(s); const m = / à (\d\d)h(\d\d)$/.exec(t); return m ? m[1] + 'h' + m[2] : t; };
+    const dayBxl = (s) => fmtDate(s).replace(/ à .*$/, '');
+    const countdown = (ms) => { const m = Math.max(0, Math.round(ms / 6e4)); if (m < 60) return 'dans ' + m + ' min'; const h = Math.floor(m / 60), d = Math.floor(h / 24); return d ? 'dans ' + d + ' j ' + (h % 24) + ' h' : 'dans ' + h + ' h ' + String(m % 60).padStart(2, '0'); };
+    const probCls = (p) => (p >= 50 ? 'sx-ok' : p >= 20 ? 'sx-warn' : 'sx-bad');
+    function drawArcade() {
+      const box = $('#arcade'); if (box.hidden) return;
+      const plan = ok('plan_arcade') || [];
+      const x = (ok('resume') || [])[0] || {};
+      const seuils = new Map(plan.filter((r) => has(r.palier) && has(r.seuil)).map((r) => [Number(r.palier), Number(r.seuil)]));
+      const piste = ARCADE_PISTE.map((p) => ({ ...p, seuil: seuils.get(p.palier) ?? p.seuil }));
+      $('#arc-palier').value = String(arcPalier);
+      $('#arc-ok').disabled = arcPalier >= piste.length; $('#arc-ko').disabled = arcPalier <= 1;
+      const ol = $('#arc-piste'); ol.replaceChildren();
+      for (const p of piste) {
+        const li = el('li', p.palier < arcPalier ? 'sx-done' : '');
+        if (p.palier === arcPalier) li.setAttribute('aria-current', 'step');
+        li.append(el('span', 'sx-lbl', 'Palier ' + p.palier + (p.palier === arcPalier ? ' · tu es ici' : p.palier < arcPalier ? ' · passé' : '')), el('span', 'sx-v', dec(p.seuil, 0) + ' pts'), el('span', p.lot ? '' : 'sx-mut', p.lot || 'pas de lot relevé'));
+        ol.append(li);
+      }
+      const steps = $('#arc-steps'); steps.replaceChildren();
+      const empty = $('#arc-empty');
+      const fin = has(x.arcade_fin) ? x.arcade_fin : x.gw_fin_football;
+      if (!plan.length) {
+        empty.hidden = false;
+        const gf = (gwOf('FOOTBALL') || {}).fin;
+        empty.textContent = 'Aucun de tes joueurs du Set ne joue d’ici la fin de la période Arcade' + (fin ? ', le ' + fmtWhen(fin) : gf ? ', le ' + fmtWDM(gf) : '') + ' : pas de plan à proposer.' + (ok('plan_arcade') ? '' : ' (Le plan arrivera avec une prochaine collecte.)');
+        return;
+      }
+      const rows = plan.filter((r) => Number(r.depart) === arcPalier);
+      const etapes = [...new Set(rows.map((r) => Number(r.etape)))].sort((a, b) => a - b);
+      empty.hidden = etapes.length > 0;
+      if (!etapes.length) { empty.textContent = 'Pas de plan depuis le palier ' + arcPalier + ' dans cette collecte.'; return; }
+      const now = Date.now();
+      const enCours = etapes.find((k) => { const r = rows.find((y) => Number(y.etape) === k); return has(r.creneau) && toDate(r.creneau).getTime() > now; });
+      if (enCours == null) { empty.hidden = false; empty.textContent = 'Tous les créneaux de ce plan sont passés : il faudra une nouvelle collecte pour un plan à jour.'; }
+      for (const k of etapes) {
+        const lot = rows.filter((y) => Number(y.etape) === k).sort((a, b) => Number(a.compo) - Number(b.compo));
+        const r0 = lot[0];
+        const t = has(r0.creneau) ? toDate(r0.creneau).getTime() : NaN;
+        const on = k === enCours, past = t <= now;
+        const art = el('article', 'sx-step' + (on ? ' sx-on' : past ? ' sx-past' : ''));
+        art.setAttribute('aria-label', 'Étape ' + k + (on ? ', en cours' : ''));
+        if (on) art.setAttribute('aria-current', 'step');
+        const h = el('h3'); h.append('Étape ' + k + ' · palier ' + r0.palier + ' : dépasser ' + dec(r0.seuil, 0) + ' pts ');
+        if (on) h.append(pill('étape en cours', 'sx-ok')); else if (past) h.append(pill('créneau passé', 'sx-mut'));
+        art.append(h);
+        const when = el('p');
+        when.append(el('span', 'sx-lbl', 'Créneau : '), fmtWhen(r0.creneau));
+        if (on) when.append(' · ', el('strong', '', countdown(t - now)));
+        if (has(r0.resultat_vers)) when.append(' · résultat vers ' + (dayBxl(r0.resultat_vers) === dayBxl(r0.creneau) ? hmBxl(r0.resultat_vers) : fmtDate(r0.resultat_vers)));
+        art.append(when);
+        if (has(r0.proba_palier)) { const p = el('p'); p.append(el('span', 'sx-lbl', 'Chance de passer le palier (au moins une compo sur ' + lot.length + ') : '), el('span', 'sx-prob ' + probCls(Number(r0.proba_palier)), dec(r0.proba_palier, 0) + ' %')); art.append(p); }
+        if (has(r0.conseil)) art.append(el('p', 'sx-reco', r0.conseil));
+        const tbl = el('table', 'sx-table sx-cards'); const labels = ['Compo', 'Joueurs', 'Attendu (pts)', 'Chance'];
+        const hr = el('tr'); labels.forEach((lb, i) => { const th = el('th', i >= 2 ? 'num' : ''); th.append(el('span', '', lb)); hr.append(th); });
+        const th = el('thead'); th.append(hr); tbl.append(th);
+        const tb = el('tbody');
+        for (const r of lot) {
+          const tr = el('tr'); const jt = el('td', 'sx-c-wide'); const ul = el('ul');
+          String(r.joueurs || '').split(';').map((y) => y.trim()).filter(Boolean).forEach((y) => ul.append(el('li', '', y)));
+          jt.append(ul);
+          tr.append(el('td', 'sx-c-main', 'Compo ' + r.compo), jt, el('td', 'num', dec(r.score_attendu)), el('td', 'num sx-prob ' + (has(r.proba_compo) ? probCls(Number(r.proba_compo)) : ''), has(r.proba_compo) ? dec(r.proba_compo, 0) + ' %' : ''));
+          labelRow(tr, labels); tb.append(tr);
+        }
+        tbl.append(tb); const wrap = el('div', 'sx-wrap'); wrap.append(tbl);
+        // Étape en cours : compos visibles ; autres étapes : compos repliées
+        if (on) art.append(wrap); else { const det = el('details', 'sx-fold'); det.append(el('summary', '', 'Voir les ' + plural(lot.length, 'compo', 'compos')), wrap); art.append(det); }
+        steps.append(art);
+      }
+    }
+
+    // Vue sans rien à montrer (ex. NBA Set : aucune carte Common NBA) : un seul message clair à la place des onglets
+    function modeVide() {
+      if (!ok('competitions') || !ok('joueurs')) return false;
+      if (compsOf(sport).length) return false;
+      return !(ok('joueurs') || []).some((r) => sportOfRow(r) === sport && inMode(r.modes));
+    }
+    function drawModeVide(vide) {
+      $('#mode-vide').hidden = !vide; $('#kpis').hidden = vide; $('.sx-tabs').hidden = vide;
+      document.querySelectorAll('.sx-page').forEach((p) => (p.hidden = vide || p.id !== current));
+      if (!vide) return;
+      const x = (ok('resume') || [])[0] || {};
+      $('#mode-vide-lbl').textContent = (sport === 'NBA' ? 'NBA' : 'Football') + ' · ' + modeLbl() + (x.maj ? ' · collecte du ' + fmtWhen(x.maj) : '');
+      if (sport === 'NBA' && mode === 'SET') {
+        $('#mode-vide-titre').textContent = 'Aucune carte Common NBA';
+        $('#mode-vide-txt').textContent = 'Tu n’as aucune carte Common NBA : rien à inscrire en Set NBA, et aucun joueur à suivre. Ce mode n’est pas calculé. Tes compétitions NBA (Classic, In-Season, Rooms) sont dans la vue Pro.';
+      } else if (mode === 'SET') {
+        $('#mode-vide-titre').textContent = 'Aucune carte Common du set en cours';
+        $('#mode-vide-txt').textContent = 'Cette collecte ne contient ni compétition ni joueur du Set : rien à inscrire en Arcade. Tes cartes Limited sont dans la vue Pro.';
+      } else {
+        $('#mode-vide-titre').textContent = 'Aucune carte Limited ' + (sport === 'NBA' ? 'NBA' : 'de football');
+        $('#mode-vide-txt').textContent = 'Cette collecte ne contient ni compétition ni joueur pour les cartes Limited et plus. Tes cartes Common sont dans la vue Set.';
+      }
+    }
     function draw() {
       drawHeader();
+      const vide = modeVide();
+      drawModeVide(vide);
+      if (vide) return;
       drawKpis(lineupsFor(sport));
       if (current === 'p-bilan') drawBilan();
       if (current === 'p-meth') drawMethode();
@@ -1905,13 +2179,16 @@
       if (current === 'p-fiab') drawFiab();
     }
 
-    const h = location.hash.slice(1);
-    if (h === 'nba') sport = 'NBA';
-    const page = { 't-compos': 'p-compos', 't-joueurs': 'p-joueurs', 't-jours': 'p-jours', 't-bilan': 'p-bilan', 't-fiab': 'p-fiab', 't-meth': 'p-meth' }[h];
+    // Vue de départ : adresse (#nba-pro, #football-set-joueurs ; anciens liens #nba, #t-meth acceptés), sinon dernier choix du navigateur
+    try { const v = JSON.parse(localStorage.getItem('sx-vue-v1') || 'null'); if (v && (v.sport === 'NBA' || v.sport === 'FOOTBALL')) sport = v.sport; if (v && (v.mode === 'PRO' || v.mode === 'SET')) mode = v.mode; } catch (e) { /* stockage indisponible */ }
+    const h = String(location.hash || '').slice(1).toLowerCase();
+    let page = { 't-compos': 'p-compos', 't-joueurs': 'p-joueurs', 't-jours': 'p-jours', 't-bilan': 'p-bilan', 't-fiab': 'p-fiab', 't-meth': 'p-meth' }[h];
+    const hm = /^(football|nba)(?:-(pro|set))?(?:-([a-z]+))?$/.exec(h);
+    if (hm) { sport = hm[1] === 'nba' ? 'NBA' : 'FOOTBALL'; if (hm[2]) mode = hm[2].toUpperCase(); if (hm[3] && PAGES[hm[3]]) page = PAGES[hm[3]]; }
     applySport();
     if (page) showPage(page);
     dash.onData(() => { cache.key = ''; draw(); });
-    // Le compte à rebours avance chaque minute
-    setInterval(() => drawKpis(lineupsFor(sport)), 60000);
+    // Le compte à rebours avance chaque minute (et celui du plan Arcade)
+    setInterval(() => { if (modeVide()) return; drawKpis(lineupsFor(sport)); if (current === 'p-compos' && sport === 'FOOTBALL' && mode === 'SET') drawArcade(); }, 60000);
   })();
 </script>

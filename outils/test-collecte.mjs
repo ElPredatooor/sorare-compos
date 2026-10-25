@@ -2,7 +2,8 @@
 // 1. lance collect() depuis les modules (sorare-compos/core.mjs) ;
 // 2. lance la même collecte depuis le fichier généré sorare-compos/collecteur-navigateur.js ;
 // 3. vérifie que les deux sorties sont identiques et contrôle quelques règles (football et NBA séparés).
-// Usage : node outils/test-collecte.mjs [--sortie <dossier>] [--modules]
+// Usage : node outils/test-collecte.mjs [--sortie <dossier>] [--modules] [--arcade]
+//   --arcade affiche le plan Arcade calculé sur le monde simulé
 //   --sortie écrit les jeux simulés pour outils/verifier.mjs
 //   --modules ne teste que les modules (saute la comparaison avec collecteur-navigateur.js, utile avant de régénérer le bundle)
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -143,7 +144,10 @@ for (const l of f.compos.filter((x) => x.sport === "NBA")) ok(!l.capitaine, "NBA
 const joueursNba = f.joueurs.filter((r) => r.sport === "NBA"), joueursFoot = f.joueurs.filter((r) => r.sport === "FOOTBALL");
 for (const r of joueursNba) ok(r.statut == null && r.clean_sheet == null && r.poste === "", "NBA : champ football rempli pour " + r.slug);
 for (const r of joueursFoot) ok(r.etoiles == null && r.l10 == null && r.minutes_liberees == null, "football : champ NBA rempli pour " + r.slug);
-for (const m of f.matchs) ok(m.sport === "NBA", "matchs : ligne non NBA");
+// contrat v4 : lignes football seulement pour les joueurs du Set (période Arcade), jamais de ligne NBA pour un joueur football
+const sportDe = new Map(f.joueurs.map((r) => [r.slug, r]));
+for (const m of f.matchs) ok(m.sport === "NBA" ? sportDe.get(m.slug)?.sport === "NBA" : m.sport === "Football" && /SET/.test(sportDe.get(m.slug)?.modes || "") && m.b2b === null, "matchs : ligne inattendue " + m.sport + " " + m.slug);
+ok(Array.isArray(f.plan_arcade ?? []), "plan_arcade doit être une liste");
 // contrat v2 : source_titulaire (football seulement), proba_victoire et total dans matchs
 for (const r of joueursNba) ok(r.source_titulaire === null, "NBA : source_titulaire remplie pour " + r.slug);
 for (const r of joueursFoot) ok(["cote Sorare", "statut"].includes(r.source_titulaire), "football : source_titulaire inattendue pour " + r.slug + " : " + r.source_titulaire);
@@ -230,6 +234,37 @@ ok(f.paliers.some((p) => p.type === "salon") && f.paliers.some((p) => p.sport ==
   const o = calculeCompos({ comps, currentSet: "x", setName: "x", fixtures: { FOOTBALL: { cutOffDate: "x" }, NBA: {} }, advRank: () => ({}) }, rows, null);
   const cont = o.compRows.find((c) => c.competition === "NBA In-Season Contender");
   ok(/tes 4 cartes In-Season sont dans la compo NBA In-Season Champion \(priorité 1\)/.test(cont.statut) && /10,5★/.test(cont.statut), "In-Season Contender : raison peu explicite : " + cont.statut);
+}
+
+// Audit des règles du 25/10/2026 (sources : API so5Leaderboard.displayedTypedRules « EntryItem », so5Appearances{ bonus },
+// aide Sorare « What is the Arena? ») : salons sans bonus de carte (NBA Rooms et Cap 260), Cap 260 à 300 essences,
+// capitaine football additif (score du joueur × bonus capitaine, ajouté au score de la carte).
+{
+  const { affecteCompetitions } = await import(pathToFileURL(join(racine, "sorare-compos", "compos.mjs")).href);
+  const round = (x) => Math.round(x * 10) / 10;
+  const pos = ["Goalkeeper", "Defender", "Midfielder", "Forward", "Forward"];
+  const foot = pos.map((p, i) => ({ joueur: "f" + i, slug: "f" + i, sport: "FOOTBALL", score_attendu: 40 + i, matchs_gw: 1, _cv: 0, _l15: 40, _clubSlug: "c" + i, _isJPL: true, _pos: p,
+    _cards: [{ slug: "f" + i + "-l", rarity: "limited", inSeason: true, power: 1.1, skinBonus: 1, season: 2026 }] }));
+  const nba = Array.from({ length: 5 }, (_, i) => ({ joueur: "n" + i, slug: "n" + i, sport: "NBA", score_attendu: 30 + i, matchs_gw: 2, etoiles: 2, _cv: 0, _clubSlug: "t" + i,
+    _cards: [{ slug: "n" + i + "-l", rarity: "limited", inSeason: false, power: 1.1, skinBonus: 1, season: 2024 }] }));
+  const rows = [...foot, ...nba];
+  const somme = (l) => l.reduce((s, x) => s + x.score_attendu, 0);
+  const cap260 = { nom: "Jupiler Cap 260", slug: "football-x-seasonal-jupiler-all_seasons_jupiler_arena_limited", sport: "FOOTBALL", equipes: null, capPoints: 260, capitaine: 20 };
+  const isj = { nom: "Jupiler In-Season", slug: "football-x-seasonal-jupiler-in_season_jupiler_limited", sport: "FOOTBALL", inSeason: true, equipes: 1, capitaine: 50, minInSeason: 4 };
+  const rooms = { nom: "NBA Rooms Champion", slug: "nba-x-nba_limited_arena_140", sport: "NBA", salon: true, nbaDef: { rang: 4, compos: 1, essences: 150 }, capStars: 16, maxParClub: 4 };
+  const a = affecteCompetitions([cap260], rows, new Set());
+  const cr = a.compRows[0];
+  ok(cr.cout_inscription === 300 && /300 essences/.test(cr.contraintes), "Cap 260 : inscription 300 essences Limited attendue : " + cr.cout_inscription);
+  ok(a.lineups.every((l) => l.bonus === 0), "Cap 260 : bonus de carte appliqué en salon");
+  ok(Math.abs(cr.score_compo - round(somme(foot) + 44 * 0.2)) < 0.11, `Cap 260 : score ${cr.score_compo} ≠ somme des scores + 20 % du capitaine (${round(somme(foot) + 44 * 0.2)})`);
+  const b = affecteCompetitions([isj], rows, new Set());
+  const capL = b.lineups.find((l) => l.capitaine === "Oui");
+  ok(capL && Math.abs(capL.score_final - round(capL.score_attendu * (1.1 + 0.5))) < 0.11, "Jupiler In-Season : capitaine non additif (attendu score × (1,1 + 0,5)) : " + capL?.score_final);
+  ok(b.compRows[0].cout_inscription === 0, "Jupiler In-Season : coût d'inscription inattendu");
+  const c = affecteCompetitions([rooms], rows, new Set());
+  ok(Math.abs(c.compRows[0].score_compo - somme(nba)) < 0.11 && c.lineups.every((l) => l.bonus === 0), "NBA Rooms : bonus de carte appliqué en salon : " + c.compRows[0].score_compo);
+  const d = affecteCompetitions([{ ...rooms, nom: "NBA Classic Champion", slug: "nba-x-nba_limited_champion", salon: false, nbaDef: { rang: 2, compos: 1 } }], rows, new Set());
+  ok(Math.abs(d.compRows[0].score_compo - round(somme(nba) * 1.1)) < 0.11, "NBA Classic : bonus de carte absent : " + d.compRows[0].score_compo);
 }
 
 // Contrat v3 : colonnes de rentabilité toujours présentes dans competitions (les deux sports)
@@ -338,6 +373,45 @@ if (f.competitions.some((c) => c.recommandation)) {
   ok(pp("sorare-out").every((p) => p === 0), "blessés : Sorare retour 28/10, match du 28/10 au soir (heure US) compté joué : " + pp("sorare-out"));
   // football : retour 28/10, match le 28/10 à 19 h 45 (Bruxelles) -> absent
   ok(pp("forbs")[0] === 0 && rows.find((x) => x.slug === "forbs").score_attendu === 0, "blessés football : match le jour du retour Sorare compté joué");
+}
+
+// Mode Arcade (Set football, utilisateur 25/10/2026 + aide Sorare « What is Arcade? ») : palier 1 au plus tôt avec 4 compos,
+// cartes jamais réutilisées, délai de 1h50 entre le dernier coup d'envoi d'un lot et le lot suivant, plan vide sans match.
+{
+  const { planArcade, ARCADE_SEUILS } = await import(pathToFileURL(join(racine, "sorare-compos", "compos.mjs")).href);
+  const debut = Date.parse("2026-10-31T10:00:00Z"), fin = Date.parse("2026-11-03T00:00:00Z");
+  const vagues = ["2026-10-31T12:30:00Z", "2026-10-31T14:30:00Z", "2026-10-31T17:30:00Z", "2026-10-31T20:00:00Z", "2026-11-01T13:00:00Z", "2026-11-01T15:30:00Z", "2026-11-01T19:45:00Z", "2026-11-02T20:00:00Z"];
+  const postes = ["Goalkeeper", "Defender", "Defender", "Midfielder", "Midfielder", "Forward", "Forward"];
+  const rows = [];
+  vagues.forEach((v, vi) => { for (let e = 0; e < 3; e++) postes.forEach((pos, pi) => {
+    const slug = `a-${vi}-${e}-${pi}`, t = Date.parse(v);
+    rows.push({ joueur: slug, slug, sport: "FOOTBALL", club: "club-" + vi + "-" + e, regularite: 30 + (h(slug) % 20), _inSet: true, _pos: pos,
+      _cards: Array.from({ length: 1 + (h(slug) % 2) }, (_, c) => ({ slug: slug + "-c" + c, rarity: "common", set: "glitch", power: 1.05, skinBonus: c ? 1.1 : 1 })),
+      _games: [{ t, date: iso(t), proj: 45 + (h(slug + "p") % 30) + vi * 2, pPlay: 0.75 + (h(slug + "q") % 25) / 100 }] });
+  }); });
+  // un joueur hors Set et un match hors période : jamais dans le plan
+  rows.push({ ...rows[0], slug: "hors-set", joueur: "hors-set", _inSet: false });
+  rows.push({ ...rows[1], slug: "apres-fin", joueur: "apres-fin", _games: [{ ...rows[1]._games[0], t: fin + H, date: iso(fin + H) }] });
+  const plan = planArcade(rows, { currentSet: "glitch", debut, fin });
+  ok(plan.length > 0, "Arcade : plan vide alors que des joueurs du Set jouent");
+  const p1 = plan.filter((l) => l.depart === 1 && l.etape === 1);
+  ok(p1.length === 4 && p1.every((l) => l.creneau === vagues[0].slice(0, 16)) && /rien à perdre/.test(p1[0].conseil), "Arcade : au palier 1, il faut jouer 4 compos au premier créneau (" + p1.map((l) => l.creneau).join() + ")");
+  for (let d = 1; d <= 6; d++) {
+    const l = plan.filter((x) => x.depart === d);
+    ok(l.length && l[0].palier === d && l[0].seuil === ARCADE_SEUILS[d - 1], `Arcade : le plan au départ ${d} ne commence pas au palier ${d}`);
+    const cartes = l.flatMap((x) => x.joueurs.split(" ; "));
+    ok(new Set(cartes).size === cartes.length, `Arcade : carte réutilisée dans le plan au départ ${d}`);
+    ok(!cartes.some((c) => /hors-set|apres-fin/.test(c)), `Arcade : joueur hors Set ou hors période dans le plan au départ ${d}`);
+    const etapes = [...new Set(l.map((x) => x.etape))];
+    for (let e = 1; e < etapes.length; e++) { const a = l.find((x) => x.etape === etapes[e - 1]), b = l.find((x) => x.etape === etapes[e]);
+      ok(Date.parse(b.creneau + "Z") >= Date.parse(a.resultat_vers + "Z"), `Arcade : départ ${d}, étape ${etapes[e]} jouée avant le résultat de l'étape précédente`); }
+    for (const x of l) { ok(x.compo >= 1 && x.compo <= 4 && x.joueurs.split(" ; ").length === 5 && /^Gardien /.test(x.joueurs) && x.conseil, `Arcade : ligne incomplète (départ ${d}, étape ${x.etape})`);
+      const lot = l.filter((y) => y.etape === x.etape); ok(Math.abs(1 - lot.reduce((q, y) => q * (1 - y.proba_compo / 100), 1) - x.proba_palier / 100) < 0.01, "Arcade : proba_palier ≠ 1 − Π(1 − proba_compo)"); }
+  }
+  // délai 1h50 : resultat_vers = dernier coup d'envoi du lot + 1h50
+  ok(plan.every((x) => (Date.parse(x.resultat_vers + "Z") - Date.parse(x.creneau + "Z")) >= 110 * 60e3), "Arcade : résultat attendu moins de 1h50 après le coup d'envoi");
+  ok(planArcade(rows, { currentSet: "glitch", debut: fin + 2 * H, fin: fin + 3 * H }).length === 0 && planArcade([], { currentSet: "glitch", debut, fin }).length === 0, "Arcade : plan non vide sans match avant la fin de la période");
+  if (process.argv.includes("--arcade")) console.log(plan.map((x) => [x.depart, x.etape, x.palier, x.creneau, x.resultat_vers, x.compo, x.score_attendu, x.proba_compo, x.proba_palier, x.compo === 1 ? x.conseil : ""].join(" | ")).join("\n"));
 }
 
 const i = process.argv.indexOf("--sortie");

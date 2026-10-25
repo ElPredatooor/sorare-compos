@@ -1,6 +1,6 @@
 # Contrat de données : collecte → modèle → dashboard
 
-Version 3 (25/10/2026, orchestrateur) ; version 2 (25/10/2026, agent `donnees`) ; version 1 (24/10/2026) relevée dans `core.mjs` et `dashboard/index.html` (v7).
+Version 4 (25/10/2026, orchestrateur) ; version 3 (25/10/2026, orchestrateur) ; version 2 (25/10/2026, agent `donnees`) ; version 1 (24/10/2026) relevée dans `core.mjs` et `dashboard/index.html` (v7).
 Ce fichier fait foi. Toute colonne ajoutée, renommée ou supprimée est d'abord écrite ici,
 avec la version et le nom de l'agent, puis implémentée. `outils/verifier.mjs` contrôle ce contrat.
 
@@ -68,7 +68,8 @@ Légende du tableau : **F** football seulement, **N** NBA seulement, **F+N** les
 | coequipiers_absents | texte | N | Coéquipiers Out (ESPN) et leurs minutes habituelles (« rôle élargi ») |
 | minutes_liberees | nombre | N | Somme des minutes de ces coéquipiers |
 
-## matchs (calendrier NBA : une ligne par joueur et par match de la gameweek ; clé : `slug` + `date`)
+## matchs (calendrier : une ligne par joueur et par match ; clé : `slug` + `date`)
+v4 : aussi des lignes **football** (`sport` = `Football`) pour les joueurs du Set, sur la période Arcade en cours (de la collecte à `resume.arcade_fin`) : `jour` = date à Bruxelles, `proba` = probabilité de titularisation, `proj` = projection du match ; `b2b`, `proba_victoire` et `total` selon disponibilité.
 Jeu en plus des sept ci-dessus, écrit par compos.mjs (section 12). NBA seulement pour l'instant.
 
 | Colonne | Type | Sport | Contenu |
@@ -166,6 +167,23 @@ Vide (CSV d'en-tête) tant qu'aucune gameweek proposée n'est terminée.
 
 Formats du jeu `bilan` : `palier_vise` / `palier_atteint` = « top N : récompense », « Ne du salon : récompense » ou « aucun palier » ; `joueurs` = « Nom (C) prévu→réel » séparés par « ; » (virgule décimale).
 
+## plan_arcade (v4 ; plan de piste du mode Set / Arcade, football ; clé : `depart` + `etape` + `compo`)
+Plans calculés pour chaque palier de départ possible (l'utilisateur indique le sien dans la page ; la progression n'est pas lisible dans l'API).
+| Colonne | Type | Contenu |
+|---|---|---|
+| depart | entier 1-6 | Palier où se trouve l'utilisateur au moment du plan |
+| etape | entier ≥ 1 | Ordre de la tentative dans le plan |
+| palier, seuil | entier, nombre | Palier visé et son seuil (260, 300, 360, 400, 440, 480) |
+| creneau | date | Premier coup d'envoi des joueurs du lot |
+| resultat_vers | date | Dernier coup d'envoi du lot + 1h50 (marge choisie par l'utilisateur) : heure à partir de laquelle l'étape suivante peut être jouée |
+| compo | entier 1-4 | Compo du lot (4 vies = 4 compos en même temps) |
+| joueurs | texte | « Poste Nom (club, heure) score » séparés par « ; » |
+| score_attendu | nombre | Score attendu de la compo |
+| proba_compo | nombre (%) | Chance que cette compo dépasse le seuil |
+| proba_palier | nombre (%) | Chance qu'au moins une compo du lot dépasse le seuil (même valeur sur les lignes du lot) |
+| conseil | texte | Phrase courte (« Jouer 4 compos dès 15h00 : rien à perdre au palier 1 », « Attendre le créneau de 18h30 : 61 % au lieu de 38 % ») |
+Vide (CSV d'en-tête) si aucun joueur du Set ne joue avant la fin de la période Arcade.
+
 ## jours (top 5 par mode et par jour ; clé : `mode` + `jour` + `rang`)
 mode (`NBA`, `Jupiler` ou `Set <nom du set>`), jour, rang (1 à 5), joueur, poste (vide en NBA), adversaire, match,
 score_attendu, adv_attaque_rang, adv_defense_rang, adv_nb_equipes.
@@ -178,6 +196,7 @@ joueur, modes, type (`Nouvelle blessure`, `Retour de blessure`, `Suspension`, `S
 date, sport (`FOOTBALL`/`NBA`), matchs, erreur_modele, erreur_sorare, erreur_forme, poids_sorare (0 à 1).
 
 ## resume (une seule ligne)
+v4 : ajoute `arcade_debut`, `arcade_fin` (fenêtre de la gameweek football en cours, `so5Fixture(type: LIVE)`, pendant laquelle se joue l'Arcade / Set).
 v3 : ajoute `gw_debut_football`, `gw_fin_football`, `gw_debut_nba`, `gw_fin_nba` (dates ISO de la fenêtre de chaque gameweek, lues dans `so5Fixture.startDate` / `endDate`).
 
 maj, cartes, joueurs, set, gw_football, gw_nba, limite_football, limite_nba, poids_sorare, cotes_externes (`oui`/`non`), appels_api.
@@ -185,6 +204,10 @@ maj, cartes, joueurs, set, gw_football, gw_nba, limite_football, limite_nba, poi
 ## Calculs du dashboard (ne pas fournir, calculés par la page)
 - `nb_changements` : {sport, n} depuis `changements`.
 - `nb_compos` : {sport, n} = somme de `competitions.nb_compos` par sport.
+- `gain_net` : somme de `competitions.gain_net_espere` par sport.
+- `kpi_mode` : {cle = SPORT-MODE (ex. FOOTBALL-SET), compos, gain net} pour les chiffres clés des sous-onglets Pro / Set (v13).
+- `bilan_synthese` : une ligne par sport et par sous-onglet (`cle`), écart moyen, paliers atteints, total prévu → réel.
+- `progression_l10` : L10 estimée après la gameweek (NBA).
 
 ## Évolutions proposées (à valider par l'utilisateur)
 - (fait en v3 : `compos.carte_id` remplace la proposition `carte_slug` ; le club se lit dans `joueurs` via `slug`.)
@@ -195,4 +218,5 @@ maj, cartes, joueurs, set, gw_football, gw_nba, limite_football, limite_nba, poi
 |---|---|---|---|
 | 1 | 24/10/2026 | orchestrateur | Relevé initial depuis la v7 |
 | 2 | 25/10/2026 | donnees | `joueurs.source_titulaire` (F) ; jeu `matchs` décrit, avec `proba_victoire` et `total` par match (N) |
+| 4 | 25/10/2026 | orchestrateur | `matchs` étendu au football (Set) ; `resume.arcade_debut` / `arcade_fin` ; nouveau jeu `plan_arcade` |
 | 3 | 25/10/2026 | orchestrateur | Colonnes déjà produites ajoutées (joueurs, compos, competitions) ; jeux `cartes` et `paliers` décrits ; `competitions` : cout_inscription, gains_esperes, gain_net_espere, autres_recompenses, rentable, recommandation, alternative ; nouveau jeu `bilan` ; `resume` : fenêtres des gameweeks |

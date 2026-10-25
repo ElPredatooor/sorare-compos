@@ -13,7 +13,7 @@ export async function collect({ apiKey, oddsKey = null, espn = true, prev = null
   const ctx = await collecte({ apiKey, oddsKey, espn, history, now, log });
   const { gq, comps, cards, players, setName, fixtures, odds, samples, w, calib } = ctx;
   const { rows, newSamples } = calculeJoueurs(ctx, now);
-  const { lineups, compRows, jours, changes, cartes, matchs } = calculeCompos(ctx, rows, prev);
+  const { lineups, compRows, jours, changes, cartes, matchs, plan_arcade } = calculeCompos(ctx, rows, prev, now);
 
   // ---------- 13. Paliers de recompense de la derniere gameweek terminee ----------
   let paliers = [];
@@ -36,8 +36,8 @@ export async function collect({ apiKey, oddsKey = null, espn = true, prev = null
   log(`${ctx.appels()} appels API`);
   return {
     files: {
-      joueurs: clean, compos: lineups, competitions: compRows, jours, changements: changes, calibration: calib, cartes, matchs, paliers, bilan,
-      resume: [{ maj: now.toISOString(), cartes: cards.length, joueurs: players.length, set: setName, gw_football: fixtures.FOOTBALL.slug, gw_nba: fixtures.NBA.slug, limite_football: fixtures.FOOTBALL.cutOffDate, limite_nba: fixtures.NBA.cutOffDate, gw_debut_football: fixtures.FOOTBALL.startDate || null, gw_fin_football: fixtures.FOOTBALL.endDate || null, gw_debut_nba: fixtures.NBA.startDate || null, gw_fin_nba: fixtures.NBA.endDate || null, poids_sorare: w, cotes_externes: odds.length > 0 ? "oui" : "non", appels_api: ctx.appels() }],
+      joueurs: clean, compos: lineups, competitions: compRows, jours, changements: changes, calibration: calib, cartes, matchs, plan_arcade, paliers, bilan,
+      resume: [{ maj: now.toISOString(), cartes: cards.length, joueurs: players.length, set: setName, gw_football: fixtures.FOOTBALL.slug, gw_nba: fixtures.NBA.slug, limite_football: fixtures.FOOTBALL.cutOffDate, limite_nba: fixtures.NBA.cutOffDate, gw_debut_football: fixtures.FOOTBALL.startDate || null, gw_fin_football: fixtures.FOOTBALL.endDate || null, gw_debut_nba: fixtures.NBA.startDate || null, gw_fin_nba: fixtures.NBA.endDate || null, arcade_debut: fixtures.LIVE_FOOTBALL?.startDate ?? fixtures.FOOTBALL.startDate ?? null, arcade_fin: fixtures.LIVE_FOOTBALL?.endDate ?? fixtures.FOOTBALL.endDate ?? null, poids_sorare: w, cotes_externes: odds.length > 0 ? "oui" : "non", appels_api: ctx.appels() }],
     },
     history: { samples: allSamples, calibration: calib.slice(-90) },
   };

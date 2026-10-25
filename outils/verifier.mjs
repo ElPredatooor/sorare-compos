@@ -24,13 +24,14 @@ const COLS = {
   paliers: ["sport", "competition", "gw_reference", "type", "rang", "score", "recompense", "participants"],
   matchs: ["sport", "slug", "joueur", "date", "jour", "adversaire", "proj", "proba", "b2b", "adv_attaque_rang", "adv_defense_rang", "adv_nb_equipes", "proba_victoire", "total"],
   bilan: ["sport", "gw", "competition", "numero", "score_prevu", "score_reel", "ecart", "palier_vise", "palier_atteint", "joueurs", "source_compos"],
+  plan_arcade: ["depart", "etape", "palier", "seuil", "creneau", "resultat_vers", "compo", "joueurs", "score_attendu", "proba_compo", "proba_palier", "conseil"],
 };
 // Colonnes v3 contrôlées seulement si présentes (collectes antérieures au contrat v3, ou stratège pas encore livré) : remarque si absentes
 const COLS_V3 = {
   competitions: ["cout_inscription", "gains_esperes", "gain_net_espere", "autres_recompenses", "rentable", "recommandation", "alternative"],
   resume: ["gw_debut_football", "gw_fin_football", "gw_debut_nba", "gw_fin_nba"],
 };
-const FACULTATIFS = new Set(["bilan"]); // jeu v3 : absent des collectes antérieures -> remarque
+const FACULTATIFS = new Set(["bilan", "plan_arcade"]); // jeu v3 : absent des collectes antérieures -> remarque
 const NBA_ONLY = ["etoiles", "plancher_etoiles", "gain_etoiles", "gain_sorare", "back_to_back", "espn_statut", "espn_info", "espn_retour", "minutes_5", "minutes_tendance", "l10", "matchs_probables", "coequipiers_absents", "minutes_liberees"];
 const FOOT_ONLY = ["statut", "suspension", "part_decisive", "clean_sheet", "grade_sorare", "bonus_skin", "competition_match", "proba_victoire_adv", "source_titulaire"];
 const FLOOR = { 5: 50, 4.5: 45, 4: 40, 3.5: 35, 3: 30, 2.5: 25, 2: 20, 1.5: 15, 1: 0 };
@@ -242,7 +243,9 @@ for (const [k, list] of palGroupes) {
 // ---------- matchs (NBA) ----------
 const clesMatchs = new Set();
 for (const m of data.matchs || []) {
-  if (m.sport !== "NBA") err("F+N", `matchs : sport « ${m.sport} » (le calendrier est NBA seulement)`);
+  // v4 : lignes football autorisées pour les joueurs du Set (période Arcade)
+  if (m.sport === "Football") { const jf = joueurBySlug.get(m.slug); if (!jf || jf.sport !== "FOOTBALL" || !String(jf.modes || "").includes("SET")) err("FOOTBALL", `matchs : ${m.joueur} n'est pas un joueur du Set`); continue; }
+  if (m.sport !== "NBA") err("F+N", `matchs : sport « ${m.sport} » invalide`);
   const j = joueurBySlug.get(m.slug);
   if (!j) err("NBA", `matchs : ${m.joueur} (${m.slug}) absent de joueurs`);
   else if (j.sport !== "NBA") err("NBA", `matchs : ${m.joueur} est un joueur ${j.sport}`);

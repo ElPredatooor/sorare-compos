@@ -1,0 +1,403 @@
+{
+ "version": 1,
+ "releve_le": "2026-10-25",
+ "source": "API Sorare (so5Leaderboard.displayedTypedRules, teamsCap, mainRarityType, format ; règle EntryItem pour cout_inscription), audit du stratège du 25/10/2026. Gameweeks : nba-26-30-oct-2026 (à venir), football-23-27-oct-2026 (dernière avec Jupiler) et football-27-30-oct-2026 (All Star).",
+ "usage": "Référence de outils/regles-delta.mjs. Clé = suffixe du slug (sans la gameweek ni l'identifiant de salon). « suivie » = compétition lue par la collecte. max_compos NBA = choix de l'utilisateur (24/10/2026), football = teamsCap. À mettre à jour (outils/regles-delta.mjs --maj-reference) seulement après avoir examiné et accepté un changement.",
+ "competitions": {
+  "nba_limited_in_season_champion": {
+   "sport": "NBA",
+   "nom": "NBA In-Season Champion",
+   "suivie": true,
+   "gameweek_relevee": "nba-26-30-oct-2026",
+   "regles": [
+    "5x Limited Cartes",
+    "Min 4 cartes In-Season",
+    "Max 4 joueurs de chaque équipe dans ta compo",
+    "Cap de 16 étoiles La somme des étoiles des joueurs doit rester inférieure à 16"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "SeasonBonus",
+    "SameActiveClub",
+    "AverageScores",
+    "Appearances"
+   ],
+   "teamsCap": 5,
+   "mainRarityType": "limited",
+   "format": "In-Season",
+   "cap_points": null,
+   "cap_etoiles": 16,
+   "min_in_season": 4,
+   "max_par_club": 4,
+   "capitaine_pct": 0,
+   "max_compos": 1,
+   "cout_inscription": 0
+  },
+  "nba_limited_in_season_contender": {
+   "sport": "NBA",
+   "nom": "NBA In-Season Contender",
+   "suivie": true,
+   "gameweek_relevee": "nba-26-30-oct-2026",
+   "regles": [
+    "5x Limited Cartes",
+    "Min 4 cartes In-Season",
+    "Max 4 joueurs de chaque équipe dans ta compo",
+    "Cap de 11 étoiles La somme des étoiles des joueurs doit rester inférieure à 11"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "SeasonBonus",
+    "SameActiveClub",
+    "AverageScores",
+    "Appearances"
+   ],
+   "teamsCap": 5,
+   "mainRarityType": "limited",
+   "format": "In-Season",
+   "cap_points": null,
+   "cap_etoiles": 11,
+   "min_in_season": 4,
+   "max_par_club": 4,
+   "capitaine_pct": 0,
+   "max_compos": 1,
+   "cout_inscription": 0
+  },
+  "nba_limited_champion": {
+   "sport": "NBA",
+   "nom": "NBA Classic Champion",
+   "suivie": true,
+   "gameweek_relevee": "nba-26-30-oct-2026",
+   "regles": [
+    "5x Limited Cartes",
+    "Max 4 joueurs de chaque équipe dans ta compo",
+    "Cap de 16 étoiles La somme des étoiles des joueurs doit rester inférieure à 16"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "SameActiveClub",
+    "AverageScores",
+    "Appearances"
+   ],
+   "teamsCap": 3,
+   "mainRarityType": "limited",
+   "format": "Classic",
+   "cap_points": null,
+   "cap_etoiles": 16,
+   "min_in_season": null,
+   "max_par_club": 4,
+   "capitaine_pct": 0,
+   "max_compos": 3,
+   "cout_inscription": 0
+  },
+  "nba_limited_contender": {
+   "sport": "NBA",
+   "nom": "NBA Classic Contender",
+   "suivie": true,
+   "gameweek_relevee": "nba-26-30-oct-2026",
+   "regles": [
+    "5x Limited Cartes",
+    "Max 4 joueurs de chaque équipe dans ta compo",
+    "Cap de 11 étoiles La somme des étoiles des joueurs doit rester inférieure à 11"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "SameActiveClub",
+    "AverageScores",
+    "Appearances"
+   ],
+   "teamsCap": 3,
+   "mainRarityType": "limited",
+   "format": "Classic",
+   "cap_points": null,
+   "cap_etoiles": 11,
+   "min_in_season": null,
+   "max_par_club": 4,
+   "capitaine_pct": 0,
+   "max_compos": 3,
+   "cout_inscription": 0
+  },
+  "nba_limited_arena_140": {
+   "sport": "NBA",
+   "nom": "NBA Rooms Champion",
+   "suivie": true,
+   "gameweek_relevee": "nba-26-30-oct-2026",
+   "regles": [
+    "5x Limited Cartes",
+    "Max 4 joueurs de chaque équipe dans ta compo",
+    "Cap de 16 étoiles La somme des étoiles des joueurs doit rester inférieure à 16"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "SameActiveClub",
+    "AverageScores",
+    "EntryItem",
+    "Appearances"
+   ],
+   "teamsCap": null,
+   "mainRarityType": "limited",
+   "format": "Champion",
+   "cap_points": null,
+   "cap_etoiles": 16,
+   "min_in_season": null,
+   "max_par_club": 4,
+   "capitaine_pct": 0,
+   "max_compos": 2,
+   "cout_inscription": 150
+  },
+  "nba_limited_arena_75": {
+   "sport": "NBA",
+   "nom": "Contender (Contender)",
+   "suivie": false,
+   "gameweek_relevee": "nba-26-30-oct-2026",
+   "regles": [
+    "5x Limited Cartes",
+    "Max 4 joueurs de chaque équipe dans ta compo",
+    "Cap de 11 étoiles La somme des étoiles des joueurs doit rester inférieure à 11"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "SameActiveClub",
+    "AverageScores",
+    "EntryItem",
+    "Appearances"
+   ],
+   "teamsCap": null,
+   "mainRarityType": "limited",
+   "format": "Contender",
+   "cap_points": null,
+   "cap_etoiles": 11,
+   "min_in_season": null,
+   "max_par_club": 4,
+   "capitaine_pct": 0,
+   "max_compos": 1,
+   "cout_inscription": 75
+  },
+  "nba_limited_arena_uncapped": {
+   "sport": "NBA",
+   "nom": "Uncapped (Uncapped)",
+   "suivie": false,
+   "gameweek_relevee": "nba-26-30-oct-2026",
+   "regles": [
+    "5x Limited Cartes",
+    "Max 4 joueurs de chaque équipe dans ta compo"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "SameActiveClub",
+    "EntryItem",
+    "Appearances"
+   ],
+   "teamsCap": null,
+   "mainRarityType": "limited",
+   "format": "Uncapped",
+   "cap_points": null,
+   "cap_etoiles": null,
+   "min_in_season": null,
+   "max_par_club": 4,
+   "capitaine_pct": 0,
+   "max_compos": 1,
+   "cout_inscription": 200
+  },
+  "nba_limited_arena_140_under_twenty_one": {
+   "sport": "NBA",
+   "nom": "U23 (U23)",
+   "suivie": false,
+   "gameweek_relevee": "nba-26-30-oct-2026",
+   "regles": [
+    "5x Limited Cartes",
+    "Âge maximum de 23 À partir du 1 février 2027",
+    "Max 4 joueurs de chaque équipe dans ta compo",
+    "Cap de 11 étoiles La somme des étoiles des joueurs doit rester inférieure à 11"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "Age",
+    "SameActiveClub",
+    "AverageScores",
+    "EntryItem",
+    "Appearances"
+   ],
+   "teamsCap": null,
+   "mainRarityType": "limited",
+   "format": "U23",
+   "cap_points": null,
+   "cap_etoiles": 11,
+   "min_in_season": null,
+   "max_par_club": 4,
+   "capitaine_pct": 0,
+   "max_compos": 1,
+   "cout_inscription": null
+  },
+  "nba_limited_arena_140_veterans": {
+   "sport": "NBA",
+   "nom": "Veterans (Veterans)",
+   "suivie": false,
+   "gameweek_relevee": "nba-26-30-oct-2026",
+   "regles": [
+    "5x Limited Cartes",
+    "Âge minimum de 30 À partir du 1 février 2027",
+    "Max 4 joueurs de chaque équipe dans ta compo",
+    "Cap de 11 étoiles La somme des étoiles des joueurs doit rester inférieure à 11"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "Age",
+    "SameActiveClub",
+    "AverageScores",
+    "EntryItem",
+    "Appearances"
+   ],
+   "teamsCap": null,
+   "mainRarityType": "limited",
+   "format": "Veterans",
+   "cap_points": null,
+   "cap_etoiles": 11,
+   "min_in_season": null,
+   "max_par_club": 4,
+   "capitaine_pct": 0,
+   "max_compos": 1,
+   "cout_inscription": 150
+  },
+  "seasonal-jupiler-in_season_jupiler_limited": {
+   "sport": "Football",
+   "nom": "Jupiler Jupiler Pro League – Limited (In-Season)",
+   "suivie": true,
+   "gameweek_relevee": "football-23-27-oct-2026",
+   "regles": [
+    "5 x (+2 Subs) Limited Cartes Raretés plus élevées autorisées",
+    "Capitaine Score de la carte augmenté de 50%",
+    "Min 4 cartes In-Season",
+    "Joueurs autorisés de Jupiler Pro League"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "CaptainScarcity",
+    "SeasonBonus",
+    "Competitions",
+    "Appearances"
+   ],
+   "teamsCap": 4,
+   "mainRarityType": "limited",
+   "format": "In-Season",
+   "cap_points": null,
+   "cap_etoiles": null,
+   "min_in_season": 4,
+   "max_par_club": null,
+   "capitaine_pct": 50,
+   "max_compos": 4,
+   "cout_inscription": 0
+  },
+  "seasonal-jupiler-all_seasons_jupiler_arena_limited": {
+   "sport": "Football",
+   "nom": "Jupiler Cap 260",
+   "suivie": true,
+   "gameweek_relevee": "football-23-27-oct-2026",
+   "regles": [
+    "5x Limited Cartes Raretés plus élevées autorisées",
+    "Capitaine Score de la carte augmenté de 20%",
+    "Joueurs autorisés de Jupiler Pro League",
+    "Limite de 260 points La somme des scores moyens des joueurs doit rester inférieure à 260"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "CaptainScarcity",
+    "Competitions",
+    "SumOfAverageScores",
+    "EntryItem",
+    "Appearances"
+   ],
+   "teamsCap": null,
+   "mainRarityType": "limited",
+   "format": "Cap 260",
+   "cap_points": 260,
+   "cap_etoiles": null,
+   "min_in_season": null,
+   "max_par_club": null,
+   "capitaine_pct": 20,
+   "max_compos": 1,
+   "cout_inscription": 300
+  },
+  "seasonal-jupiler-in_season_jupiler_rare": {
+   "sport": "Football",
+   "nom": "Jupiler Jupiler Pro League – Rare (In-Season)",
+   "suivie": false,
+   "gameweek_relevee": "football-23-27-oct-2026",
+   "regles": [
+    "5 x (+2 Subs) Rare Cartes Raretés plus élevées autorisées. Score de la carte augmenté de 10%",
+    "Capitaine Score de la carte augmenté de 50%",
+    "Min 4 cartes In-Season",
+    "Joueurs autorisés de Jupiler Pro League"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "CaptainScarcity",
+    "SeasonBonus",
+    "Competitions",
+    "Appearances"
+   ],
+   "teamsCap": 4,
+   "mainRarityType": "rare",
+   "format": "In-Season",
+   "cap_points": null,
+   "cap_etoiles": null,
+   "min_in_season": 4,
+   "max_par_club": null,
+   "capitaine_pct": 50,
+   "max_compos": 4,
+   "cout_inscription": 0
+  },
+  "seasonal-all_star-all_seasons_all_star_limited": {
+   "sport": "Football",
+   "nom": "All Star – Limited (Classic)",
+   "suivie": false,
+   "gameweek_relevee": "football-27-30-oct-2026",
+   "regles": [
+    "7 x (+2 Subs) Limited Cartes Raretés plus élevées autorisées",
+    "Capitaine Score de la carte augmenté de 50%"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "CaptainScarcity",
+    "Appearances"
+   ],
+   "teamsCap": 4,
+   "mainRarityType": "limited",
+   "format": "Classic",
+   "cap_points": null,
+   "cap_etoiles": null,
+   "min_in_season": null,
+   "max_par_club": null,
+   "capitaine_pct": 50,
+   "max_compos": 4,
+   "cout_inscription": 0
+  },
+  "seasonal-all_star-all_seasons_all_star_arena_limited": {
+   "sport": "Football",
+   "nom": "Cap 260 (Cap 260)",
+   "suivie": false,
+   "gameweek_relevee": "football-27-30-oct-2026",
+   "regles": [
+    "5x Limited Cartes Raretés plus élevées autorisées",
+    "Capitaine Score de la carte augmenté de 20%",
+    "Limite de 260 points La somme des scores moyens des joueurs doit rester inférieure à 260"
+   ],
+   "regles_cles": [
+    "Scarcity",
+    "CaptainScarcity",
+    "SumOfAverageScores",
+    "EntryItem",
+    "Appearances"
+   ],
+   "teamsCap": null,
+   "mainRarityType": "limited",
+   "format": "Cap 260",
+   "cap_points": 260,
+   "cap_etoiles": null,
+   "min_in_season": null,
+   "max_par_club": null,
+   "capitaine_pct": 20,
+   "max_compos": 1,
+   "cout_inscription": 300
+  }
+ }
+}
