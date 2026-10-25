@@ -278,6 +278,32 @@
     </div>
     <div id="comp-list" class="sx-grid" data-source="competitions compos cartes joueurs paliers"></div>
 
+    <div class="sx-card" id="europe" data-sport-only="FOOTBALL" data-mode-only="PRO" data-source="plan_arcade resume matchs" hidden>
+      <h2>Piste European Contenders</h2>
+      <p class="sx-note" id="eur-note">Cartes Limited et plus, matchs européens seulement. Indique ton palier actuel : le plan dit quand jouer tes 4 compos, avec quels joueurs et quel capitaine. Heures de Bruxelles.</p>
+      <p class="sx-lbl" id="eur-periode" hidden></p>
+      <ol class="sx-piste" id="eur-piste" aria-label="Piste des paliers European Contenders"></ol>
+      <div class="sx-tools" id="eur-tools">
+        <label for="eur-palier">Je suis au palier</label>
+        <select id="eur-palier" class="sx-sel"></select>
+        <button class="sx-btn sx-strong" id="eur-ok">Palier réussi</button>
+        <button class="sx-btn" id="eur-ko" title="Les 4 compos du lot ont échoué : retour au palier 1">Lot perdu : retour au palier 1</button>
+      </div>
+      <p class="sx-reason" id="eur-empty" role="status" hidden></p>
+      <div class="sx-steps" id="eur-steps" data-source="plan_arcade"></div>
+      <details class="sx-fold" id="eur-regles">
+        <summary>Règles de European Contenders</summary>
+        <ul class="sx-rules">
+          <li>Cartes Limited et plus ; seuls les matchs de Ligue Europa et de Conference League comptent.</li>
+          <li>5 joueurs, dont un extra qui n’est pas gardien.</li>
+          <li>Capitaine : +50 % sur son score. Pas de bonus de rareté.</li>
+          <li>4 compos par palier : une seule au-dessus du seuil suffit pour monter.</li>
+          <li>Les 4 compos sous le seuil : retour au palier 1.</li>
+          <li>Attends 1h50 après le dernier coup d’envoi du lot pour connaître le résultat avant de jouer l’étape suivante.</li>
+        </ul>
+      </details>
+    </div>
+
     <details class="sx-card" id="reglages">
       <summary><h2>Régler les compos</h2> <span class="sx-lbl">profil, incertains, matchs minimum</span></summary>
       <p class="sx-note" id="rg-note">Change les réglages ci-dessous, ou garde et exclus un joueur directement dans une compo : toutes les compos du sport sont recalculées aussitôt, dans l’ordre de priorité des compétitions. Réglages mémorisés dans ce navigateur.</p>
@@ -483,6 +509,8 @@
       <p>Équilibrée maximise le score attendu. Sûre retire à chaque joueur 0,84 écart-type (son score à 20 % de chances) : les titulaires réguliers passent devant. Explosive en ajoute 0,84 : utile quand il faut un gros score pour atteindre un palier. Le score affiché reste toujours le score attendu.</p>
       <h3>Remplaçants</h3>
       <p>Pour chaque poste, le meilleur joueur encore libre (carte non utilisée ailleurs) qui respecte les règles de la compo, avec l’écart de points. Utile si un joueur est annoncé forfait juste avant la date limite.</p>
+      <h3>Piste European Contenders</h3>
+      <p>Sous les compétitions Jupiler, la vue Pro suit aussi la piste European Contenders : cartes Limited et plus, matchs de Ligue Europa et de Conference League seulement, 6 paliers (350, 390, 410, 450, 470 et 500 pts), 5 joueurs dont un extra qui n’est pas gardien, capitaine +50 %, sans bonus de rareté. Mêmes règles que l’Arcade : 4 compos par palier, 4 échecs ramènent au palier 1, résultat 1h50 après le dernier coup d’envoi. Le plan est calculé pour chaque palier de départ ; indique le tien dans la page, il est mémorisé dans ce navigateur. Si aucune compo n’est possible, la page en donne la raison.</p>
       <h3>Limites</h3>
       <ul>
         <li>Si un joueur a deux matchs dans la gameweek, seul le premier (de Jupiler pour les joueurs belges) est compté.</li>
@@ -1240,12 +1268,17 @@
       const cut = x ? (sport === 'NBA' ? x.limite_nba : x.limite_football) : null;
       // Football Set (Arcade) : pas de date limite, compte à rebours avant le prochain créneau du plan (palier choisi)
       const arcade = sport === 'FOOTBALL' && mode === 'SET';
-      $('#k-time-l').textContent = arcade ? 'Prochain créneau Arcade' : 'Temps restant';
-      const nextArc = arcade ? (ok('plan_arcade') || []).filter((r) => Number(r.depart) === arcPalier && has(r.creneau) && toDate(r.creneau).getTime() > now).sort((a, b) => toDate(a.creneau) - toDate(b.creneau))[0] : null;
-      if (arcade) {
+      // Football Pro : prochain créneau European Contenders (palier choisi) s'il existe ; il prend la place du compte à rebours Jupiler si celui-ci est passé, inconnu ou plus lointain
+      const nextEur = sport === 'FOOTBALL' && mode === 'PRO' && x && has(x.europe_slug) ? nextCreneau('europe') : null;
+      const cutMs = cut ? toDate(cut).getTime() : NaN;
+      const eurFirst = !!nextEur && !(cutMs > now && cutMs <= toDate(nextEur.creneau).getTime());
+      $('#k-time-l').textContent = arcade ? 'Prochain créneau Arcade' : eurFirst ? 'Prochain créneau European Contenders' : 'Temps restant';
+      const nextArc = arcade ? nextCreneau('arcade') : null;
+      if (eurFirst) { const ms = toDate(nextEur.creneau).getTime() - now; setKpi('k-time', countdown(ms).replace(/^dans /, ''), 'Étape ' + nextEur.etape + ' (palier ' + nextEur.palier + ') : ' + fmtWhen(nextEur.creneau) + '.' + (cutMs > now ? ' Date limite Jupiler ' + fmtWhen(cut) + '.' : ''), ms < 36e5 ? 'warn' : ''); }
+      else if (arcade) {
         const fin = x && has(x.arcade_fin) ? x.arcade_fin : x ? x.gw_fin_football : null;
         if (nextArc) { const ms = toDate(nextArc.creneau).getTime() - now; setKpi('k-time', countdown(ms).replace(/^dans /, ''), 'Étape ' + nextArc.etape + ' (palier ' + nextArc.palier + ') : ' + fmtWhen(nextArc.creneau) + '.', ms < 36e5 ? 'warn' : ''); }
-        else setKpi('k-time', '—', 'Aucun créneau à venir dans le plan depuis le palier ' + arcPalier + (fin ? ' ; période Arcade jusqu’au ' + fmtWhen(fin) : '') + '.', 'mut');
+        else setKpi('k-time', '—', 'Aucun créneau à venir dans le plan depuis le palier ' + PISTES.arcade.palier + (fin ? ' ; période Arcade jusqu’au ' + fmtWhen(fin) : '') + '.', 'mut');
       } else if (!cut) setKpi('k-time', '—', 'Date limite inconnue dans cette collecte.', '');
       else {
         const ms = toDate(cut).getTime() - now;
@@ -1254,6 +1287,7 @@
           setKpi('k-time', (d ? d + ' j ' : '') + h + ' h ' + String(m).padStart(2, '0'), 'Date limite ' + fmtWhen(cut) + '.', ms < 36e5 ? 'bad' : ms < 6 * 36e5 ? 'warn' : '');
         } else setKpi('k-time', 'Verrouillée', 'Date limite passée : ' + fmtWhen(cut) + '. Demande une collecte pour préparer la gameweek suivante.', 'mut');
       }
+      if (nextEur && !eurFirst) $('#k-time-x').textContent += ' Prochain créneau European Contenders : ' + fmtWhen(nextEur.creneau) + '.';
       // 2. Compos à inscrire
       const n = lineups.reduce((s, L) => s + L.list.length, 0);
       const max = lineups.reduce((s, L) => s + (Number(L.c.max_compos) || 0), 0);
@@ -1610,6 +1644,7 @@
 
       if (isNba && mode === 'PRO') { drawTimeline(lineups); drawEtoiles(); drawRole(lineups); drawBonnes(); }
       if (!isNba && mode === 'SET') drawArcade();
+      if (!isNba && mode === 'PRO') drawEurope();
     }
 
     function drawBonnes() {
@@ -2058,51 +2093,84 @@
         : 'Pas encore fournies match par match dans cette collecte : le calendrier les affichera dès qu’elles arriveront.';
     }
 
-    // ---------- Planificateur Arcade (Football Set) ----------
-    // Piste relevée sur la capture de l'utilisateur du 25/10/2026 ; les seuils sont remplacés par ceux de plan_arcade quand il les donne.
+    // ---------- Pistes de paliers : Arcade (Football Set) et European Contenders (Football Pro) ----------
+    // Piste Arcade relevée sur la capture de l'utilisateur du 25/10/2026 ; les seuils sont remplacés par ceux de plan_arcade quand il les donne.
     const ARCADE_PISTE = [
       { palier: 1, seuil: 260, lot: '' }, { palier: 2, seuil: 300, lot: 'une carte' }, { palier: 3, seuil: 360, lot: 'des essences' },
       { palier: 4, seuil: 400, lot: 'des essences' }, { palier: 5, seuil: 440, lot: 'une récompense en € + « 1 K »' }, { palier: 6, seuil: 480, lot: 'une récompense en € + « 1 K »' },
     ];
-    let arcPalier = 1;
-    try { const v = Number(localStorage.getItem('sx-arcade-palier')); if (v >= 1 && v <= ARCADE_PISTE.length) arcPalier = Math.round(v); } catch (e) { /* stockage indisponible */ }
-    const setArcPalier = (v) => { arcPalier = Math.min(ARCADE_PISTE.length, Math.max(1, v)); try { localStorage.setItem('sx-arcade-palier', String(arcPalier)); } catch (e) { /* stockage indisponible */ } drawKpis(lineupsFor(sport)); drawArcade(); };
-    $('#arc-palier').replaceChildren(...ARCADE_PISTE.map((p) => new Option(String(p.palier), String(p.palier))));
-    $('#arc-palier').addEventListener('change', (e) => setArcPalier(Number(e.target.value)));
-    $('#arc-ok').addEventListener('click', () => setArcPalier(arcPalier + 1));
-    $('#arc-ko').addEventListener('click', () => setArcPalier(1));
+    const EUROPE_PISTE = [350, 390, 410, 450, 470, 500].map((seuil, i) => ({ palier: i + 1, seuil, lot: '' }));
+    // plan_arcade.mode : arcade (ou absent, collectes v4) / europe
+    const PISTES = {
+      arcade: { id: 'arc', key: 'sx-arcade-palier', box: '#arcade', paliers: ARCADE_PISTE, palier: 1 },
+      europe: { id: 'eur', key: 'sx-europe-palier', box: '#europe', paliers: EUROPE_PISTE, palier: 1 },
+    };
+    const planOf = (m) => (ok('plan_arcade') || []).filter((r) => (has(r.mode) ? String(r.mode).toLowerCase() : 'arcade') === m);
+    const nextCreneau = (m) => { const P = PISTES[m], now = Date.now(); return planOf(m).filter((r) => Number(r.depart) === P.palier && Number(r.etape) > 0 && has(r.creneau) && toDate(r.creneau).getTime() > now).sort((a, b) => toDate(a.creneau) - toDate(b.creneau))[0] || null; };
+    for (const [m, P] of Object.entries(PISTES)) {
+      try { const v = Number(localStorage.getItem(P.key)); if (v >= 1 && v <= P.paliers.length) P.palier = Math.round(v); } catch (e) { /* stockage indisponible */ }
+      const setP = (v) => { P.palier = Math.min(P.paliers.length, Math.max(1, v)); try { localStorage.setItem(P.key, String(P.palier)); } catch (e) { /* stockage indisponible */ } drawKpis(lineupsFor(sport)); drawPiste(m); };
+      $('#' + P.id + '-palier').replaceChildren(...P.paliers.map((p) => new Option(String(p.palier), String(p.palier))));
+      $('#' + P.id + '-palier').addEventListener('change', (e) => setP(Number(e.target.value)));
+      $('#' + P.id + '-ok').addEventListener('click', () => setP(P.palier + 1));
+      $('#' + P.id + '-ko').addEventListener('click', () => setP(1));
+    }
     const hmBxl = (s) => { const t = fmtDate(s); const m = / à (\d\d)h(\d\d)$/.exec(t); return m ? m[1] + 'h' + m[2] : t; };
     const dayBxl = (s) => fmtDate(s).replace(/ à .*$/, '');
     const countdown = (ms) => { const m = Math.max(0, Math.round(ms / 6e4)); if (m < 60) return 'dans ' + m + ' min'; const h = Math.floor(m / 60), d = Math.floor(h / 24); return d ? 'dans ' + d + ' j ' + (h % 24) + ' h' : 'dans ' + h + ' h ' + String(m % 60).padStart(2, '0'); };
     const probCls = (p) => (p >= 50 ? 'sx-ok' : p >= 20 ? 'sx-warn' : 'sx-bad');
-    function drawArcade() {
-      const box = $('#arcade'); if (box.hidden) return;
-      const plan = ok('plan_arcade') || [];
+    const drawArcade = () => drawPiste('arcade');
+    const drawEurope = () => drawPiste('europe');
+    function drawPiste(m) {
+      const P = PISTES[m], id = (s) => $('#' + P.id + '-' + s), eur = m === 'europe';
+      const box = $(P.box); if (box.hidden) return;
+      const plan = planOf(m);
       const x = (ok('resume') || [])[0] || {};
-      const seuils = new Map(plan.filter((r) => has(r.palier) && has(r.seuil)).map((r) => [Number(r.palier), Number(r.seuil)]));
-      const piste = ARCADE_PISTE.map((p) => ({ ...p, seuil: seuils.get(p.palier) ?? p.seuil }));
-      $('#arc-palier').value = String(arcPalier);
-      $('#arc-ok').disabled = arcPalier >= piste.length; $('#arc-ko').disabled = arcPalier <= 1;
-      const ol = $('#arc-piste'); ol.replaceChildren();
+      const steps = id('steps'); steps.replaceChildren();
+      const empty = id('empty');
+      if (eur) {
+        const per = id('periode');
+        per.hidden = !has(x.europe_debut) && !has(x.europe_fin);
+        per.textContent = per.hidden ? '' : 'Période : ' + (has(x.europe_debut) ? 'du ' + fmtWhen(x.europe_debut) : '') + (has(x.europe_fin) ? ' au ' + fmtWhen(x.europe_fin) : '') + '.';
+        // Pas de compétition ouverte : état vide, avec la prochaine journée européenne si un match figure dans matchs
+        const ouverte = has(x.europe_slug);
+        id('piste').hidden = !ouverte; id('tools').hidden = !ouverte;
+        if (!ouverte) {
+          const now = Date.now();
+          const nx = (ok('matchs') || []).filter((r) => sportOfRow(r) === 'FOOTBALL' && /europa|conference/i.test(String(r.competition_match || '')) && has(r.date) && toDate(r.date).getTime() > now).sort((a, b) => toDate(a.date) - toDate(b.date))[0];
+          empty.hidden = false;
+          empty.textContent = 'Pas de compétition European Contenders ouverte pour l’instant' + (nx ? ' ; la prochaine journée européenne est le ' + dayBxl(nx.date) + '.' : '.');
+          return;
+        }
+      }
+      const seuils = new Map(plan.filter((r) => Number(r.etape) > 0 && has(r.palier) && has(r.seuil)).map((r) => [Number(r.palier), Number(r.seuil)]));
+      const piste = P.paliers.map((p) => ({ ...p, seuil: seuils.get(p.palier) ?? p.seuil }));
+      id('palier').value = String(P.palier);
+      id('ok').disabled = P.palier >= piste.length; id('ko').disabled = P.palier <= 1;
+      const ol = id('piste'); ol.replaceChildren();
       for (const p of piste) {
-        const li = el('li', p.palier < arcPalier ? 'sx-done' : '');
-        if (p.palier === arcPalier) li.setAttribute('aria-current', 'step');
-        li.append(el('span', 'sx-lbl', 'Palier ' + p.palier + (p.palier === arcPalier ? ' · tu es ici' : p.palier < arcPalier ? ' · passé' : '')), el('span', 'sx-v', dec(p.seuil, 0) + ' pts'), el('span', p.lot ? '' : 'sx-mut', p.lot || 'pas de lot relevé'));
+        const li = el('li', p.palier < P.palier ? 'sx-done' : '');
+        if (p.palier === P.palier) li.setAttribute('aria-current', 'step');
+        li.append(el('span', 'sx-lbl', 'Palier ' + p.palier + (p.palier === P.palier ? ' · tu es ici' : p.palier < P.palier ? ' · passé' : '')), el('span', 'sx-v', dec(p.seuil, 0) + ' pts'));
+        if (!eur) li.append(el('span', p.lot ? '' : 'sx-mut', p.lot || 'pas de lot relevé'));
         ol.append(li);
       }
-      const steps = $('#arc-steps'); steps.replaceChildren();
-      const empty = $('#arc-empty');
-      const fin = has(x.arcade_fin) ? x.arcade_fin : x.gw_fin_football;
+      const fin = eur ? x.europe_fin : has(x.arcade_fin) ? x.arcade_fin : x.gw_fin_football;
+      // Ligne d'information (etape 0) : aucune compo possible, raison dans conseil
+      const info = plan.find((r) => Number(r.etape) === 0);
+      const rows = plan.filter((r) => Number(r.depart) === P.palier && Number(r.etape) > 0);
+      if (!rows.length && info) { empty.hidden = false; empty.textContent = 'Aucune compo possible' + (has(info.conseil) ? ' : ' + String(info.conseil).replace(/[\s.]*$/, '') + '.' : '.'); return; }
       if (!plan.length) {
         empty.hidden = false;
         const gf = (gwOf('FOOTBALL') || {}).fin;
-        empty.textContent = 'Aucun de tes joueurs du Set ne joue d’ici la fin de la période Arcade' + (fin ? ', le ' + fmtWhen(fin) : gf ? ', le ' + fmtWDM(gf) : '') + ' : pas de plan à proposer.' + (ok('plan_arcade') ? '' : ' (Le plan arrivera avec une prochaine collecte.)');
+        empty.textContent = eur
+          ? 'Aucun plan European Contenders dans cette collecte' + (has(fin) ? ' (période jusqu’au ' + fmtWhen(fin) + ')' : '') + '.'
+          : 'Aucun de tes joueurs du Set ne joue d’ici la fin de la période Arcade' + (fin ? ', le ' + fmtWhen(fin) : gf ? ', le ' + fmtWDM(gf) : '') + ' : pas de plan à proposer.' + (ok('plan_arcade') ? '' : ' (Le plan arrivera avec une prochaine collecte.)');
         return;
       }
-      const rows = plan.filter((r) => Number(r.depart) === arcPalier);
       const etapes = [...new Set(rows.map((r) => Number(r.etape)))].sort((a, b) => a - b);
       empty.hidden = etapes.length > 0;
-      if (!etapes.length) { empty.textContent = 'Pas de plan depuis le palier ' + arcPalier + ' dans cette collecte.'; return; }
+      if (!etapes.length) { empty.textContent = 'Pas de plan depuis le palier ' + P.palier + ' dans cette collecte.'; return; }
       const now = Date.now();
       const enCours = etapes.find((k) => { const r = rows.find((y) => Number(y.etape) === k); return has(r.creneau) && toDate(r.creneau).getTime() > now; });
       if (enCours == null) { empty.hidden = false; empty.textContent = 'Tous les créneaux de ce plan sont passés : il faudra une nouvelle collecte pour un plan à jour.'; }
@@ -2130,7 +2198,11 @@
         const tb = el('tbody');
         for (const r of lot) {
           const tr = el('tr'); const jt = el('td', 'sx-c-wide'); const ul = el('ul');
-          String(r.joueurs || '').split(';').map((y) => y.trim()).filter(Boolean).forEach((y) => ul.append(el('li', '', y)));
+          String(r.joueurs || '').split(';').map((y) => y.trim()).filter(Boolean).forEach((y) => {
+            // Capitaine : suffixe « (capitaine) » dans joueurs (European Contenders)
+            const cap = /\s*\(capitaine\)/i;
+            if (cap.test(y)) { const li = el('li', '', y.replace(cap, '') + ' '); li.append(pill('capitaine', 'sx-ok')); ul.append(li); } else ul.append(el('li', '', y));
+          });
           jt.append(ul);
           tr.append(el('td', 'sx-c-main', 'Compo ' + r.compo), jt, el('td', 'num', dec(r.score_attendu)), el('td', 'num sx-prob ' + (has(r.proba_compo) ? probCls(Number(r.proba_compo)) : ''), has(r.proba_compo) ? dec(r.proba_compo, 0) + ' %' : ''));
           labelRow(tr, labels); tb.append(tr);
@@ -2189,6 +2261,6 @@
     if (page) showPage(page);
     dash.onData(() => { cache.key = ''; draw(); });
     // Le compte à rebours avance chaque minute (et celui du plan Arcade)
-    setInterval(() => { if (modeVide()) return; drawKpis(lineupsFor(sport)); if (current === 'p-compos' && sport === 'FOOTBALL' && mode === 'SET') drawArcade(); }, 60000);
+    setInterval(() => { if (modeVide()) return; drawKpis(lineupsFor(sport)); if (current === 'p-compos' && sport === 'FOOTBALL') drawPiste(mode === 'SET' ? 'arcade' : 'europe'); }, 60000);
   })();
 </script>
