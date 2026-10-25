@@ -1,4 +1,4 @@
-// Vérification des jeux de données Sorare : contrat (docs/contrat-donnees.md v3) et règles des compos.
+// Vérification des jeux de données Sorare : contrat (docs/contrat-donnees.md v5) et règles des compos.
 // Usage : node outils/verifier.mjs <dossier>   (le dossier contient joueurs.json|csv, compos.json|csv, ...)
 // Code de sortie : 0 = OK ou remarques seulement, 1 = au moins une erreur bloquante.
 import { readFile, access } from "node:fs/promises";
@@ -26,11 +26,17 @@ const COLS = {
   bilan: ["sport", "gw", "competition", "numero", "score_prevu", "score_reel", "ecart", "palier_vise", "palier_atteint", "joueurs", "source_compos"],
   plan_arcade: ["depart", "etape", "palier", "seuil", "creneau", "resultat_vers", "compo", "joueurs", "score_attendu", "proba_compo", "proba_palier", "conseil"],
 };
-// Colonnes v3 contrôlées seulement si présentes (collectes antérieures au contrat v3, ou stratège pas encore livré) : remarque si absentes
+// Colonnes v3 à v5 contrôlées seulement si présentes (collectes antérieures, ou stratège pas encore livré) : remarque si absentes
+// v4 : resume.arcade_* ; v5 : resume.europe_*, matchs.competition_match, plan_arcade.mode (absent des collectes v4 : vaut arcade)
 const COLS_V3 = {
   competitions: ["cout_inscription", "gains_esperes", "gain_net_espere", "autres_recompenses", "rentable", "recommandation", "alternative"],
-  resume: ["gw_debut_football", "gw_fin_football", "gw_debut_nba", "gw_fin_nba"],
+  resume: ["gw_debut_football", "gw_fin_football", "gw_debut_nba", "gw_fin_nba", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin"],
+  matchs: ["competition_match"],
+  plan_arcade: ["mode"],
 };
+// v5 : compétitions European Contenders (« UEFA Europa League » = « Europa League », « UEFA Conference League » = « Europa Conference League »)
+const cleCompetition = (nom) => { const n = String(nom || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\buefa\b/g, "").replace(/\s+/g, " ").trim(); return /conference/.test(n) ? "conference-league" : /europa league/.test(n) ? "europa-league" : n; };
+const COMPETITIONS_EUROPE = new Set(["conference-league", "europa-league"]);
 const FACULTATIFS = new Set(["bilan", "plan_arcade"]); // jeu v3 : absent des collectes antérieures -> remarque
 const NBA_ONLY = ["etoiles", "plancher_etoiles", "gain_etoiles", "gain_sorare", "back_to_back", "espn_statut", "espn_info", "espn_retour", "minutes_5", "minutes_tendance", "l10", "matchs_probables", "coequipiers_absents", "minutes_liberees"];
 const FOOT_ONLY = ["statut", "suspension", "part_decisive", "clean_sheet", "grade_sorare", "bonus_skin", "competition_match", "proba_victoire_adv", "source_titulaire"];
@@ -81,7 +87,7 @@ for (const name of Object.keys(COLS)) {
   const missV3 = v3.filter((c) => !d.columns.includes(c));
   const extra = d.columns.filter((c) => !COLS[name].includes(c) && !v3.includes(c));
   if (miss.length) err("F+N", `${name} : colonnes absentes du fichier : ${miss.join(", ")}`);
-  if (missV3.length) warn("F+N", `${name} : colonnes v3 absentes (pas encore produites ou collecte antérieure au contrat v3) : ${missV3.join(", ")}`);
+  if (missV3.length) warn("F+N", `${name} : colonnes facultatives v3 à v5 absentes (pas encore produites ou collecte antérieure) : ${missV3.join(", ")}`);
   if (extra.length) warn("F+N", `${name} : colonnes hors contrat (à ajouter à docs/contrat-donnees.md) : ${extra.join(", ")}`);
 }
 const has = (name, col) => (cols[name] || []).includes(col);
@@ -240,11 +246,26 @@ for (const [k, list] of palGroupes) {
   for (let i = 1; i < s.length; i++) if (Number(s[i].score) > Number(s[i - 1].score) + 1e-9) { warn(sportOf(s[i].sport), `paliers : ${k.split("|")[0]} : score du rang ${s[i].rang} (${s[i].score}) supérieur à celui du rang ${s[i - 1].rang} (${s[i - 1].score})`); break; }
 }
 
-// ---------- matchs (NBA) ----------
+// ---------- matchs (NBA ; football v4 Set et v5 European Contenders) ----------
+const res0 = (data.resume || [])[0] || {};
 const clesMatchs = new Set();
 for (const m of data.matchs || []) {
-  // v4 : lignes football autorisées pour les joueurs du Set (période Arcade)
-  if (m.sport === "Football") { const jf = joueurBySlug.get(m.slug); if (!jf || jf.sport !== "FOOTBALL" || !String(jf.modes || "").includes("SET")) err("FOOTBALL", `matchs : ${m.joueur} n'est pas un joueur du Set`); continue; }
+  if (m.sport === "Football") {
+    const jf = joueurBySlug.get(m.slug);
+    const k = "F|" + m.slug + "|" + m.date;
+    if (clesMatchs.has(k)) err("FOOTBALL", `matchs : ligne en double ${m.joueur} ${m.date}`);
+    clesMatchs.add(k);
+    if (!jf || jf.sport !== "FOOTBALL") { err("FOOTBALL", `matchs : ${m.joueur} (${m.slug}) absent de joueurs ou pas footballeur`); continue; }
+    const europeen = !empty(m.competition_match) && COMPETITIONS_EUROPE.has(cleCompetition(m.competition_match));
+    if (europeen) {
+      // v5 : joueur avec une carte Limited ou plus rare, match dans la période European Contenders
+      if (cartes.length && !cartes.some((c) => c.slug === m.slug && c.sport === "Football" && ["limited", "rare", "super_rare", "unique"].includes(c.rarete))) err("FOOTBALL", `matchs : ${m.joueur} a un match européen sans carte Limited ou plus rare`);
+      if (empty(res0.europe_debut) || empty(res0.europe_fin)) err("FOOTBALL", `matchs : match européen de ${m.joueur} alors que resume.europe_debut / europe_fin sont vides`);
+      else if (Date.parse(m.date) < Date.parse(res0.europe_debut) - 3600e3 || Date.parse(m.date) > Date.parse(res0.europe_fin)) err("FOOTBALL", `matchs : match européen de ${m.joueur} (${m.date}) hors de la période European Contenders`);
+    } else if (!String(jf.modes || "").includes("SET")) err("FOOTBALL", `matchs : ${m.joueur} n'est pas un joueur du Set` + (empty(m.competition_match) ? "" : ` (compétition « ${m.competition_match} » hors European Contenders)`));
+    continue;
+  }
+  if (m.sport === "NBA" && !empty(m.competition_match)) err("NBA", `matchs : ${m.joueur} a une competition_match (réservée au football)`);
   if (m.sport !== "NBA") err("F+N", `matchs : sport « ${m.sport} » invalide`);
   const j = joueurBySlug.get(m.slug);
   if (!j) err("NBA", `matchs : ${m.joueur} (${m.slug}) absent de joueurs`);
@@ -275,6 +296,13 @@ for (const b of data.bilan || []) {
   if (String(b.joueurs || "").split(" ; ").filter(Boolean).length !== 5) warn(sport, `bilan : ${b.competition} compo ${b.numero} : ${String(b.joueurs || "").split(" ; ").filter(Boolean).length} joueurs dans le détail (attendu 5)`);
 }
 
+// ---------- plan_arcade (v4, mode v5) ----------
+for (const p of data.plan_arcade || []) {
+  const mode = empty(p.mode) ? "arcade" : String(p.mode); // collectes v4 : pas de colonne mode -> arcade
+  if (!["arcade", "europe"].includes(mode)) err("FOOTBALL", `plan_arcade : mode « ${p.mode} » inconnu (attendu arcade ou europe)`);
+  if (mode === "europe" && empty(res0.europe_slug)) warn("FOOTBALL", `plan_arcade : plan europe (départ ${p.depart}, étape ${p.etape}) alors que resume.europe_slug est vide`);
+}
+
 // ---------- jours, changements, calibration, resume ----------
 for (const r of data.jours || []) {
   if (!(Number(r.rang) >= 1 && Number(r.rang) <= 5)) err(sportOf(r.mode), `jours : rang ${r.rang} hors 1 à 5 (${r.mode} ${r.jour})`);
@@ -293,6 +321,15 @@ if (res) for (const [k, sp] of [["football", "FOOTBALL"], ["nba", "NBA"]]) {
   if (empty(d0) || empty(d1)) continue;
   if (!(Date.parse(d0) < Date.parse(d1))) err(sp, `resume : gw_debut_${k} (${d0}) n'est pas avant gw_fin_${k} (${d1})`);
   if (!empty(res["limite_" + k]) && Date.parse(res["limite_" + k]) > Date.parse(d1)) err(sp, `resume : date limite ${res["limite_" + k]} après la fin de la gameweek (${d1})`);
+}
+
+if (res) {
+  // v5 : European Contenders, les trois colonnes vides ensemble ou remplies ensemble
+  const eu = ["europe_slug", "europe_debut", "europe_fin"].filter((k) => !empty(res[k]));
+  if (eu.length && eu.length < 3) err("FOOTBALL", `resume : European Contenders incomplet (rempli : ${eu.join(", ")})`);
+  if (!empty(res.europe_slug) && !/-special-weekly-european-contenders-division-1$/.test(String(res.europe_slug))) err("FOOTBALL", `resume : europe_slug « ${res.europe_slug} » n'est pas un leaderboard European Contenders Limited`);
+  if (!empty(res.europe_debut) && !empty(res.europe_fin) && !(Date.parse(res.europe_debut) < Date.parse(res.europe_fin))) err("FOOTBALL", `resume : europe_debut (${res.europe_debut}) n'est pas avant europe_fin (${res.europe_fin})`);
+  if (!empty(res.arcade_debut) && !empty(res.arcade_fin) && !(Date.parse(res.arcade_debut) < Date.parse(res.arcade_fin))) err("FOOTBALL", `resume : arcade_debut (${res.arcade_debut}) n'est pas avant arcade_fin (${res.arcade_fin})`);
 }
 
 // ---------- Rapport ----------

@@ -92,6 +92,20 @@ const rewards = (slug) => /-salon-/.test(slug) ? [500, 300, 225, 175, 150].map((
   : [{ ranks: 1, rewardConfigs: [{ __typename: "MonetaryRewardConfig", amount: { usdCents: 100000 } }] }, { ranks: 99, rewardConfigs: [shard(1000)] }, { ranks: null, rankPct: 10, rewardConfigs: [{ __typename: "InGameCurrencyRewardConfig", currency: "LIMITED_XP", amount: 500 }] }];
 const RANG = { nba: { 1: 300, 100: 250, 400: 200 }, football: { 1: 410, 100: 330, 300: 280 } };
 
+// ---------- Contrat v5 : European Contenders et poste des cartes (exécution « europe » seulement) ----------
+// Une gameweek à venir (3-6/11) porte le leaderboard European Contenders ; « reynolds » (Limited, hors Jupiler et hors Set)
+// joue la Ligue Europa le 5/11 ; la carte d'abid est Forward alors que Player.position vaut Midfielder (cas Guilherme Smith).
+let EUROPE = false;
+const FX_EU = { slug: "football-3-6-nov-2026", aasmState: "opened", startDate: "2026-11-03T14:00:00Z", endDate: "2026-11-06T13:59:00Z" };
+const EU_SLUG = FX_EU.slug + "-special-weekly-european-contenders-division-1";
+const EU_RULES = [{ key: "Scarcity", descriptions: [{ title: "7x (+2 Subs) Limited Cards", items: [{ title: "Higher scarcities permitted" }] }] },
+  { key: "CaptainScarcity", descriptions: [{ title: "Card score increased by 50%", items: [] }] },
+  { key: "Competitions", descriptions: [{ title: "Players permitted from", items: [{ title: "Europa Conference League" }, { title: "Europa League" }] }] }];
+const reynolds = { slug: "reynolds", gameplayTier: null, activeClub: { name: "Celta", slug: "celta", domesticLeague: { name: "LaLiga" } }, l5: 40, l15: 40, l10: null, activeInjuries: [], position: "Defender", playingStatus: "STARTER", activeSuspensions: [], playerGameScores: [], so5Scores: [] };
+const cartesEurope = () => [...cards.map((c) => (c.sport !== "FOOTBALL" ? c : { ...c, anyPositions: [c.anyPlayer.slug === "abid" ? "Forward" : JPL[c.anyPlayer.slug][0]] })),
+  { slug: "reynolds-limited-1", rarityTyped: "limited", sport: "FOOTBALL", seasonYear: 2025, inSeasonEligible: false, anyPositions: ["Defender"], power: "1.05", cardSet: null, skinEdition: null, powerBreakdown: {}, anyPlayer: { slug: "reynolds", displayName: "Reynolds" } }];
+const gamesEurope = (s) => s !== "reynolds" ? futureGames(s) : [{ ...futureGames("koffi")[0], id: "eu", date: "2026-11-05T20:00:00Z", competition: { name: "UEFA Europa League" } }];
+
 let appels = 0; const requetes = [];
 async function fetchSimule(url, opts = {}) {
   appels++;
@@ -99,7 +113,12 @@ async function fetchSimule(url, opts = {}) {
   const { query, variables: v = {} } = JSON.parse(opts.body);
   requetes.push(query);
   let data;
-  if (query.includes("user(slug")) data = { user: { cards: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: cards } } };
+  if (query.includes("user(slug")) data = { user: { cards: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: EUROPE ? cartesEurope() : cards } } };
+  else if (EUROPE && query.includes("displayedTypedRules") && v.s === EU_SLUG) data = { so5: { so5Leaderboard: { slug: v.s, displayName: "Limited", teamsCap: 4, so5League: { displayName: "European Contenders" }, displayedTypedRules: EU_RULES } } };
+  else if (EUROPE && query.includes("so5Fixtures(") && v.sport === "FOOTBALL") data = { so5: { so5Fixtures: { nodes: [FX_EU, ...FX.FOOTBALL] } } };
+  else if (EUROPE && query.includes("so5Fixture(slug") && v.s === FX_EU.slug) data = { so5: { so5Fixture: { so5Leaderboards: [{ slug: FX_EU.slug + "-special-weekly-european-champions-division-1", so5LineupsCount: 0 }, { slug: EU_SLUG, so5LineupsCount: 0 }] } } };
+  else if (EUROPE && query.includes("players(slugs")) data = { players: v.s.map((x) => (x === "reynolds" ? reynolds : node(x))) };
+  else if (EUROPE && query.includes("anyFutureGames")) data = { anyPlayer: { slug: v.slug, anyFutureGames: { nodes: gamesEurope(v.slug) } } };
   else if (query.includes("so5Fixture(type:UPCOMING")) data = { so5: { so5Fixture: upcoming(v.sport), ...(query.includes("live: so5Fixture(type:LIVE") ? { live: FX[v.sport][1] } : {}) } };
   else if (query.includes("displayedTypedRules")) data = { so5: { so5Leaderboard: { slug: v.s, displayedTypedRules: rules(v.s) } } };
   else if (query.includes("players(slugs")) data = { players: v.s.map(node) };
@@ -156,6 +175,7 @@ appels = 0; const sans = await collect(opts({})); const appelsSans = appels;
 appels = 0; requetes.length = 0; const avec = await collect(opts({ compsPrecedentes: choisis(NOW) })); const appelsAvec = appels;
 const bqAvec = requetes.filter((q) => q.includes("players(slugs") && !q.includes("gameplayTier")).length;
 const avant = await collect(opts({ now: new Date("2026-10-22T12:00:00Z"), compsPrecedentes: choisis(new Date("2026-10-22T12:00:00Z")) }));
+EUROPE = true; appels = 0; requetes.length = 0; const eu = await collect(opts({})); const appelsEurope = appels; const requetesEurope = requetes.slice(); EUROPE = false;
 globalThis.setTimeout = vraiTimeout;
 
 // ---------- Contrôles ----------
@@ -198,6 +218,19 @@ const res = avec.files.resume[0];
 // resume v4 : fenêtre Arcade = gameweek football en cours (alias « live » de la requête UPCOMING, aucun appel de plus)
 eq([res.arcade_debut, res.arcade_fin], [FX.FOOTBALL[1].startDate, FX.FOOTBALL[1].endDate], "resume : arcade_debut / arcade_fin (gameweek football LIVE)");
 eq([res.gw_debut_football, res.gw_fin_football, res.gw_debut_nba, res.gw_fin_nba], [FX.FOOTBALL[0].startDate, FX.FOOTBALL[0].endDate, FX.NBA[0].startDate, FX.NBA[0].endDate], "resume : gw_debut_* / gw_fin_*");
+
+// Contrat v5 : European Contenders trouvé sans deviner de slug, joueur Limited hors Jupiler ajouté, poste lu sur la carte
+const resEu = eu.files.resume[0];
+eq([resEu.europe_slug, resEu.europe_debut, resEu.europe_fin], [EU_SLUG, FX_EU.startDate, FX_EU.endDate], "resume : europe_slug / europe_debut / europe_fin");
+eq([res.europe_slug, res.europe_debut, res.europe_fin], [null, null, null], "resume : europe_* vides sans compétition European Contenders");
+ok(!requetesEurope.some((q) => q.includes("so5Leaderboard(slug") && q.includes("so5Rankings") && q.includes(EU_SLUG)), "European Contenders : classement interrogé alors qu'inutile");
+eq(appelsEurope - appelsSans, 3, "appels en plus pour European Contenders (1 so5Fixture de la gameweek 3-6/11 + 1 règles + 1 anyFutureGames de reynolds)");
+const jEu = new Map(eu.files.joueurs.map((r) => [r.slug, r]));
+ok(jEu.has("reynolds"), "European Contenders : le joueur Limited hors Jupiler (reynolds) n'est pas dans joueurs");
+eq(jEu.get("reynolds")?.competition_match, "UEFA Europa League", "European Contenders : compétition du match de reynolds");
+eq(jEu.get("abid")?.poste, "Attaquant", "poste lu sur la carte (Card.anyPositions = Forward) et non sur Player.position (Midfielder)");
+eq(jEu.get("sylla")?.poste, "Défenseur", "poste inchangé quand carte et joueur concordent");
+eq(sans.files.joueurs.find((r) => r.slug === "abid")?.poste, "Milieu", "sans anyPositions (ancienne API simulée) : repli sur Player.position");
 
 console.log(`Test du bilan : ${appelsSans} appels simulés sans bilan, ${appelsAvec} avec (+${appelsAvec - appelsSans}), ${b.length} lignes de bilan.`);
 for (const r of b) console.log(`  ${r.sport} ${r.competition} compo ${r.numero} (${r.gw}) : ${r.score_prevu} → ${r.score_reel} (${r.ecart >= 0 ? "+" : ""}${r.ecart}) ; visé ${r.palier_vise ?? "—"} ; atteint ${r.palier_atteint ?? "—"}`);

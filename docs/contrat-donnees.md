@@ -1,6 +1,6 @@
 # Contrat de données : collecte → modèle → dashboard
 
-Version 4 (25/10/2026, orchestrateur) ; version 3 (25/10/2026, orchestrateur) ; version 2 (25/10/2026, agent `donnees`) ; version 1 (24/10/2026) relevée dans `core.mjs` et `dashboard/index.html` (v7).
+Version 5 (25/10/2026, orchestrateur) ; version 4 (25/10/2026, orchestrateur) ; version 3 (25/10/2026, orchestrateur) ; version 2 (25/10/2026, agent `donnees`) ; version 1 (24/10/2026) relevée dans `core.mjs` et `dashboard/index.html` (v7).
 Ce fichier fait foi. Toute colonne ajoutée, renommée ou supprimée est d'abord écrite ici,
 avec la version et le nom de l'agent, puis implémentée. `outils/verifier.mjs` contrôle ce contrat.
 
@@ -24,7 +24,7 @@ Légende du tableau : **F** football seulement, **N** NBA seulement, **F+N** les
 | sport | `FOOTBALL`/`NBA` | F+N | |
 | modes | texte | F+N | Codes séparés par une espace : `NBA`, `JPL`, `SET` |
 | club | texte | F+N | Club actuel |
-| poste | texte | F | Gardien, Défenseur, Milieu, Attaquant ; vide en NBA |
+| poste | texte | F | Gardien, Défenseur, Milieu, Attaquant ; vide en NBA. Depuis le 25/10/2026 (v5) : poste de la carte (`Card.anyPositions`) de la saison la plus récente, `Player.position` seulement en repli (le poste du joueur peut dater d'une ancienne saison : ex. Guilherme Smith, milieu chez le joueur, attaquant sur sa carte 2026) |
 | etoiles | nombre | N | 1 à 5 par demi-points |
 | plancher_etoiles | nombre | N | Score de référence du niveau (0 à 50) |
 | gain_etoiles | nombre | N | score_attendu − plancher_etoiles |
@@ -69,6 +69,7 @@ Légende du tableau : **F** football seulement, **N** NBA seulement, **F+N** les
 | minutes_liberees | nombre | N | Somme des minutes de ces coéquipiers |
 
 ## matchs (calendrier : une ligne par joueur et par match ; clé : `slug` + `date`)
+v5 : lignes football aussi pour les joueurs Limited (et plus) dont le match de Ligue Europa / Conference League tombe dans la période `europe_*` ; nouvelle colonne `competition_match` (F : nom de la compétition du match ; vide en NBA).
 v4 : aussi des lignes **football** (`sport` = `Football`) pour les joueurs du Set, sur la période Arcade en cours (de la collecte à `resume.arcade_fin`) : `jour` = date à Bruxelles, `proba` = probabilité de titularisation, `proj` = projection du match ; `b2b`, `proba_victoire` et `total` selon disponibilité.
 Jeu en plus des sept ci-dessus, écrit par compos.mjs (section 12). NBA seulement pour l'instant.
 
@@ -167,10 +168,12 @@ Vide (CSV d'en-tête) tant qu'aucune gameweek proposée n'est terminée.
 
 Formats du jeu `bilan` : `palier_vise` / `palier_atteint` = « top N : récompense », « Ne du salon : récompense » ou « aucun palier » ; `joueurs` = « Nom (C) prévu→réel » séparés par « ; » (virgule décimale).
 
-## plan_arcade (v4 ; plan de piste du mode Set / Arcade, football ; clé : `depart` + `etape` + `compo`)
+## plan_arcade (v4 ; plans de piste football ; clé : `mode` + `depart` + `etape` + `compo`)
+v5 : colonne `mode` = `arcade` (Set, cartes Common, seuils 260/300/360/400/440/480, sans capitaine) ou `europe` (Pro « European Contenders », cartes Limited et plus, matchs de Ligue Europa et Conference League, seuils 350/390/410/450/470/500, capitaine +50 % additif). Mêmes règles de piste : 4 compos par palier, un succès fait monter, 4 échecs ramènent au palier 1, récompense redonnée à chaque passage, 1h50 après le dernier coup d'envoi. Lignes sans `mode` = `arcade` (collectes v4). En mode `europe`, si aucune compo n'est possible, une seule ligne d'information : `etape` = 0, `compo` = 0, `joueurs` vide, raison dans `conseil` (ex. « aucun attaquant parmi tes cartes Limited… »).
 Plans calculés pour chaque palier de départ possible (l'utilisateur indique le sien dans la page ; la progression n'est pas lisible dans l'API).
 | Colonne | Type | Contenu |
 |---|---|---|
+| mode | `arcade`/`europe` | v5. Piste concernée |
 | depart | entier 1-6 | Palier où se trouve l'utilisateur au moment du plan |
 | etape | entier ≥ 1 | Ordre de la tentative dans le plan |
 | palier, seuil | entier, nombre | Palier visé et son seuil (260, 300, 360, 400, 440, 480) |
@@ -196,6 +199,7 @@ joueur, modes, type (`Nouvelle blessure`, `Retour de blessure`, `Suspension`, `S
 date, sport (`FOOTBALL`/`NBA`), matchs, erreur_modele, erreur_sorare, erreur_forme, poids_sorare (0 à 1).
 
 ## resume (une seule ligne)
+v5 : ajoute `europe_slug`, `europe_debut`, `europe_fin` (période de la compétition European Contenders en cours ou à venir ; vides si aucune).
 v4 : ajoute `arcade_debut`, `arcade_fin` (fenêtre de la gameweek football en cours, `so5Fixture(type: LIVE)`, pendant laquelle se joue l'Arcade / Set).
 v3 : ajoute `gw_debut_football`, `gw_fin_football`, `gw_debut_nba`, `gw_fin_nba` (dates ISO de la fenêtre de chaque gameweek, lues dans `so5Fixture.startDate` / `endDate`).
 
@@ -218,5 +222,6 @@ maj, cartes, joueurs, set, gw_football, gw_nba, limite_football, limite_nba, poi
 |---|---|---|---|
 | 1 | 24/10/2026 | orchestrateur | Relevé initial depuis la v7 |
 | 2 | 25/10/2026 | donnees | `joueurs.source_titulaire` (F) ; jeu `matchs` décrit, avec `proba_victoire` et `total` par match (N) |
+| 5 | 25/10/2026 | orchestrateur | `plan_arcade.mode` (arcade / europe) ; `resume.europe_*` ; `matchs` football Pro européen + `competition_match` |
 | 4 | 25/10/2026 | orchestrateur | `matchs` étendu au football (Set) ; `resume.arcade_debut` / `arcade_fin` ; nouveau jeu `plan_arcade` |
 | 3 | 25/10/2026 | orchestrateur | Colonnes déjà produites ajoutées (joueurs, compos, competitions) ; jeux `cartes` et `paliers` décrits ; `competitions` : cout_inscription, gains_esperes, gain_net_espere, autres_recompenses, rentable, recommandation, alternative ; nouveau jeu `bilan` ; `resume` : fenêtres des gameweeks |

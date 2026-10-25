@@ -74,7 +74,7 @@ async function collecte({ apiKey, oddsKey = null, espn = true, history = { sampl
   for (;;) {
     let d;
     try {
-      d = await gq(`query($a:String){ user(slug:"${USER}"){ cards(first:${page}, after:$a){ pageInfo{ hasNextPage endCursor } nodes { slug rarityTyped sport seasonYear inSeasonEligible power cardSet{ slug name } skinEdition{ skin bonus } powerBreakdown{ collectionBasisPoints xpBasisPoints seasonBasisPoints scarcityBasisPoints specialEditionCardsBasisPoints activeClubsBasisPoints nationalityBasisPoints positionsBasisPoints } anyPlayer{ slug displayName } } } } }`, { a: after });
+      d = await gq(`query($a:String){ user(slug:"${USER}"){ cards(first:${page}, after:$a){ pageInfo{ hasNextPage endCursor } nodes { slug rarityTyped sport seasonYear inSeasonEligible anyPositions power cardSet{ slug name } skinEdition{ skin bonus } powerBreakdown{ collectionBasisPoints xpBasisPoints seasonBasisPoints scarcityBasisPoints specialEditionCardsBasisPoints activeClubsBasisPoints nationalityBasisPoints positionsBasisPoints } anyPlayer{ slug displayName } } } } }`, { a: after });
     } catch (e) { if (/complexity/i.test(e.message) && page > 10) { page = Math.floor(page / 2); continue; } throw e; }
     const c = d.user.cards; cards.push(...c.nodes);
     if (!c.pageInfo.hasNextPage) break; after = c.pageInfo.endCursor;
@@ -89,10 +89,19 @@ async function collecte({ apiKey, oddsKey = null, espn = true, history = { sampl
       slug: c.slug, rarity: c.rarityTyped, season: c.seasonYear, inSeason: !!c.inSeasonEligible,
       power: Number(c.power) || 1, skin: c.skinEdition?.skin || "", skinBonus: Number(c.skinEdition?.bonus) || 1,
       set: c.cardSet?.slug || "", bp: c.powerBreakdown || {},
+      // Poste de la carte (Card.anyPositions, football ; [] en NBA) : c'est lui qui compte dans les compos (voir section 3)
+      positions: c.sport === "FOOTBALL" && Array.isArray(c.anyPositions) ? c.anyPositions.filter((x) => POS[x]) : [],
     });
   }
   const players = [...byPlayer.values()];
   log(`${cards.length} cartes, ${players.length} joueurs, set courant ${setName}`);
+
+  // Gameweeks recentes d'un sport (1 appel par sport, mis en cache) : partage par European Contenders, les paliers et le bilan
+  const recentes = new Map();
+  const fixturesRecentes = async (sport) => {
+    if (!recentes.has(sport)) recentes.set(sport, (await gq(`query($sport:Sport!){ so5{ so5Fixtures(sport:$sport, first:8){ nodes{ slug aasmState startDate endDate } } } }`, { sport })).so5.so5Fixtures.nodes);
+    return recentes.get(sport);
+  };
 
   // ---------- 2. Gameweeks et competitions ----------
   log("Compétitions…");
@@ -102,13 +111,14 @@ async function collecte({ apiKey, oddsKey = null, espn = true, history = { sampl
   // LIVE = football-23-27-oct-2026 (aasmState started), UPCOMING = football-27-30-oct-2026. Sans gameweek en cours
   // (live null), fixtures.LIVE_FOOTBALL reprend la fenetre de la gameweek a venir.
   for (const sport of ["FOOTBALL", "NBA"]) {
-    const live = sport === "FOOTBALL" ? " live: so5Fixture(type:LIVE sport:$sport){ slug aasmState startDate endDate }" : "";
+    const live = sport === "FOOTBALL" ? " live: so5Fixture(type:LIVE sport:$sport){ slug aasmState startDate endDate so5Leaderboards{ slug } }" : "";
     const d = await gq(`query($sport:Sport!){ so5{ so5Fixture(type:UPCOMING sport:$sport){ slug cutOffDate startDate endDate gameWeek so5Leaderboards{ slug displayName mainRarityType teamsCap format{ title } } }${live} } }`, { sport });
     fixtures[sport] = d.so5.so5Fixture;
     if (sport === "FOOTBALL") {
       const l = d.so5.live, u = d.so5.so5Fixture;
       fixtures.LIVE_FOOTBALL = l?.slug ? { slug: l.slug, startDate: l.startDate || null, endDate: l.endDate || null, enCours: true }
         : { slug: u.slug, startDate: u.startDate || null, endDate: u.endDate || null, enCours: false };
+      fixtures.LIVE_FOOTBALL.so5Leaderboards = l?.slug ? l.so5Leaderboards || null : null;
     }
   }
   // Salons (Cap 260 « ..._jupiler_arena_limited ») : l'API liste le salon de base puis chaque salon de 10
@@ -141,6 +151,11 @@ async function collecte({ apiKey, oddsKey = null, espn = true, history = { sampl
     });
   }
 
+  // European Contenders (contrat v5, resume.europe_*) : leaderboard « …-special-weekly-european-contenders-division-1 »
+  // de la gameweek en cours ou a venir. Cout : 0 a 3 appels de recherche + 1 appel de regles si trouve.
+  let europe = null;
+  try { europe = await chercheEurope({ gq, fixtures, fixturesRecentes, now, log }); } catch (e) { log("European Contenders : " + e.message); }
+
   // ---------- 3. Donnees joueurs ----------
   log("Joueurs…");
   const PQ = `query($s:[String!]!){ players(slugs:$s){ slug gameplayTier activeClub{ name slug domesticLeague{ name } }
@@ -151,6 +166,19 @@ async function collecte({ apiKey, oddsKey = null, espn = true, history = { sampl
   const info = new Map();
   (await batched(players.map((p) => p.slug), apiKey ? 40 : 10, async (s) => (await gq(PQ, { s })).players)).forEach((p) => p && info.set(p.slug, p));
   for (const p of players) p.d = info.get(p.slug) || null;
+  // Poste football : celui des cartes (Card.anyPositions), pas Player.position. Verifie le 25/10/2026 : Guilherme Smith
+  // (Union) a Player.position = Midfielder mais sa carte Limited 2026 est Forward ; 80 cartes 2026 du portefeuille sur
+  // 1 321 ont un poste different de Player.position. d.position (lu par modele.mjs et compos.mjs) devient le poste des
+  // cartes de la saison la plus recente ; Player.position est garde dans d.positionJoueur. Si les cartes d'un joueur
+  // n'ont pas toutes le meme poste, p.postesCartes en garde la liste (cas absent du portefeuille au 25/10/2026).
+  for (const p of players) {
+    if (!p.d || p.sport !== "FOOTBALL") continue;
+    const pc = posteCartes(p.cards);
+    p.postesCartes = pc.tous;
+    p.d.positionJoueur = p.d.position ?? null;
+    if (pc.poste) p.d.position = pc.poste;
+    if (pc.tous.length > 1) log(`poste : ${p.name} a des cartes à plusieurs postes (${pc.tous.join(", ")}), retenu ${pc.poste}`);
+  }
 
   const isJPL = (p) => p.d?.activeClub?.domesticLeague?.name === "First Division A";
   const inSet = (p) => p.sport === "FOOTBALL" && p.cards.some((c) => c.rarity === "common" && c.set === currentSet);
@@ -161,7 +189,12 @@ async function collecte({ apiKey, oddsKey = null, espn = true, history = { sampl
       .sort((a, b) => (b.d.l15 || 0) - (a.d.l15 || 0)).slice(0, 40).forEach((p) => setPool.add(p.slug));
   }
   const relevant = players.filter((p) => p.d && (p.sport === "NBA" || isJPL(p) || setPool.has(p.slug)));
-  log(`${relevant.length} joueurs pertinents`);
+  // European Contenders (v5) : joueurs football avec une carte Limited ou plus rare, hors Jupiler et hors Set retenu ;
+  // leurs matchs futurs sont lus en section 4 (1 appel anyFutureGames par joueur ; 1 joueur au 25/10/2026, Justin Reynolds).
+  // Seulement s'il existe une competition European Contenders en cours ou a venir.
+  const europeens = europe ? players.filter((p) => p.d && p.sport === "FOOTBALL" && !relevant.includes(p) && p.cards.some((c) => RARETES_EUROPE.has(c.rarity))) : [];
+  for (const p of europeens) { p.europeSeul = true; relevant.push(p); }
+  log(`${relevant.length} joueurs pertinents` + (europeens.length ? ` (dont ${europeens.length} pour European Contenders seulement)` : ""));
 
   // ---------- 4. Prochains matchs, projections Sorare, cotes ----------
   log("Matchs à venir…");
@@ -220,14 +253,86 @@ async function collecte({ apiKey, oddsKey = null, espn = true, history = { sampl
     });
   }
 
-  // Gameweeks recentes d'un sport (1 appel par sport, mis en cache) : partage par les paliers et le bilan
-  const recentes = new Map();
-  const fixturesRecentes = async (sport) => {
-    if (!recentes.has(sport)) recentes.set(sport, (await gq(`query($sport:Sport!){ so5{ so5Fixtures(sport:$sport, first:8){ nodes{ slug aasmState startDate endDate } } } }`, { sport })).so5.so5Fixtures.nodes);
-    return recentes.get(sport);
-  };
+  return { gq, batched, fixturesRecentes, appels: () => calls, europe, estMatchEurope: (g) => estMatchEurope(europe, g), cards, players, byPlayer, currentSet, setName, fixtures, comps, relevant, isJPL, inSet, odds, espnData, standings, advRank, samples, w, calib };
+}
 
-  return { gq, batched, fixturesRecentes, appels: () => calls, cards, players, byPlayer, currentSet, setName, fixtures, comps, relevant, isJPL, inSet, odds, espnData, standings, advRank, samples, w, calib };
+// ---------- Poste football d'apres les cartes (Card.anyPositions) ----------
+// cards : cartes d'un joueur (section 1, champ positions). Poste = celui de la carte de la saison la plus recente
+// (le plus frequent si plusieurs cartes de cette saison) ; tous = postes distincts de toutes ses cartes.
+function posteCartes(cards) {
+  const avec = (cards || []).filter((c) => c.positions && c.positions.length);
+  const tous = [...new Set(avec.flatMap((c) => c.positions))];
+  if (!avec.length) return { poste: null, tous };
+  const saison = Math.max(...avec.map((c) => Number(c.season) || 0));
+  return { poste: mostCommon(avec.filter((c) => (Number(c.season) || 0) === saison).map((c) => c.positions[0])), tous };
+}
+
+// ---------- European Contenders (contrat v5) ----------
+const RARETES_EUROPE = new Set(["limited", "rare", "super_rare", "unique"]); // « Higher scarcities permitted »
+const EUROPE_SUFFIXE = "-special-weekly-european-contenders-division-1";
+const EUROPE_COMPETITIONS_DEFAUT = ["Europa Conference League", "Europa League"]; // releve le 25/10/2026 (gameweek 723)
+// Nom de competition -> cle comparable : « UEFA Europa League » = « Europa League », « UEFA Conference League » =
+// « Europa Conference League » ; les autres noms sont compares tels quels (minuscules, sans accents).
+function cleCompetition(nom) {
+  const n = String(nom || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\buefa\b/g, "").replace(/\s+/g, " ").trim();
+  if (/conference/.test(n)) return "conference-league";
+  if (/europa league/.test(n)) return "europa-league";
+  return n;
+}
+// g : match brut (anyFutureGames, competition{ name }), match du modele (competition : texte) ou nom de competition.
+// Vrai si la competition est autorisee et si le match tombe dans la fenetre European Contenders.
+function estMatchEurope(europe, g) {
+  if (!europe || !g) return false;
+  const nom = typeof g === "string" ? g : typeof g.competition === "string" ? g.competition : g.competition?.name;
+  if (!europe.competitions.map(cleCompetition).includes(cleCompetition(nom))) return false;
+  if (typeof g === "string" || !g.date) return true;
+  const t = Date.parse(g.date);
+  return !(t < Date.parse(europe.debut) - 3600e3) && !(t > Date.parse(europe.fin));
+}
+// Cherche le leaderboard sans deviner son slug (un slug absent fait echouer la requete, NOT_FOUND) : d'abord dans les
+// leaderboards deja lus (gameweek LIVE et UPCOMING, 0 appel), puis dans les autres gameweeks football non terminees de
+// so5Fixtures (appel partage avec paliers et bilan), 1 appel so5Fixture(slug) par gameweek, au plus 3, de la plus proche
+// a la plus lointaine. Puis 1 appel pour ses regles. Retour : null ou
+// { slug, nom, fixture, debut, fin, competitions[], taille, remplacants, capitaine, equipes, regles }.
+async function chercheEurope({ gq, fixtures, fixturesRecentes, now = new Date(), log = () => {} }) {
+  const t = +now;
+  const cands = [];
+  const L = fixtures.LIVE_FOOTBALL, U = fixtures.FOOTBALL;
+  if (L?.enCours && L.so5Leaderboards) cands.push({ slug: L.slug, startDate: L.startDate, endDate: L.endDate, boards: L.so5Leaderboards });
+  if (U?.so5Leaderboards) cands.push({ slug: U.slug, startDate: U.startDate, endDate: U.endDate, boards: U.so5Leaderboards });
+  let trouve = null;
+  const essaie = (c) => { const b = (c.boards || []).find((l) => l.slug.endsWith(EUROPE_SUFFIXE)); return b && !(Date.parse(c.endDate) < t) ? { ...c, board: b } : null; };
+  for (const c of cands) if ((trouve = essaie(c))) break;
+  if (!trouve && fixturesRecentes) {
+    const vus = new Set(cands.map((c) => c.slug));
+    const autres = (await fixturesRecentes("FOOTBALL")).filter((f) => f.slug && !vus.has(f.slug) && f.aasmState !== "closed" && !(Date.parse(f.endDate) < t))
+      .sort((a, b) => (Date.parse(a.startDate) || 0) - (Date.parse(b.startDate) || 0)).slice(0, 3);
+    for (const f of autres) {
+      const d = await gq(`query($s:String!){ so5{ so5Fixture(slug:$s){ so5Leaderboards{ slug } } } }`, { s: f.slug });
+      if ((trouve = essaie({ ...f, boards: d.so5.so5Fixture?.so5Leaderboards || [] }))) break;
+    }
+  }
+  if (!trouve) { log("European Contenders : aucune compétition en cours ou à venir"); return null; }
+  const slug = trouve.board.slug;
+  const d = await gq(`query($s:String!){ so5{ so5Leaderboard(slug:$s){ slug displayName teamsCap so5League{ displayName } displayedTypedRules{ key descriptions{ title items{ title } } } } } }`, { s: slug });
+  const lb = d.so5.so5Leaderboard || {};
+  const rules = (lb.displayedTypedRules || []).map((r) => ({ key: r.key, items: r.descriptions.flatMap((x) => (x.items || []).map((i) => i.title).filter(Boolean)), text: r.descriptions.map((x) => [x.title, ...(x.items || []).map((i) => i.title)].filter(Boolean).join(" ")).join(" ; ") }));
+  const regle = (k) => rules.find((r) => r.key === k);
+  const comps = regle("Competitions")?.items || [];
+  const scar = regle("Scarcity")?.text || "";
+  const cap = (regle("CaptainScarcity")?.text || "").match(/(\d+)\s*%/);
+  const europe = {
+    slug, nom: lb.so5League?.displayName || "European Contenders", fixture: trouve.slug,
+    debut: trouve.startDate || null, fin: trouve.endDate || null,
+    competitions: comps.length ? comps : EUROPE_COMPETITIONS_DEFAUT,
+    taille: Number((scar.match(/(\d+)\s*x/i) || [])[1]) || null,
+    remplacants: Number((scar.match(/\+\s*(\d+)\s*Sub/i) || [])[1]) || 0,
+    capitaine: cap ? Number(cap[1]) : null, equipes: lb.teamsCap ?? null,
+    regles: rules.filter((r) => r.text).map((r) => r.text).join(" | "),
+  };
+  if (!comps.length) log("European Contenders : règle Competitions illisible, compétitions par défaut");
+  log(`European Contenders : ${slug} (${europe.debut} → ${europe.fin}), ${europe.competitions.join(", ")}`);
+  return europe;
 }
 
 function mostCommon(a) { const m = new Map(); a.forEach((x) => m.set(x, (m.get(x) || 0) + 1)); return [...m.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] || null; }
@@ -593,7 +698,7 @@ async function fetchStandings(log) {
   };
 }
 
-return { POS, sleep, round, mean, sd, day, collecte, cardLabel, matchOdds, collectePaliers, candidatsBilan, collecteBilan };
+return { POS, sleep, round, mean, sd, day, collecte, posteCartes, cleCompetition, estMatchEurope, chercheEurope, cardLabel, matchOdds, collectePaliers, candidatsBilan, collecteBilan };
 })();
 
 // ===== modele.mjs =====
@@ -748,14 +853,15 @@ const __m_compos = (() => {
 // Compositions Sorare pour Elpredatooor : sections 8 a 12 de l'ancien core.mjs
 // (compos, meilleurs par jour, changements, cartes et calendrier NBA pour le dashboard).
 // calculeCompos(contexte de collecte.mjs, rows de modele.mjs, prev, now) -> { lineups, compRows, jours, changes, cartes, matchs, plan_arcade }
-// planArcade(rows, { currentSet, debut, fin, recompte }) : plan de piste du mode Set / Arcade (football, contrat v4).
+// planPiste(rows, gabarit, opts) : plan de piste football (contrat v5, colonne mode) ; planArcade (Set, cartes Common) et
+// planEurope (Pro European Contenders, cartes Limited et plus, Ligue Europa / Conference League) en sont deux reglages.
 // evalueRentabilite(compRows, lineups, paliers, rows) : apres les paliers (core.mjs), colonnes v3 de competitions et choix
 // NBA entre In-Season en priorite 1 et l'option sans In-Season (modifie compRows et lineups en place).
 
 
 
 
-function calculeCompos({ comps, currentSet, setName, fixtures, advRank }, rows, prev, now = new Date()) {
+function calculeCompos({ comps, currentSet, setName, fixtures, advRank, europe }, rows, prev, now = new Date()) {
   // ---------- 8. Compositions ----------
   const used = new Set();
   const order = [...comps].sort((a, b) => rank(a) - rank(b));
@@ -817,17 +923,28 @@ function calculeCompos({ comps, currentSet, setName, fixtures, advRank }, rows, 
   const matchs = [];
   for (const r of rows.filter((x) => x.sport === "NBA")) for (const g of r._games.filter((x) => x.inWindow)) {
     const ar = advRank(g.adversaire, "NBA");
-    matchs.push({ sport: "NBA", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: day(new Date(g.t - 5 * 3600e3).toISOString()), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: g.b2b, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null });
+    matchs.push({ sport: "NBA", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: day(new Date(g.t - 5 * 3600e3).toISOString()), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: g.b2b, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null, competition_match: "" });
   }
   // Football (contrat v4) : joueurs du Set, matchs dont le coup d'envoi tombe entre now et la fin de la periode Arcade
   // (gameweek EN COURS, fixtures.LIVE_FOOTBALL de collecte.mjs ; repli : gameweek a venir). jour = date a Bruxelles.
   const fen = fenetreArcade(fixtures, now);
   for (const r of rows.filter((x) => x.sport !== "NBA" && x._inSet)) for (const g of r._games.filter((x) => x.t >= fen.debut && x.t <= fen.fin)) {
     const ar = advRank(g.adversaire, r.sport);
-    matchs.push({ sport: "Football", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: jourDuMatch(g.t, false), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: null, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null });
+    matchs.push({ sport: "Football", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: jourDuMatch(g.t, false), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: null, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null, competition_match: g.competition || "" });
   }
-  // ---------- 12 bis. Plan de piste Arcade (Set, football ; contrat v4) ----------
-  const plan_arcade = planArcade(rows, { currentSet, debut: fen.debut, fin: fen.fin });
+  // Football Pro European Contenders (contrat v5) : joueurs avec une carte Limited ou plus, matchs d'une competition autorisee
+  // (Ligue Europa, Conference League) dans la periode Europe. Une seule ligne par slug + date (un joueur du Set peut y etre deja).
+  const eu = fenetreEurope(europe ?? fixtures?.EUROPE, now);
+  if (eu) {
+    const deja = new Set(matchs.map((x) => x.slug + "|" + x.date));
+    for (const r of rows.filter((x) => x.sport !== "NBA" && (x._cards || []).some((k) => PISTE_EUROPE.carte(k)))) for (const g of r._games.filter((x) => x.t >= eu.debut && x.t <= eu.fin && PISTE_EUROPE.match(x, eu))) {
+      const date = g.date.slice(0, 16); if (deja.has(r.slug + "|" + date)) continue; deja.add(r.slug + "|" + date);
+      const ar = advRank(g.adversaire, r.sport);
+      matchs.push({ sport: "Football", slug: r.slug, joueur: r.joueur, date, jour: jourDuMatch(g.t, false), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: null, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null, competition_match: g.competition || "" });
+    }
+  }
+  // ---------- 12 bis. Plans de piste football : Arcade (Set, contrat v4) puis European Contenders (Pro, contrat v5) ----------
+  const plan_arcade = planArcade(rows, { currentSet, debut: fen.debut, fin: fen.fin }).concat(eu ? planEurope(rows, eu) : []);
   return { lineups, compRows, jours, changes, cartes, matchs, plan_arcade };
 }
 
@@ -840,16 +957,30 @@ function fenetreArcade(fixtures, now) {
   return { debut: Math.max(t0, Date.parse(f.startDate) || t0), fin: Date.parse(f.endDate) || t0 };
 }
 
-// ---------- Mode Arcade (Set football, cartes Common du set en cours) ----------
-// Regles (utilisateur 25/10/2026 + aide Sorare « What is Arcade? ») : 6 paliers aux seuils ci-dessous ; a chaque palier,
+// Periode European Contenders (contrat v5, resume.europe_*) : contexte.europe de collecte.mjs (chercheEurope, agent donnees :
+// { slug, debut, fin, competitions, capitaine, ... }) ; accepte aussi { startDate, endDate }. Sans fenetre : null -> ni plan
+// europe ni matchs europeens. competitions : regle API Competitions (repli EUROPE_COMPETITIONS) ; capitaine : regle API
+// CaptainScarcity (repli EUROPE_CAPITAINE).
+function fenetreEurope(e, now) {
+  const fin = Date.parse(e?.fin ?? e?.endDate);
+  if (!e || !Number.isFinite(fin)) return null;
+  const t0 = new Date(now).getTime();
+  return { debut: Math.max(t0, Date.parse(e.debut ?? e.startDate) || t0), fin, competitions: Array.isArray(e.competitions) && e.competitions.length ? e.competitions : EUROPE_COMPETITIONS, capitaine: Number(e.capitaine) > 0 ? Number(e.capitaine) : EUROPE_CAPITAINE };
+}
+
+// ---------- Pistes football : Arcade (Set) et European Contenders (Pro) ; FOOTBALL SEULEMENT ----------
+// Un seul planificateur (planPiste), parametre par un gabarit de piste (PISTE_ARCADE, PISTE_EUROPE) : mode, seuils, cartes
+// admises, matchs admis, capitaine, valeur d'une carte, largeurs de creneau. Sortie : jeu plan_arcade (contrat v5, colonne mode).
+//
+// Arcade. Regles (utilisateur 25/10/2026 + aide Sorare « What is Arcade? ») : 6 paliers aux seuils ci-dessous ; a chaque palier,
 // jusqu'a 4 compos engagees en meme temps (4 vies) ; une seule qui atteint le seuil suffit pour passer au palier suivant ;
 // si les 4 echouent, retour au palier 1. Une carte jouee ne resert plus. Compo G/D/M/A + 1 joueur de champ, bonus de carte
 // × skin, pas de capitaine. Resultat d'un lot connu au plus tard 1h50 apres le dernier coup d'envoi de ses joueurs (marge
 // de l'utilisateur) : le lot suivant ne prend que des joueurs dont le match commence a partir de ce moment.
 // Bonus de collection (jusqu'a 5 % pour plusieurs joueurs du meme club) : IGNORE (bareme exact non publie, pas modelisable proprement).
 const ARCADE_SEUILS = [260, 300, 360, 400, 440, 480]; // utilisateur 25/10/2026
-const ARCADE_DELAI = 110 * 60e3; // 1h50, marge choisie par l'utilisateur le 25/10/2026
-const ARCADE_VIES = 4; // 4 compos par palier (aide Sorare « What is Arcade? »)
+const ARCADE_DELAI = 110 * 60e3; // 1h50, marge choisie par l'utilisateur le 25/10/2026 (Arcade et European Contenders)
+const ARCADE_VIES = 4; // 4 compos par palier (aide Sorare « What is Arcade? » ; « What is Pro? » : 4 vies aussi)
 // Largeur d'un creneau (choix du stratege) : coups d'envoi entre t et t + largeur, largeur 0 (une seule vague), 1 h ou
 // 2 h. Plus large = plus de joueurs mais resultat plus tardif ; la recherche choisit pour chaque lot la largeur la
 // plus rentable (au palier 1 aussi : jouer au plus tot, mais sans bloquer la vague suivante si ce n'est pas utile).
@@ -860,37 +991,81 @@ const ARCADE_LARGEURS = [0, 3600e3, 2 * 3600e3];
 const ARCADE_RECOMPTE = true;
 const ARCADE_PAR_POSTE = 6; // candidats par poste dans la recherche exhaustive d'une compo
 
+// European Contenders (mode Pro football ; regles donnees par l'utilisateur le 25/10/2026, sauf mention) : 6 paliers aux
+// seuils ci-dessous ; compo G/D/M/A + extra (jamais gardien) avec capitaine ; 4 vies (4 compos par palier) ; un succes fait
+// monter, 4 echecs ramenent au palier 1 ; recompense redonnee a chaque passage (ARCADE_RECOMPTE) ; 1h50 apres le dernier
+// coup d'envoi (ARCADE_DELAI). Cartes et matchs : regles API (docs/europa-contenders.md). Bonus : aide Sorare « What is Pro? »
+// (XP, collection, nouvelle saison et capitaine comptent ; pas de bonus de rarete). Skin : non applique (bonus propre au Set).
+// Les cartes sont consommees comme en Arcade : sans effet ici, chaque joueur n'a qu'un match europeen dans la periode.
+const EUROPE_SEUILS = [350, 390, 410, 450, 470, 500]; // utilisateur 25/10/2026
+// API displayedTypedRules CaptainScarcity « Card score increased by 50% » ; additif (bonus de la carte + 50 % du score du
+// joueur), comme optimise() : releve so5Appearances du 25/10/2026 et aide « What is Pro? »
+const EUROPE_CAPITAINE = 50;
+// API Scarcity « Limited Cards » + « Higher scarcities permitted » ; Common exclues
+const EUROPE_RARETES = ["limited", "rare", "super_rare", "unique"];
+// API Competitions « Players permitted from Europa Conference League, Europa League » (repli si collecte.mjs ne les fournit pas)
+const EUROPE_COMPETITIONS = ["Europa League", "Europa Conference League"];
+// Choix du stratege : en Pro, une compo est modifiable jusqu'au premier coup d'envoi de ses joueurs et la marche court
+// jusqu'a la fin de la journee (aide « What is Pro? ») : on admet aussi des creneaux de 3 h et 6 h pour melanger les
+// matchs de 18h45 et de 21h00 d'un meme jeudi europeen.
+const EUROPE_LARGEURS = [0, 3600e3, 2 * 3600e3, 3 * 3600e3, 6 * 3600e3];
+// Nom de competition -> cle comparable (l'API dit « UEFA Conference League » dans les matchs, « Europa Conference League »
+// dans les regles ; « UEFA Europa League » / « Europa League »)
+const cleCompetition = (s) => { const x = String(s || "").toLowerCase(); return /conference/.test(x) ? "conference" : /champions/.test(x) ? "champions" : /europa/.test(x) ? "europa" : x.replace(/\buefa\b/g, "").trim(); };
+// Puissance d'une carte sans la part rarete (powerBreakdown.scarcityBasisPoints, collecte en section 1). Sans powerBreakdown,
+// la puissance totale est gardee (surestime une carte Rare ou plus si Sorare y met un bonus de rarete).
+const puissanceSansRarete = (card) => (Number(card.power) || 1) - (Number(card.bp?.scarcityBasisPoints) || 0) / 10000;
+
+// Gabarits de piste. carte(card, opts), joueur(r), match(g, opts), valeur(base = proj × pPlay, card)
+const PISTE_ARCADE = { mode: "arcade", seuils: ARCADE_SEUILS, capitaine: 0, largeurs: ARCADE_LARGEURS, horizon: "la gameweek", expliquer: false,
+  carte: (card, o) => card.rarity === "common" && card.set === o.currentSet, joueur: (r) => !!r._inSet, match: () => true,
+  // meme loi que loiCompo (Set : bonus de carte × skin, pas de capitaine), avec la projection et la proba du match
+  valeur: (base, card) => base * card.power * card.skinBonus };
+const PISTE_EUROPE = { mode: "europe", seuils: EUROPE_SEUILS, capitaine: EUROPE_CAPITAINE, largeurs: EUROPE_LARGEURS, horizon: "la période European Contenders", expliquer: true,
+  carte: (card) => EUROPE_RARETES.includes(card.rarity), joueur: () => true,
+  match: (g, o) => (o.competitions || EUROPE_COMPETITIONS).some((c) => cleCompetition(c) === cleCompetition(g.competition)),
+  valeur: (base, card) => base * puissanceSansRarete(card) };
+
 const heureBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" }).format(new Date(t)).replace(":", "h"); } catch { return new Date(t).toISOString().slice(11, 16).replace(":", "h"); } };
 const jourBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", weekday: "long" }).format(new Date(t)); } catch { return ""; } };
+const dateBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", day: "numeric", month: "numeric" }).format(new Date(t)); } catch { return new Date(t).toISOString().slice(5, 10); } };
 const quand = (t, ref) => (jourDuMatch(t, false) === jourDuMatch(ref, false) ? heureBx(t) : jourBx(t) + " " + heureBx(t));
 
-// Meilleure compo (chance de depasser le seuil) parmi les unites { r, g, card, value, sd } ; un joueur une seule fois.
-function meilleureCompoArcade(units, seuil) {
+// Meilleure compo (chance de depasser le seuil) parmi les unites { r, g, card, value, base, sd } ; un joueur une seule fois.
+// capt > 0 : chaque joueur de la compo est essaye comme capitaine (bonus additif : + base × capt ; ecart-type × (1 + capt /
+// puissance), comme loiCompo). capt = 0 (Arcade) : calcul identique a l'ancien meilleureCompoArcade.
+function meilleureCompoPiste(units, seuil, capt = 0) {
   const best = new Map();
   for (const u of units) { const o = best.get(u.r.slug); if (!o || u.value > o.value) best.set(u.r.slug, u); }
   const l = [...best.values()].sort((a, b) => b.value - a.value);
   const par = (p) => l.filter((u) => u.r._pos === p).slice(0, ARCADE_PAR_POSTE);
   const G = par("Goalkeeper"), D = par("Defender"), M = par("Midfielder"), F = par("Forward");
   if (!G.length || !D.length || !M.length || !F.length) return null;
-  const E = [...D, ...M, ...F];
+  const E = [...D, ...M, ...F]; // extra : jamais gardien
+  const caps = capt > 0 ? [0, 1, 2, 3, 4] : [-1];
   let top = null;
   for (const g of G) for (const d of D) for (const m of M) for (const f of F) {
     const m4 = g.value + d.value + m.value + f.value, v4 = g.sd ** 2 + d.sd ** 2 + m.sd ** 2 + f.sd ** 2;
     for (const e of E) {
       if (e === d || e === m || e === f) continue;
-      const mean = m4 + e.value, sd = Math.sqrt(v4 + e.sd ** 2);
-      const p = pAbove(mean, sd, seuil);
-      // a chance egale (souvent 0 % ou 100 %), la plus haute moyenne
-      if (!top || p > top.p + 1e-12 || (Math.abs(p - top.p) <= 1e-12 && mean > top.mean)) top = { p, mean, sd, picks: [[g, "Gardien"], [d, "Défenseur"], [m, "Milieu"], [f, "Attaquant"], [e, "Extra"]] };
+      const five = [g, d, m, f, e];
+      for (const ci of caps) {
+        let mean = m4 + e.value, v = v4 + e.sd ** 2;
+        if (ci >= 0) { const c = five[ci], k = c.value > 0 ? 1 + capt * c.base / c.value : 1; mean += c.base * capt; v += (c.sd * k) ** 2 - c.sd ** 2; }
+        const sd = Math.sqrt(v);
+        const p = pAbove(mean, sd, seuil);
+        // a chance egale (souvent 0 % ou 100 %), la plus haute moyenne
+        if (!top || p > top.p + 1e-12 || (Math.abs(p - top.p) <= 1e-12 && mean > top.mean)) top = { p, mean, sd, cap: ci >= 0 ? five[ci] : null, picks: [[g, "Gardien"], [d, "Défenseur"], [m, "Milieu"], [f, "Attaquant"], [e, "Extra"]] };
+      }
     }
   }
   return top;
 }
 // Lot : jusqu'a 4 compos sans carte commune, composees de facon gloutonne (meilleure chance d'abord)
-function lotArcade(units, seuil) {
+function lotPiste(units, seuil, capt) {
   let rest = units; const compos = [];
   while (compos.length < ARCADE_VIES) {
-    const c = meilleureCompoArcade(rest, seuil);
+    const c = meilleureCompoPiste(rest, seuil, capt);
     if (!c) break;
     compos.push(c);
     const pris = new Set(c.picks.map(([u]) => u.card.slug));
@@ -901,31 +1076,46 @@ function lotArcade(units, seuil) {
   return { compos, p: 1 - compos.reduce((q, c) => q * (1 - c.p), 1), creneau: Math.min(...ts), resultat: Math.max(...ts) + ARCADE_DELAI };
 }
 
+// Pourquoi aucune compo n'est possible (piste qui l'explique : European Contenders). Fonde sur r._pos (joueurs.poste).
+function raisonPisteVide(units, P, fin) {
+  const quoi = "tes cartes Limited (ou plus) qui jouent la Ligue Europa ou la Conference League d'ici le " + dateBx(fin);
+  if (!units.length) return "Aucune compo possible : aucune de tes cartes Limited (ou plus) ne joue la Ligue Europa ou la Conference League d'ici le " + dateBx(fin) + ".";
+  const pos = new Set(units.map((u) => u.r._pos));
+  const manque = [["Goalkeeper", "gardien"], ["Defender", "défenseur"], ["Midfielder", "milieu"], ["Forward", "attaquant"]].filter(([p]) => !pos.has(p)).map(([, n]) => n);
+  if (manque.length) return `Aucune compo possible : aucun ${manque.join(" ni ")} parmi ${quoi}. Il faut une carte de plus à ce poste.`;
+  if (!meilleureCompoPiste(units, P.seuils[0], P.capitaine / 100)) return `Aucune compo possible : il faut 4 joueurs de champ différents (l'extra ne peut pas être gardien) parmi ${quoi}.`;
+  return `Aucune compo possible : les joueurs nécessaires ne jouent pas dans un même créneau de ${Math.max(...P.largeurs) / 3600e3} h.`;
+}
+
 // Plan pour chaque palier de depart (1 a 6) maximisant le nombre espere de paliers franchis d'ici fin.
 // Programmation dynamique sur (palier, premier coup d'envoi autorise) : V(k, i) = max sur la largeur ( jouer le creneau i :
 // p (1 + V(k+1, j)) + (1 − p) V(1, j) ), attendre : V(k, i+1) ), j = premier coup d'envoi >= resultat du lot. Palier 1 : rien a perdre, on joue
 // le premier creneau jouable. Apres le palier 6, plus rien a gagner (V = 0). La recherche ignore la consommation des cartes
 // (un joueur ne joue en principe qu'un match par periode) ; le plan affiche, lui, retire les cartes deja jouees.
-function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_RECOMPTE }) {
+// opts : { debut, fin, currentSet (Arcade), competitions (Europe), recompte }. Piste qui explique (Europe) sans compo
+// possible : une seule ligne d'information (etape 0, compo 0, conseil = raison).
+function planPiste(rows, P, opts) {
+  const { debut, fin, recompte = ARCADE_RECOMPTE } = opts;
+  const SEUILS = P.seuils, LARG = P.largeurs, capt = (P.capitaine || 0) / 100;
   const units = [];
   for (const r of rows) {
-    if (r.sport === "NBA" || !r._inSet) continue;
-    const cards = (r._cards || []).filter((k) => k.rarity === "common" && k.set === currentSet);
+    if (r.sport === "NBA" || !P.joueur(r)) continue;
+    const cards = (r._cards || []).filter((k) => P.carte(k, opts));
     for (const g of r._games || []) {
-      if (!(g.t >= debut && g.t <= fin) || !(g.pPlay > 0)) continue;
+      if (!(g.t >= debut && g.t <= fin) || !(g.pPlay > 0) || !P.match(g, opts)) continue;
       for (const card of cards) {
-        // meme loi que loiCompo (Set : bonus de carte × skin, pas de capitaine), avec la projection et la proba du match
-        const value = g.proj * g.pPlay * card.power * card.skinBonus;
-        units.push({ r, g, card, value, sd: ecartTypeJoueur({ sport: r.sport, regularite: r.regularite, proba_titulaire: g.pPlay * 100 }, value) });
+        const base = g.proj * g.pPlay, value = P.valeur(base, card);
+        units.push({ r, g, card, value, base, sd: ecartTypeJoueur({ sport: r.sport, regularite: r.regularite, proba_titulaire: g.pPlay * 100 }, value) });
       }
     }
   }
-  if (!units.length) return [];
+  const info = (conseil) => (P.expliquer ? [{ mode: P.mode, depart: 1, etape: 0, palier: 1, seuil: SEUILS[0], creneau: "", resultat_vers: "", compo: 0, joueurs: "", score_attendu: null, proba_compo: null, proba_palier: null, conseil }] : []);
+  if (!units.length) return info(raisonPisteVide(units, P, fin));
   const T = [...new Set(units.map((u) => u.g.t))].sort((a, b) => a - b);
-  const n = T.length, K = ARCADE_SEUILS.length;
-  const dansCreneau = (i, w, exclus) => units.filter((u) => u.g.t >= T[i] && u.g.t <= T[i] + ARCADE_LARGEURS[w] && !exclus.has(u.card.slug));
+  const n = T.length, K = SEUILS.length;
+  const dansCreneau = (i, w, exclus) => units.filter((u) => u.g.t >= T[i] && u.g.t <= T[i] + LARG[w] && !exclus.has(u.card.slug));
   const memoLot = new Map();
-  const lot = (i, k, w) => { const key = (i * 8 + k) * 8 + w; if (!memoLot.has(key)) memoLot.set(key, lotArcade(dansCreneau(i, w, new Set()), ARCADE_SEUILS[k - 1])); return memoLot.get(key); };
+  const lot = (i, k, w) => { const key = (i * 8 + k) * 8 + w; if (!memoLot.has(key)) memoLot.set(key, lotPiste(dansCreneau(i, w, new Set()), SEUILS[k - 1], capt)); return memoLot.get(key); };
   const suivant = (t) => { let j = 0; while (j < n && T[j] < t) j++; return j; };
   const memo = new Map();
   // V(k, b, i) -> { v, i (creneau joue ou -1), w (largeur), j } ; b = plus haut palier deja franchi (pour ARCADE_RECOMPTE)
@@ -935,7 +1125,7 @@ function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_RECOMPTE }
     if (recompte) b = 0;
     const key = (k * 8 + b) * 1000 + i; if (memo.has(key)) return memo.get(key);
     let res = { v: 0, i: -1 }, jouable = false;
-    ARCADE_LARGEURS.forEach((_, w) => {
+    LARG.forEach((_, w) => {
       const L = lot(i, k, w); if (!L) return;
       jouable = true;
       const j = suivant(L.resultat), v = L.p * (gain(k, b) + V(k + 1, Math.max(b, k), j).v) + (1 - L.p) * V(1, b, j).v;
@@ -946,7 +1136,7 @@ function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_RECOMPTE }
   };
   for (let i = n - 1; i >= 0; i--) for (let k = K; k >= 1; k--) for (let b = 0; b <= K; b++) V(k, b, i); // memo sans recursion profonde
   const plan = [];
-  const fmtJ = ([u, poste]) => `${poste} ${u.r.joueur} (${u.r.club}, ${quand(u.g.t, debut)}) ${String(round(u.value)).replace(".", ",")}`;
+  const fmtJ = (c) => ([u, poste]) => `${poste} ${u.r.joueur} (${u.r.club}, ${quand(u.g.t, debut)}) ${String(round(u.value + (u === c.cap ? u.base * capt : 0))).replace(".", ",")}${u === c.cap ? " (capitaine)" : ""}`;
   const pc = (p) => (p >= 0.995 ? "> 99 %" : p < 0.005 ? "< 1 %" : Math.round(p * 100) + " %");
   for (let depart = 1; depart <= K; depart++) {
     // chemin des reussites : depart, depart + 1, ... ; chaque conseil dit quoi faire en cas d'echec (retour au palier 1)
@@ -954,32 +1144,36 @@ function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_RECOMPTE }
     const esp = V(depart, b, 0).v;
     while (k <= K && i < n) {
       const d = V(k, b, i); if (d.i < 0) break;
-      const L = lotArcade(dansCreneau(d.i, d.w, exclus), ARCADE_SEUILS[k - 1]);
+      const L = lotPiste(dansCreneau(d.i, d.w, exclus), SEUILS[k - 1], capt);
       if (!L) break;
       etape++;
       const j = suivant(L.resultat);
       const echec = V(1, b, j);
-      const apresEchec = echec.i >= 0 ? ` En cas d'échec des ${L.compos.length} : retour au palier 1, rejouer dès ${quand(T[echec.i], debut)}.` : " En cas d'échec : retour au palier 1, plus de créneau avant la fin de la gameweek.";
+      const apresEchec = echec.i >= 0 ? ` En cas d'échec des ${L.compos.length} : retour au palier 1, rejouer dès ${quand(T[echec.i], debut)}.` : ` En cas d'échec : retour au palier 1, plus de créneau avant la fin de ${P.horizon}.`;
       const nC = L.compos.length === 1 ? "1 compo" : L.compos.length + " compos";
       let conseil;
       if (k === 1) conseil = `Jouer ${nC} dès ${quand(L.creneau, debut)} : rien à perdre au palier 1.`;
       else {
-        const premier = ARCADE_LARGEURS.map((_, w) => lot(i, k, w)).filter(Boolean).sort((a, b) => b.p - a.p)[0];
+        const premier = LARG.map((_, w) => lot(i, k, w)).filter(Boolean).sort((a, b) => b.p - a.p)[0];
         const auLieu = premier && d.i > i ? (premier.p < L.p - 0.005 ? ` (${pc(premier.p)} en jouant dès ${quand(premier.creneau, debut)})` : ` (jouer dès ${quand(premier.creneau, debut)} bloquerait les créneaux suivants)`) : "";
         conseil = d.i > i ? `Attendre le créneau de ${quand(L.creneau, debut)} et y jouer ${nC} : ${pc(L.p)} de passer le palier ${k}${auLieu}.` : `Jouer ${nC} dès ${quand(L.creneau, debut)} : ${pc(L.p)} de passer le palier ${k}.`;
         conseil += apresEchec;
       }
-      if (etape === 1) conseil += ` Nouveaux paliers espérés d'ici la fin de la gameweek : ${String(round(esp, 2)).replace(".", ",")}.`;
+      if (etape === 1) conseil += ` Nouveaux paliers espérés d'ici la fin de ${P.horizon} : ${String(round(esp, 2)).replace(".", ",")}.`;
       L.compos.forEach((c, ci) => {
-        plan.push({ depart, etape, palier: k, seuil: ARCADE_SEUILS[k - 1], creneau: new Date(L.creneau).toISOString().slice(0, 16), resultat_vers: new Date(L.resultat).toISOString().slice(0, 16),
-          compo: ci + 1, joueurs: c.picks.map(fmtJ).join(" ; "), score_attendu: round(c.mean), proba_compo: round(c.p * 100), proba_palier: round(L.p * 100), conseil });
+        plan.push({ mode: P.mode, depart, etape, palier: k, seuil: SEUILS[k - 1], creneau: new Date(L.creneau).toISOString().slice(0, 16), resultat_vers: new Date(L.resultat).toISOString().slice(0, 16),
+          compo: ci + 1, joueurs: c.picks.map(fmtJ(c)).join(" ; "), score_attendu: round(c.mean), proba_compo: round(c.p * 100), proba_palier: round(L.p * 100), conseil });
         for (const [u] of c.picks) exclus.add(u.card.slug);
       });
       b = Math.max(b, k); k++; i = j;
     }
   }
-  return plan;
+  return plan.length ? plan : info(raisonPisteVide(units, P, fin));
 }
+// Arcade (Set) : signature d'avant, resultat identique (plus la colonne mode = "arcade")
+function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_RECOMPTE }) { return planPiste(rows, PISTE_ARCADE, { currentSet, debut, fin, recompte }); }
+// European Contenders (Pro) : competitions = noms autorises lus par collecte.mjs (repli EUROPE_COMPETITIONS)
+function planEurope(rows, { debut, fin, competitions = EUROPE_COMPETITIONS, capitaine = EUROPE_CAPITAINE, recompte = ARCADE_RECOMPTE }) { return planPiste(rows, { ...PISTE_EUROPE, capitaine }, { debut, fin, competitions, recompte }); }
 
 // NBA In-Season (slug in_season ou regle API "SeasonBonus")
 const estInSeasonNba = (c) => c.sport === "NBA" && !!(c.inSeason || c.minInSeason);
@@ -1373,7 +1567,7 @@ function evalueLigne(cr, lus, tiers, bySlug) {
   return out;
 }
 
-return { calculeCompos, fenetreArcade, ARCADE_SEUILS, ARCADE_DELAI, ARCADE_VIES, ARCADE_LARGEURS, ARCADE_RECOMPTE, planArcade, affecteCompetitions, coutInscription, sansBonusCarte, calculeChangements, raisonInSeasonPrises, rank, optimise, missingReason, plafondEtoiles, assignFootball, pAbove, ecartTypeJoueur, loiCompo, gainCompo, evalueRentabilite };
+return { calculeCompos, fenetreArcade, fenetreEurope, ARCADE_SEUILS, ARCADE_DELAI, ARCADE_VIES, ARCADE_LARGEURS, ARCADE_RECOMPTE, EUROPE_SEUILS, EUROPE_CAPITAINE, EUROPE_RARETES, EUROPE_COMPETITIONS, EUROPE_LARGEURS, cleCompetition, puissanceSansRarete, PISTE_ARCADE, PISTE_EUROPE, planPiste, planArcade, planEurope, affecteCompetitions, coutInscription, sansBonusCarte, calculeChangements, raisonInSeasonPrises, rank, optimise, missingReason, plafondEtoiles, assignFootball, pAbove, ecartTypeJoueur, loiCompo, gainCompo, evalueRentabilite };
 })();
 
 // ===== core.mjs =====
@@ -1420,7 +1614,7 @@ async function collect({ apiKey, oddsKey = null, espn = true, prev = null, histo
   return {
     files: {
       joueurs: clean, compos: lineups, competitions: compRows, jours, changements: changes, calibration: calib, cartes, matchs, plan_arcade, paliers, bilan,
-      resume: [{ maj: now.toISOString(), cartes: cards.length, joueurs: players.length, set: setName, gw_football: fixtures.FOOTBALL.slug, gw_nba: fixtures.NBA.slug, limite_football: fixtures.FOOTBALL.cutOffDate, limite_nba: fixtures.NBA.cutOffDate, gw_debut_football: fixtures.FOOTBALL.startDate || null, gw_fin_football: fixtures.FOOTBALL.endDate || null, gw_debut_nba: fixtures.NBA.startDate || null, gw_fin_nba: fixtures.NBA.endDate || null, arcade_debut: fixtures.LIVE_FOOTBALL?.startDate ?? fixtures.FOOTBALL.startDate ?? null, arcade_fin: fixtures.LIVE_FOOTBALL?.endDate ?? fixtures.FOOTBALL.endDate ?? null, poids_sorare: w, cotes_externes: odds.length > 0 ? "oui" : "non", appels_api: ctx.appels() }],
+      resume: [{ maj: now.toISOString(), cartes: cards.length, joueurs: players.length, set: setName, gw_football: fixtures.FOOTBALL.slug, gw_nba: fixtures.NBA.slug, limite_football: fixtures.FOOTBALL.cutOffDate, limite_nba: fixtures.NBA.cutOffDate, gw_debut_football: fixtures.FOOTBALL.startDate || null, gw_fin_football: fixtures.FOOTBALL.endDate || null, gw_debut_nba: fixtures.NBA.startDate || null, gw_fin_nba: fixtures.NBA.endDate || null, arcade_debut: fixtures.LIVE_FOOTBALL?.startDate ?? fixtures.FOOTBALL.startDate ?? null, arcade_fin: fixtures.LIVE_FOOTBALL?.endDate ?? fixtures.FOOTBALL.endDate ?? null, europe_slug: ctx.europe?.slug ?? null, europe_debut: ctx.europe?.debut ?? null, europe_fin: ctx.europe?.fin ?? null, poids_sorare: w, cotes_externes: odds.length > 0 ? "oui" : "non", appels_api: ctx.appels() }],
     },
     history: { samples: allSamples, calibration: calib.slice(-90) },
   };

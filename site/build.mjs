@@ -19,17 +19,17 @@ const ROOT = path.resolve(HERE, '..');
 // Colonnes du contrat de données (docs/contrat-donnees.md, version 3), dans l'ordre du contrat
 const COLUMNS = {
   joueurs: ['joueur', 'slug', 'sport', 'modes', 'club', 'poste', 'etoiles', 'plancher_etoiles', 'gain_etoiles', 'gain_sorare', 'back_to_back', 'espn_statut', 'espn_info', 'espn_retour', 'minutes_5', 'minutes_tendance', 'statut', 'blessure', 'suspension', 'l5', 'l15', 'l10', 'forme10', 'minutes_moy', 'part_decisive', 'regularite', 'matchs_gw', 'adversaire', 'match', 'adv_attaque_rang', 'adv_defense_rang', 'adv_nb_equipes', 'adv_ligue', 'adv_attaque_val', 'adv_defense_val', 'competition_match', 'proba_victoire', 'proba_victoire_adv', 'clean_sheet', 'total_match', 'proba_titulaire', 'source_titulaire', 'grade_sorare', 'proj_sorare', 'proj_forme', 'score_attendu', 'carte', 'carte_label', 'bonus', 'bonus_skin', 'score_final', 'nb_cartes', 'proj_match', 'matchs_probables', 'coequipiers_absents', 'minutes_liberees'],
-  matchs: ['sport', 'slug', 'joueur', 'date', 'jour', 'adversaire', 'proj', 'proba', 'b2b', 'adv_attaque_rang', 'adv_defense_rang', 'adv_nb_equipes', 'proba_victoire', 'total'],
+  matchs: ['sport', 'slug', 'joueur', 'date', 'jour', 'adversaire', 'proj', 'proba', 'b2b', 'adv_attaque_rang', 'adv_defense_rang', 'adv_nb_equipes', 'proba_victoire', 'total', 'competition_match'],
   compos: ['competition', 'sport', 'numero', 'slot', 'joueur', 'carte', 'capitaine', 'score_attendu', 'score_final', 'gain_etoiles', 'etoiles', 'bonus', 'moyenne_cap', 'adversaire', 'match', 'adv_attaque_rang', 'adv_defense_rang', 'adv_nb_equipes', 'slug', 'carte_id'],
   competitions: ['competition', 'slug', 'sport', 'date_limite', 'joueurs_eligibles', 'contraintes', 'max_compos', 'nb_compos', 'scores_compos', 'score_compo', 'statut', 'regles', 'type', 'rang', 'cap_points', 'cap_etoiles', 'min_in_season', 'max_par_club', 'capitaine_pct', 'cout_inscription', 'gains_esperes', 'gain_net_espere', 'autres_recompenses', 'rentable', 'recommandation', 'alternative'],
   bilan: ['sport', 'gw', 'competition', 'numero', 'score_prevu', 'score_reel', 'ecart', 'palier_vise', 'palier_atteint', 'joueurs', 'source_compos'],
-  plan_arcade: ['depart', 'etape', 'palier', 'seuil', 'creneau', 'resultat_vers', 'compo', 'joueurs', 'score_attendu', 'proba_compo', 'proba_palier', 'conseil'],
+  plan_arcade: ['mode', 'depart', 'etape', 'palier', 'seuil', 'creneau', 'resultat_vers', 'compo', 'joueurs', 'score_attendu', 'proba_compo', 'proba_palier', 'conseil'],
   cartes: ['sport', 'slug', 'joueur', 'carte_id', 'label', 'rarete', 'saison', 'puissance', 'skin', 'in_season', 'set_courant'],
   paliers: ['sport', 'competition', 'gw_reference', 'type', 'rang', 'score', 'recompense', 'participants'],
   jours: ['mode', 'jour', 'rang', 'joueur', 'poste', 'adversaire', 'match', 'score_attendu', 'adv_attaque_rang', 'adv_defense_rang', 'adv_nb_equipes'],
   changements: ['joueur', 'modes', 'type', 'detail'],
   calibration: ['date', 'sport', 'matchs', 'erreur_modele', 'erreur_sorare', 'erreur_forme', 'poids_sorare'],
-  resume: ['maj', 'cartes', 'joueurs', 'set', 'gw_football', 'gw_nba', 'limite_football', 'limite_nba', 'poids_sorare', 'cotes_externes', 'appels_api', 'gw_debut_football', 'gw_fin_football', 'gw_debut_nba', 'gw_fin_nba'],
+  resume: ['maj', 'cartes', 'joueurs', 'set', 'gw_football', 'gw_nba', 'limite_football', 'limite_nba', 'poids_sorare', 'cotes_externes', 'appels_api', 'gw_debut_football', 'gw_fin_football', 'gw_debut_nba', 'gw_fin_nba', 'arcade_debut', 'arcade_fin', 'europe_slug', 'europe_debut', 'europe_fin'],
 };
 // Jeux créés vides (CSV d'en-tête) quand ils manquent dans la collecte
 const EMPTY_IF_MISSING = new Set(['bilan']);

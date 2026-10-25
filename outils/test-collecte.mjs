@@ -18,6 +18,9 @@ const iso = (t) => new Date(t).toISOString();
 
 // ---------- Portefeuille et monde simulés ----------
 const h = (s) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+const round2 = (x) => Math.round(x * 100) / 100;
+// empreinte du plan Arcade du monde simulé ci-dessous, relevée le 25/10/2026 avec le code d'avant planPiste (sortie --arcade identique)
+const EMPREINTE_ARCADE = 3115012936;
 const NBA = [ // slug, equipe, tier, l10, carteInSeason
   ["ayo-dosunmu", "Bulls", "IMPACT", 31, true], ["yves-missi", "Pelicans", "ROSTER_PLUS", 26, true],
   ["jrue-holiday", "Trail Blazers", "IMPACT_PLUS", 34, true], ["aaron-gordon", "Nuggets", "IMPACT", 32, true],
@@ -411,7 +414,56 @@ if (f.competitions.some((c) => c.recommandation)) {
   // délai 1h50 : resultat_vers = dernier coup d'envoi du lot + 1h50
   ok(plan.every((x) => (Date.parse(x.resultat_vers + "Z") - Date.parse(x.creneau + "Z")) >= 110 * 60e3), "Arcade : résultat attendu moins de 1h50 après le coup d'envoi");
   ok(planArcade(rows, { currentSet: "glitch", debut: fin + 2 * H, fin: fin + 3 * H }).length === 0 && planArcade([], { currentSet: "glitch", debut, fin }).length === 0, "Arcade : plan non vide sans match avant la fin de la période");
+  // non-régression (généralisation planPiste du 25/10/2026) : empreinte du plan Arcade d'avant, colonne mode = arcade
+  const emp = plan.map((x) => [x.depart, x.etape, x.palier, x.creneau, x.resultat_vers, x.compo, x.score_attendu, x.proba_compo, x.proba_palier, x.conseil].join("|")).join("\n");
+  if (process.argv.includes("--empreinte")) console.log("empreinte Arcade : " + h(emp) + " (" + plan.length + " lignes)");
+  ok(h(emp) === EMPREINTE_ARCADE && plan.every((x) => x.mode === "arcade"), "Arcade : plan différent de celui d'avant la généralisation (empreinte " + h(emp) + ")");
   if (process.argv.includes("--arcade")) console.log(plan.map((x) => [x.depart, x.etape, x.palier, x.creneau, x.resultat_vers, x.compo, x.score_attendu, x.proba_compo, x.proba_palier, x.compo === 1 ? x.conseil : ""].join(" | ")).join("\n"));
+}
+
+// European Contenders (Pro football, utilisateur 25/10/2026 + API + aide « What is Pro? ») : cartes Limited et plus,
+// matchs de Ligue Europa / Conference League seulement, extra jamais gardien, capitaine +50 % ADDITIF, pas de bonus de rareté.
+{
+  const C = await import(pathToFileURL(join(racine, "sorare-compos", "compos.mjs")).href);
+  const debut = Date.parse("2026-11-05T12:00:00Z"), fin = Date.parse("2026-11-06T13:59:00Z");
+  const vagues = ["2026-11-05T17:45:00Z", "2026-11-05T20:00:00Z"], compets = ["UEFA Conference League", "UEFA Europa League"];
+  const postes = ["Goalkeeper", "Goalkeeper", "Defender", "Defender", "Defender", "Midfielder", "Midfielder", "Midfielder", "Forward", "Forward"];
+  const mk = (slug, pos, t, comp, rarity, proj, bp = { scarcityBasisPoints: 1000 }) => ({ joueur: slug, slug, sport: "FOOTBALL", club: "club-" + slug, regularite: 30, _inSet: false, _pos: pos,
+    _cards: [{ slug: slug + "-c", rarity, set: "x", power: 1.2, skinBonus: 1.1, bp }], _games: [{ t, date: iso(t), competition: comp, home: true, adversaire: "Adv", proj, pPlay: 0.9 }] });
+  const rows = [];
+  vagues.forEach((v, vi) => postes.forEach((pos, pi) => rows.push(mk(`e-${vi}-${pi}`, pos, Date.parse(v), compets[vi], pi % 3 ? "limited" : "rare", (pos === "Goalkeeper" ? 95 : 70) + (h("e" + vi + pi) % 15)))));
+  // ignorés : carte Common seule (très forte), match de Ligue des champions, match de championnat
+  rows.push(mk("commune", "Forward", Date.parse(vagues[1]), compets[1], "common", 300));
+  rows.push(mk("ldc", "Forward", Date.parse(vagues[1]), "UEFA Champions League", "limited", 300));
+  rows.push(mk("jpl", "Forward", Date.parse(vagues[1]), "First Division A", "limited", 300));
+  const parNom = new Map(rows.map((r) => [r.slug, r]));
+  const plan = C.planEurope(rows, { debut, fin });
+  ok(plan.length > 0 && plan.every((x) => x.mode === "europe" && x.etape >= 1), "Europe : plan vide ou sans mode europe");
+  ok(plan.filter((x) => x.depart === 1).every((x, i, l) => l[0].seuil === 350) && plan.some((x) => x.palier === 2 && x.seuil === 390), "Europe : seuils 350 / 390 non respectés");
+  for (const x of plan) {
+    const js = x.joueurs.split(" ; ").map((y) => ({ txt: y, slug: y.split(" ")[1], cap: / \(capitaine\)$/.test(y) }));
+    ok(js.length === 5 && /^Gardien /.test(js[0].txt) && /^Extra /.test(js[4].txt), "Europe : compo pas G/D/M/A + extra : " + x.joueurs);
+    ok(parNom.get(js[4].slug)?._pos !== "Goalkeeper", "Europe : extra gardien : " + x.joueurs);
+    ok(!js.some((j) => /^(commune|ldc|jpl)$/.test(j.slug)), "Europe : carte Common ou match non européen retenu : " + x.joueurs);
+    ok(js.filter((j) => j.cap).length === 1, "Europe : il faut exactement un capitaine : " + x.joueurs);
+    // score de la compo = Σ proj × p × (puissance − part rareté) + 50 % du score du capitaine (additif, pas × 1,5)
+    const att = js.reduce((s, j) => { const r = parNom.get(j.slug), base = r._games[0].proj * r._games[0].pPlay; return s + base * (1.2 - 0.1) + (j.cap ? base * 0.5 : 0); }, 0);
+    ok(Math.abs(att - x.score_attendu) < 0.06, `Europe : score de compo ${x.score_attendu} ≠ ${round2(att)} attendu (capitaine additif, sans rareté)`);
+  }
+  // sans powerBreakdown : puissance totale gardée
+  ok(C.puissanceSansRarete({ power: 1.2 }) === 1.2 && Math.abs(C.puissanceSansRarete({ power: 1.2, bp: { scarcityBasisPoints: 1000 } }) - 1.1) < 1e-9, "Europe : part rareté mal retirée");
+  // aucun attaquant éligible (les seuls attaquants n'ont qu'une Common ou ne jouent pas la Ligue Europa / Conference League)
+  const sansA = rows.filter((r) => r._pos !== "Forward" || /^(commune|ldc|jpl)$/.test(r.slug));
+  const vide = C.planEurope(sansA, { debut, fin });
+  ok(vide.length === 1 && vide[0].etape === 0 && vide[0].compo === 0 && /aucun attaquant/.test(vide[0].conseil), "Europe : cas sans attaquant mal expliqué : " + JSON.stringify(vide));
+  ok(C.planEurope([], { debut, fin }).length === 1, "Europe : sans carte éligible, une ligne d'explication attendue");
+  // calculeCompos : sans fenêtre Europe, ni plan europe ni matchs européens ; avec fenêtre, matchs européens seulement, avec competition_match
+  const ctx = (europe) => ({ comps: [], currentSet: "glitch", setName: "G", advRank: () => ({}), europe, fixtures: { FOOTBALL: { startDate: iso(debut), endDate: iso(debut + H), cutOffDate: iso(debut) } } });
+  const r0 = C.calculeCompos(ctx(null), rows, null, new Date(debut));
+  ok(!r0.plan_arcade.some((x) => x.mode === "europe") && !r0.matchs.length, "Europe : plan ou matchs sans fenêtre Europe (repli : plan vide)");
+  const r1 = C.calculeCompos(ctx({ slug: "eu", debut: iso(debut - J), fin: iso(fin), competitions: ["Europa Conference League", "Europa League"], capitaine: 50 }), rows, null, new Date(debut));
+  ok(r1.plan_arcade.some((x) => x.mode === "europe") && r1.matchs.length === 20 && r1.matchs.every((m) => compets.includes(m.competition_match) && m.sport === "Football"), "Europe : matchs européens incorrects : " + r1.matchs.map((m) => m.slug + ":" + m.competition_match).join());
+  if (process.argv.includes("--europe")) console.log(plan.filter((x) => x.depart <= 2).map((x) => [x.depart, x.etape, x.palier, x.seuil, x.creneau, x.compo, x.score_attendu, x.proba_compo, x.proba_palier, x.joueurs, x.compo === 1 ? x.conseil : ""].join(" | ")).join("\n") + "\n" + vide[0].conseil);
 }
 
 const i = process.argv.indexOf("--sortie");

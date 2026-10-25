@@ -65,7 +65,7 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
   for (;;) {
     let d;
     try {
-      d = await gq(`query($a:String){ user(slug:"${USER}"){ cards(first:${page}, after:$a){ pageInfo{ hasNextPage endCursor } nodes { slug rarityTyped sport seasonYear inSeasonEligible power cardSet{ slug name } skinEdition{ skin bonus } powerBreakdown{ collectionBasisPoints xpBasisPoints seasonBasisPoints scarcityBasisPoints specialEditionCardsBasisPoints activeClubsBasisPoints nationalityBasisPoints positionsBasisPoints } anyPlayer{ slug displayName } } } } }`, { a: after });
+      d = await gq(`query($a:String){ user(slug:"${USER}"){ cards(first:${page}, after:$a){ pageInfo{ hasNextPage endCursor } nodes { slug rarityTyped sport seasonYear inSeasonEligible anyPositions power cardSet{ slug name } skinEdition{ skin bonus } powerBreakdown{ collectionBasisPoints xpBasisPoints seasonBasisPoints scarcityBasisPoints specialEditionCardsBasisPoints activeClubsBasisPoints nationalityBasisPoints positionsBasisPoints } anyPlayer{ slug displayName } } } } }`, { a: after });
     } catch (e) { if (/complexity/i.test(e.message) && page > 10) { page = Math.floor(page / 2); continue; } throw e; }
     const c = d.user.cards; cards.push(...c.nodes);
     if (!c.pageInfo.hasNextPage) break; after = c.pageInfo.endCursor;
@@ -80,10 +80,19 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
       slug: c.slug, rarity: c.rarityTyped, season: c.seasonYear, inSeason: !!c.inSeasonEligible,
       power: Number(c.power) || 1, skin: c.skinEdition?.skin || "", skinBonus: Number(c.skinEdition?.bonus) || 1,
       set: c.cardSet?.slug || "", bp: c.powerBreakdown || {},
+      // Poste de la carte (Card.anyPositions, football ; [] en NBA) : c'est lui qui compte dans les compos (voir section 3)
+      positions: c.sport === "FOOTBALL" && Array.isArray(c.anyPositions) ? c.anyPositions.filter((x) => POS[x]) : [],
     });
   }
   const players = [...byPlayer.values()];
   log(`${cards.length} cartes, ${players.length} joueurs, set courant ${setName}`);
+
+  // Gameweeks recentes d'un sport (1 appel par sport, mis en cache) : partage par European Contenders, les paliers et le bilan
+  const recentes = new Map();
+  const fixturesRecentes = async (sport) => {
+    if (!recentes.has(sport)) recentes.set(sport, (await gq(`query($sport:Sport!){ so5{ so5Fixtures(sport:$sport, first:8){ nodes{ slug aasmState startDate endDate } } } }`, { sport })).so5.so5Fixtures.nodes);
+    return recentes.get(sport);
+  };
 
   // ---------- 2. Gameweeks et competitions ----------
   log("Compétitions…");
@@ -93,13 +102,14 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
   // LIVE = football-23-27-oct-2026 (aasmState started), UPCOMING = football-27-30-oct-2026. Sans gameweek en cours
   // (live null), fixtures.LIVE_FOOTBALL reprend la fenetre de la gameweek a venir.
   for (const sport of ["FOOTBALL", "NBA"]) {
-    const live = sport === "FOOTBALL" ? " live: so5Fixture(type:LIVE sport:$sport){ slug aasmState startDate endDate }" : "";
+    const live = sport === "FOOTBALL" ? " live: so5Fixture(type:LIVE sport:$sport){ slug aasmState startDate endDate so5Leaderboards{ slug } }" : "";
     const d = await gq(`query($sport:Sport!){ so5{ so5Fixture(type:UPCOMING sport:$sport){ slug cutOffDate startDate endDate gameWeek so5Leaderboards{ slug displayName mainRarityType teamsCap format{ title } } }${live} } }`, { sport });
     fixtures[sport] = d.so5.so5Fixture;
     if (sport === "FOOTBALL") {
       const l = d.so5.live, u = d.so5.so5Fixture;
       fixtures.LIVE_FOOTBALL = l?.slug ? { slug: l.slug, startDate: l.startDate || null, endDate: l.endDate || null, enCours: true }
         : { slug: u.slug, startDate: u.startDate || null, endDate: u.endDate || null, enCours: false };
+      fixtures.LIVE_FOOTBALL.so5Leaderboards = l?.slug ? l.so5Leaderboards || null : null;
     }
   }
   // Salons (Cap 260 « ..._jupiler_arena_limited ») : l'API liste le salon de base puis chaque salon de 10
@@ -132,6 +142,11 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     });
   }
 
+  // European Contenders (contrat v5, resume.europe_*) : leaderboard « …-special-weekly-european-contenders-division-1 »
+  // de la gameweek en cours ou a venir. Cout : 0 a 3 appels de recherche + 1 appel de regles si trouve.
+  let europe = null;
+  try { europe = await chercheEurope({ gq, fixtures, fixturesRecentes, now, log }); } catch (e) { log("European Contenders : " + e.message); }
+
   // ---------- 3. Donnees joueurs ----------
   log("Joueurs…");
   const PQ = `query($s:[String!]!){ players(slugs:$s){ slug gameplayTier activeClub{ name slug domesticLeague{ name } }
@@ -142,6 +157,19 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
   const info = new Map();
   (await batched(players.map((p) => p.slug), apiKey ? 40 : 10, async (s) => (await gq(PQ, { s })).players)).forEach((p) => p && info.set(p.slug, p));
   for (const p of players) p.d = info.get(p.slug) || null;
+  // Poste football : celui des cartes (Card.anyPositions), pas Player.position. Verifie le 25/10/2026 : Guilherme Smith
+  // (Union) a Player.position = Midfielder mais sa carte Limited 2026 est Forward ; 80 cartes 2026 du portefeuille sur
+  // 1 321 ont un poste different de Player.position. d.position (lu par modele.mjs et compos.mjs) devient le poste des
+  // cartes de la saison la plus recente ; Player.position est garde dans d.positionJoueur. Si les cartes d'un joueur
+  // n'ont pas toutes le meme poste, p.postesCartes en garde la liste (cas absent du portefeuille au 25/10/2026).
+  for (const p of players) {
+    if (!p.d || p.sport !== "FOOTBALL") continue;
+    const pc = posteCartes(p.cards);
+    p.postesCartes = pc.tous;
+    p.d.positionJoueur = p.d.position ?? null;
+    if (pc.poste) p.d.position = pc.poste;
+    if (pc.tous.length > 1) log(`poste : ${p.name} a des cartes à plusieurs postes (${pc.tous.join(", ")}), retenu ${pc.poste}`);
+  }
 
   const isJPL = (p) => p.d?.activeClub?.domesticLeague?.name === "First Division A";
   const inSet = (p) => p.sport === "FOOTBALL" && p.cards.some((c) => c.rarity === "common" && c.set === currentSet);
@@ -152,7 +180,12 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
       .sort((a, b) => (b.d.l15 || 0) - (a.d.l15 || 0)).slice(0, 40).forEach((p) => setPool.add(p.slug));
   }
   const relevant = players.filter((p) => p.d && (p.sport === "NBA" || isJPL(p) || setPool.has(p.slug)));
-  log(`${relevant.length} joueurs pertinents`);
+  // European Contenders (v5) : joueurs football avec une carte Limited ou plus rare, hors Jupiler et hors Set retenu ;
+  // leurs matchs futurs sont lus en section 4 (1 appel anyFutureGames par joueur ; 1 joueur au 25/10/2026, Justin Reynolds).
+  // Seulement s'il existe une competition European Contenders en cours ou a venir.
+  const europeens = europe ? players.filter((p) => p.d && p.sport === "FOOTBALL" && !relevant.includes(p) && p.cards.some((c) => RARETES_EUROPE.has(c.rarity))) : [];
+  for (const p of europeens) { p.europeSeul = true; relevant.push(p); }
+  log(`${relevant.length} joueurs pertinents` + (europeens.length ? ` (dont ${europeens.length} pour European Contenders seulement)` : ""));
 
   // ---------- 4. Prochains matchs, projections Sorare, cotes ----------
   log("Matchs à venir…");
@@ -211,14 +244,86 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     });
   }
 
-  // Gameweeks recentes d'un sport (1 appel par sport, mis en cache) : partage par les paliers et le bilan
-  const recentes = new Map();
-  const fixturesRecentes = async (sport) => {
-    if (!recentes.has(sport)) recentes.set(sport, (await gq(`query($sport:Sport!){ so5{ so5Fixtures(sport:$sport, first:8){ nodes{ slug aasmState startDate endDate } } } }`, { sport })).so5.so5Fixtures.nodes);
-    return recentes.get(sport);
-  };
+  return { gq, batched, fixturesRecentes, appels: () => calls, europe, estMatchEurope: (g) => estMatchEurope(europe, g), cards, players, byPlayer, currentSet, setName, fixtures, comps, relevant, isJPL, inSet, odds, espnData, standings, advRank, samples, w, calib };
+}
 
-  return { gq, batched, fixturesRecentes, appels: () => calls, cards, players, byPlayer, currentSet, setName, fixtures, comps, relevant, isJPL, inSet, odds, espnData, standings, advRank, samples, w, calib };
+// ---------- Poste football d'apres les cartes (Card.anyPositions) ----------
+// cards : cartes d'un joueur (section 1, champ positions). Poste = celui de la carte de la saison la plus recente
+// (le plus frequent si plusieurs cartes de cette saison) ; tous = postes distincts de toutes ses cartes.
+export function posteCartes(cards) {
+  const avec = (cards || []).filter((c) => c.positions && c.positions.length);
+  const tous = [...new Set(avec.flatMap((c) => c.positions))];
+  if (!avec.length) return { poste: null, tous };
+  const saison = Math.max(...avec.map((c) => Number(c.season) || 0));
+  return { poste: mostCommon(avec.filter((c) => (Number(c.season) || 0) === saison).map((c) => c.positions[0])), tous };
+}
+
+// ---------- European Contenders (contrat v5) ----------
+const RARETES_EUROPE = new Set(["limited", "rare", "super_rare", "unique"]); // « Higher scarcities permitted »
+const EUROPE_SUFFIXE = "-special-weekly-european-contenders-division-1";
+const EUROPE_COMPETITIONS_DEFAUT = ["Europa Conference League", "Europa League"]; // releve le 25/10/2026 (gameweek 723)
+// Nom de competition -> cle comparable : « UEFA Europa League » = « Europa League », « UEFA Conference League » =
+// « Europa Conference League » ; les autres noms sont compares tels quels (minuscules, sans accents).
+export function cleCompetition(nom) {
+  const n = String(nom || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\buefa\b/g, "").replace(/\s+/g, " ").trim();
+  if (/conference/.test(n)) return "conference-league";
+  if (/europa league/.test(n)) return "europa-league";
+  return n;
+}
+// g : match brut (anyFutureGames, competition{ name }), match du modele (competition : texte) ou nom de competition.
+// Vrai si la competition est autorisee et si le match tombe dans la fenetre European Contenders.
+export function estMatchEurope(europe, g) {
+  if (!europe || !g) return false;
+  const nom = typeof g === "string" ? g : typeof g.competition === "string" ? g.competition : g.competition?.name;
+  if (!europe.competitions.map(cleCompetition).includes(cleCompetition(nom))) return false;
+  if (typeof g === "string" || !g.date) return true;
+  const t = Date.parse(g.date);
+  return !(t < Date.parse(europe.debut) - 3600e3) && !(t > Date.parse(europe.fin));
+}
+// Cherche le leaderboard sans deviner son slug (un slug absent fait echouer la requete, NOT_FOUND) : d'abord dans les
+// leaderboards deja lus (gameweek LIVE et UPCOMING, 0 appel), puis dans les autres gameweeks football non terminees de
+// so5Fixtures (appel partage avec paliers et bilan), 1 appel so5Fixture(slug) par gameweek, au plus 3, de la plus proche
+// a la plus lointaine. Puis 1 appel pour ses regles. Retour : null ou
+// { slug, nom, fixture, debut, fin, competitions[], taille, remplacants, capitaine, equipes, regles }.
+export async function chercheEurope({ gq, fixtures, fixturesRecentes, now = new Date(), log = () => {} }) {
+  const t = +now;
+  const cands = [];
+  const L = fixtures.LIVE_FOOTBALL, U = fixtures.FOOTBALL;
+  if (L?.enCours && L.so5Leaderboards) cands.push({ slug: L.slug, startDate: L.startDate, endDate: L.endDate, boards: L.so5Leaderboards });
+  if (U?.so5Leaderboards) cands.push({ slug: U.slug, startDate: U.startDate, endDate: U.endDate, boards: U.so5Leaderboards });
+  let trouve = null;
+  const essaie = (c) => { const b = (c.boards || []).find((l) => l.slug.endsWith(EUROPE_SUFFIXE)); return b && !(Date.parse(c.endDate) < t) ? { ...c, board: b } : null; };
+  for (const c of cands) if ((trouve = essaie(c))) break;
+  if (!trouve && fixturesRecentes) {
+    const vus = new Set(cands.map((c) => c.slug));
+    const autres = (await fixturesRecentes("FOOTBALL")).filter((f) => f.slug && !vus.has(f.slug) && f.aasmState !== "closed" && !(Date.parse(f.endDate) < t))
+      .sort((a, b) => (Date.parse(a.startDate) || 0) - (Date.parse(b.startDate) || 0)).slice(0, 3);
+    for (const f of autres) {
+      const d = await gq(`query($s:String!){ so5{ so5Fixture(slug:$s){ so5Leaderboards{ slug } } } }`, { s: f.slug });
+      if ((trouve = essaie({ ...f, boards: d.so5.so5Fixture?.so5Leaderboards || [] }))) break;
+    }
+  }
+  if (!trouve) { log("European Contenders : aucune compétition en cours ou à venir"); return null; }
+  const slug = trouve.board.slug;
+  const d = await gq(`query($s:String!){ so5{ so5Leaderboard(slug:$s){ slug displayName teamsCap so5League{ displayName } displayedTypedRules{ key descriptions{ title items{ title } } } } } }`, { s: slug });
+  const lb = d.so5.so5Leaderboard || {};
+  const rules = (lb.displayedTypedRules || []).map((r) => ({ key: r.key, items: r.descriptions.flatMap((x) => (x.items || []).map((i) => i.title).filter(Boolean)), text: r.descriptions.map((x) => [x.title, ...(x.items || []).map((i) => i.title)].filter(Boolean).join(" ")).join(" ; ") }));
+  const regle = (k) => rules.find((r) => r.key === k);
+  const comps = regle("Competitions")?.items || [];
+  const scar = regle("Scarcity")?.text || "";
+  const cap = (regle("CaptainScarcity")?.text || "").match(/(\d+)\s*%/);
+  const europe = {
+    slug, nom: lb.so5League?.displayName || "European Contenders", fixture: trouve.slug,
+    debut: trouve.startDate || null, fin: trouve.endDate || null,
+    competitions: comps.length ? comps : EUROPE_COMPETITIONS_DEFAUT,
+    taille: Number((scar.match(/(\d+)\s*x/i) || [])[1]) || null,
+    remplacants: Number((scar.match(/\+\s*(\d+)\s*Sub/i) || [])[1]) || 0,
+    capitaine: cap ? Number(cap[1]) : null, equipes: lb.teamsCap ?? null,
+    regles: rules.filter((r) => r.text).map((r) => r.text).join(" | "),
+  };
+  if (!comps.length) log("European Contenders : règle Competitions illisible, compétitions par défaut");
+  log(`European Contenders : ${slug} (${europe.debut} → ${europe.fin}), ${europe.competitions.join(", ")}`);
+  return europe;
 }
 
 function mostCommon(a) { const m = new Map(); a.forEach((x) => m.set(x, (m.get(x) || 0) + 1)); return [...m.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] || null; }

@@ -1,14 +1,15 @@
 // Compositions Sorare pour Elpredatooor : sections 8 a 12 de l'ancien core.mjs
 // (compos, meilleurs par jour, changements, cartes et calendrier NBA pour le dashboard).
 // calculeCompos(contexte de collecte.mjs, rows de modele.mjs, prev, now) -> { lineups, compRows, jours, changes, cartes, matchs, plan_arcade }
-// planArcade(rows, { currentSet, debut, fin, recompte }) : plan de piste du mode Set / Arcade (football, contrat v4).
+// planPiste(rows, gabarit, opts) : plan de piste football (contrat v5, colonne mode) ; planArcade (Set, cartes Common) et
+// planEurope (Pro European Contenders, cartes Limited et plus, Ligue Europa / Conference League) en sont deux reglages.
 // evalueRentabilite(compRows, lineups, paliers, rows) : apres les paliers (core.mjs), colonnes v3 de competitions et choix
 // NBA entre In-Season en priorite 1 et l'option sans In-Season (modifie compRows et lineups en place).
 
 import { POS, round, day, cardLabel } from "./collecte.mjs";
 import { jourDuMatch } from "./modele.mjs";
 
-export function calculeCompos({ comps, currentSet, setName, fixtures, advRank }, rows, prev, now = new Date()) {
+export function calculeCompos({ comps, currentSet, setName, fixtures, advRank, europe }, rows, prev, now = new Date()) {
   // ---------- 8. Compositions ----------
   const used = new Set();
   const order = [...comps].sort((a, b) => rank(a) - rank(b));
@@ -70,17 +71,28 @@ export function calculeCompos({ comps, currentSet, setName, fixtures, advRank },
   const matchs = [];
   for (const r of rows.filter((x) => x.sport === "NBA")) for (const g of r._games.filter((x) => x.inWindow)) {
     const ar = advRank(g.adversaire, "NBA");
-    matchs.push({ sport: "NBA", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: day(new Date(g.t - 5 * 3600e3).toISOString()), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: g.b2b, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null });
+    matchs.push({ sport: "NBA", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: day(new Date(g.t - 5 * 3600e3).toISOString()), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: g.b2b, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null, competition_match: "" });
   }
   // Football (contrat v4) : joueurs du Set, matchs dont le coup d'envoi tombe entre now et la fin de la periode Arcade
   // (gameweek EN COURS, fixtures.LIVE_FOOTBALL de collecte.mjs ; repli : gameweek a venir). jour = date a Bruxelles.
   const fen = fenetreArcade(fixtures, now);
   for (const r of rows.filter((x) => x.sport !== "NBA" && x._inSet)) for (const g of r._games.filter((x) => x.t >= fen.debut && x.t <= fen.fin)) {
     const ar = advRank(g.adversaire, r.sport);
-    matchs.push({ sport: "Football", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: jourDuMatch(g.t, false), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: null, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null });
+    matchs.push({ sport: "Football", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: jourDuMatch(g.t, false), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: null, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null, competition_match: g.competition || "" });
   }
-  // ---------- 12 bis. Plan de piste Arcade (Set, football ; contrat v4) ----------
-  const plan_arcade = planArcade(rows, { currentSet, debut: fen.debut, fin: fen.fin });
+  // Football Pro European Contenders (contrat v5) : joueurs avec une carte Limited ou plus, matchs d'une competition autorisee
+  // (Ligue Europa, Conference League) dans la periode Europe. Une seule ligne par slug + date (un joueur du Set peut y etre deja).
+  const eu = fenetreEurope(europe ?? fixtures?.EUROPE, now);
+  if (eu) {
+    const deja = new Set(matchs.map((x) => x.slug + "|" + x.date));
+    for (const r of rows.filter((x) => x.sport !== "NBA" && (x._cards || []).some((k) => PISTE_EUROPE.carte(k)))) for (const g of r._games.filter((x) => x.t >= eu.debut && x.t <= eu.fin && PISTE_EUROPE.match(x, eu))) {
+      const date = g.date.slice(0, 16); if (deja.has(r.slug + "|" + date)) continue; deja.add(r.slug + "|" + date);
+      const ar = advRank(g.adversaire, r.sport);
+      matchs.push({ sport: "Football", slug: r.slug, joueur: r.joueur, date, jour: jourDuMatch(g.t, false), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: null, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null, competition_match: g.competition || "" });
+    }
+  }
+  // ---------- 12 bis. Plans de piste football : Arcade (Set, contrat v4) puis European Contenders (Pro, contrat v5) ----------
+  const plan_arcade = planArcade(rows, { currentSet, debut: fen.debut, fin: fen.fin }).concat(eu ? planEurope(rows, eu) : []);
   return { lineups, compRows, jours, changes, cartes, matchs, plan_arcade };
 }
 
@@ -93,16 +105,30 @@ export function fenetreArcade(fixtures, now) {
   return { debut: Math.max(t0, Date.parse(f.startDate) || t0), fin: Date.parse(f.endDate) || t0 };
 }
 
-// ---------- Mode Arcade (Set football, cartes Common du set en cours) ----------
-// Regles (utilisateur 25/10/2026 + aide Sorare « What is Arcade? ») : 6 paliers aux seuils ci-dessous ; a chaque palier,
+// Periode European Contenders (contrat v5, resume.europe_*) : contexte.europe de collecte.mjs (chercheEurope, agent donnees :
+// { slug, debut, fin, competitions, capitaine, ... }) ; accepte aussi { startDate, endDate }. Sans fenetre : null -> ni plan
+// europe ni matchs europeens. competitions : regle API Competitions (repli EUROPE_COMPETITIONS) ; capitaine : regle API
+// CaptainScarcity (repli EUROPE_CAPITAINE).
+export function fenetreEurope(e, now) {
+  const fin = Date.parse(e?.fin ?? e?.endDate);
+  if (!e || !Number.isFinite(fin)) return null;
+  const t0 = new Date(now).getTime();
+  return { debut: Math.max(t0, Date.parse(e.debut ?? e.startDate) || t0), fin, competitions: Array.isArray(e.competitions) && e.competitions.length ? e.competitions : EUROPE_COMPETITIONS, capitaine: Number(e.capitaine) > 0 ? Number(e.capitaine) : EUROPE_CAPITAINE };
+}
+
+// ---------- Pistes football : Arcade (Set) et European Contenders (Pro) ; FOOTBALL SEULEMENT ----------
+// Un seul planificateur (planPiste), parametre par un gabarit de piste (PISTE_ARCADE, PISTE_EUROPE) : mode, seuils, cartes
+// admises, matchs admis, capitaine, valeur d'une carte, largeurs de creneau. Sortie : jeu plan_arcade (contrat v5, colonne mode).
+//
+// Arcade. Regles (utilisateur 25/10/2026 + aide Sorare « What is Arcade? ») : 6 paliers aux seuils ci-dessous ; a chaque palier,
 // jusqu'a 4 compos engagees en meme temps (4 vies) ; une seule qui atteint le seuil suffit pour passer au palier suivant ;
 // si les 4 echouent, retour au palier 1. Une carte jouee ne resert plus. Compo G/D/M/A + 1 joueur de champ, bonus de carte
 // × skin, pas de capitaine. Resultat d'un lot connu au plus tard 1h50 apres le dernier coup d'envoi de ses joueurs (marge
 // de l'utilisateur) : le lot suivant ne prend que des joueurs dont le match commence a partir de ce moment.
 // Bonus de collection (jusqu'a 5 % pour plusieurs joueurs du meme club) : IGNORE (bareme exact non publie, pas modelisable proprement).
 export const ARCADE_SEUILS = [260, 300, 360, 400, 440, 480]; // utilisateur 25/10/2026
-export const ARCADE_DELAI = 110 * 60e3; // 1h50, marge choisie par l'utilisateur le 25/10/2026
-export const ARCADE_VIES = 4; // 4 compos par palier (aide Sorare « What is Arcade? »)
+export const ARCADE_DELAI = 110 * 60e3; // 1h50, marge choisie par l'utilisateur le 25/10/2026 (Arcade et European Contenders)
+export const ARCADE_VIES = 4; // 4 compos par palier (aide Sorare « What is Arcade? » ; « What is Pro? » : 4 vies aussi)
 // Largeur d'un creneau (choix du stratege) : coups d'envoi entre t et t + largeur, largeur 0 (une seule vague), 1 h ou
 // 2 h. Plus large = plus de joueurs mais resultat plus tardif ; la recherche choisit pour chaque lot la largeur la
 // plus rentable (au palier 1 aussi : jouer au plus tot, mais sans bloquer la vague suivante si ce n'est pas utile).
@@ -113,37 +139,81 @@ export const ARCADE_LARGEURS = [0, 3600e3, 2 * 3600e3];
 export const ARCADE_RECOMPTE = true;
 const ARCADE_PAR_POSTE = 6; // candidats par poste dans la recherche exhaustive d'une compo
 
+// European Contenders (mode Pro football ; regles donnees par l'utilisateur le 25/10/2026, sauf mention) : 6 paliers aux
+// seuils ci-dessous ; compo G/D/M/A + extra (jamais gardien) avec capitaine ; 4 vies (4 compos par palier) ; un succes fait
+// monter, 4 echecs ramenent au palier 1 ; recompense redonnee a chaque passage (ARCADE_RECOMPTE) ; 1h50 apres le dernier
+// coup d'envoi (ARCADE_DELAI). Cartes et matchs : regles API (docs/europa-contenders.md). Bonus : aide Sorare « What is Pro? »
+// (XP, collection, nouvelle saison et capitaine comptent ; pas de bonus de rarete). Skin : non applique (bonus propre au Set).
+// Les cartes sont consommees comme en Arcade : sans effet ici, chaque joueur n'a qu'un match europeen dans la periode.
+export const EUROPE_SEUILS = [350, 390, 410, 450, 470, 500]; // utilisateur 25/10/2026
+// API displayedTypedRules CaptainScarcity « Card score increased by 50% » ; additif (bonus de la carte + 50 % du score du
+// joueur), comme optimise() : releve so5Appearances du 25/10/2026 et aide « What is Pro? »
+export const EUROPE_CAPITAINE = 50;
+// API Scarcity « Limited Cards » + « Higher scarcities permitted » ; Common exclues
+export const EUROPE_RARETES = ["limited", "rare", "super_rare", "unique"];
+// API Competitions « Players permitted from Europa Conference League, Europa League » (repli si collecte.mjs ne les fournit pas)
+export const EUROPE_COMPETITIONS = ["Europa League", "Europa Conference League"];
+// Choix du stratege : en Pro, une compo est modifiable jusqu'au premier coup d'envoi de ses joueurs et la marche court
+// jusqu'a la fin de la journee (aide « What is Pro? ») : on admet aussi des creneaux de 3 h et 6 h pour melanger les
+// matchs de 18h45 et de 21h00 d'un meme jeudi europeen.
+export const EUROPE_LARGEURS = [0, 3600e3, 2 * 3600e3, 3 * 3600e3, 6 * 3600e3];
+// Nom de competition -> cle comparable (l'API dit « UEFA Conference League » dans les matchs, « Europa Conference League »
+// dans les regles ; « UEFA Europa League » / « Europa League »)
+export const cleCompetition = (s) => { const x = String(s || "").toLowerCase(); return /conference/.test(x) ? "conference" : /champions/.test(x) ? "champions" : /europa/.test(x) ? "europa" : x.replace(/\buefa\b/g, "").trim(); };
+// Puissance d'une carte sans la part rarete (powerBreakdown.scarcityBasisPoints, collecte en section 1). Sans powerBreakdown,
+// la puissance totale est gardee (surestime une carte Rare ou plus si Sorare y met un bonus de rarete).
+export const puissanceSansRarete = (card) => (Number(card.power) || 1) - (Number(card.bp?.scarcityBasisPoints) || 0) / 10000;
+
+// Gabarits de piste. carte(card, opts), joueur(r), match(g, opts), valeur(base = proj × pPlay, card)
+export const PISTE_ARCADE = { mode: "arcade", seuils: ARCADE_SEUILS, capitaine: 0, largeurs: ARCADE_LARGEURS, horizon: "la gameweek", expliquer: false,
+  carte: (card, o) => card.rarity === "common" && card.set === o.currentSet, joueur: (r) => !!r._inSet, match: () => true,
+  // meme loi que loiCompo (Set : bonus de carte × skin, pas de capitaine), avec la projection et la proba du match
+  valeur: (base, card) => base * card.power * card.skinBonus };
+export const PISTE_EUROPE = { mode: "europe", seuils: EUROPE_SEUILS, capitaine: EUROPE_CAPITAINE, largeurs: EUROPE_LARGEURS, horizon: "la période European Contenders", expliquer: true,
+  carte: (card) => EUROPE_RARETES.includes(card.rarity), joueur: () => true,
+  match: (g, o) => (o.competitions || EUROPE_COMPETITIONS).some((c) => cleCompetition(c) === cleCompetition(g.competition)),
+  valeur: (base, card) => base * puissanceSansRarete(card) };
+
 const heureBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" }).format(new Date(t)).replace(":", "h"); } catch { return new Date(t).toISOString().slice(11, 16).replace(":", "h"); } };
 const jourBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", weekday: "long" }).format(new Date(t)); } catch { return ""; } };
+const dateBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", day: "numeric", month: "numeric" }).format(new Date(t)); } catch { return new Date(t).toISOString().slice(5, 10); } };
 const quand = (t, ref) => (jourDuMatch(t, false) === jourDuMatch(ref, false) ? heureBx(t) : jourBx(t) + " " + heureBx(t));
 
-// Meilleure compo (chance de depasser le seuil) parmi les unites { r, g, card, value, sd } ; un joueur une seule fois.
-function meilleureCompoArcade(units, seuil) {
+// Meilleure compo (chance de depasser le seuil) parmi les unites { r, g, card, value, base, sd } ; un joueur une seule fois.
+// capt > 0 : chaque joueur de la compo est essaye comme capitaine (bonus additif : + base × capt ; ecart-type × (1 + capt /
+// puissance), comme loiCompo). capt = 0 (Arcade) : calcul identique a l'ancien meilleureCompoArcade.
+function meilleureCompoPiste(units, seuil, capt = 0) {
   const best = new Map();
   for (const u of units) { const o = best.get(u.r.slug); if (!o || u.value > o.value) best.set(u.r.slug, u); }
   const l = [...best.values()].sort((a, b) => b.value - a.value);
   const par = (p) => l.filter((u) => u.r._pos === p).slice(0, ARCADE_PAR_POSTE);
   const G = par("Goalkeeper"), D = par("Defender"), M = par("Midfielder"), F = par("Forward");
   if (!G.length || !D.length || !M.length || !F.length) return null;
-  const E = [...D, ...M, ...F];
+  const E = [...D, ...M, ...F]; // extra : jamais gardien
+  const caps = capt > 0 ? [0, 1, 2, 3, 4] : [-1];
   let top = null;
   for (const g of G) for (const d of D) for (const m of M) for (const f of F) {
     const m4 = g.value + d.value + m.value + f.value, v4 = g.sd ** 2 + d.sd ** 2 + m.sd ** 2 + f.sd ** 2;
     for (const e of E) {
       if (e === d || e === m || e === f) continue;
-      const mean = m4 + e.value, sd = Math.sqrt(v4 + e.sd ** 2);
-      const p = pAbove(mean, sd, seuil);
-      // a chance egale (souvent 0 % ou 100 %), la plus haute moyenne
-      if (!top || p > top.p + 1e-12 || (Math.abs(p - top.p) <= 1e-12 && mean > top.mean)) top = { p, mean, sd, picks: [[g, "Gardien"], [d, "Défenseur"], [m, "Milieu"], [f, "Attaquant"], [e, "Extra"]] };
+      const five = [g, d, m, f, e];
+      for (const ci of caps) {
+        let mean = m4 + e.value, v = v4 + e.sd ** 2;
+        if (ci >= 0) { const c = five[ci], k = c.value > 0 ? 1 + capt * c.base / c.value : 1; mean += c.base * capt; v += (c.sd * k) ** 2 - c.sd ** 2; }
+        const sd = Math.sqrt(v);
+        const p = pAbove(mean, sd, seuil);
+        // a chance egale (souvent 0 % ou 100 %), la plus haute moyenne
+        if (!top || p > top.p + 1e-12 || (Math.abs(p - top.p) <= 1e-12 && mean > top.mean)) top = { p, mean, sd, cap: ci >= 0 ? five[ci] : null, picks: [[g, "Gardien"], [d, "Défenseur"], [m, "Milieu"], [f, "Attaquant"], [e, "Extra"]] };
+      }
     }
   }
   return top;
 }
 // Lot : jusqu'a 4 compos sans carte commune, composees de facon gloutonne (meilleure chance d'abord)
-function lotArcade(units, seuil) {
+function lotPiste(units, seuil, capt) {
   let rest = units; const compos = [];
   while (compos.length < ARCADE_VIES) {
-    const c = meilleureCompoArcade(rest, seuil);
+    const c = meilleureCompoPiste(rest, seuil, capt);
     if (!c) break;
     compos.push(c);
     const pris = new Set(c.picks.map(([u]) => u.card.slug));
@@ -154,31 +224,46 @@ function lotArcade(units, seuil) {
   return { compos, p: 1 - compos.reduce((q, c) => q * (1 - c.p), 1), creneau: Math.min(...ts), resultat: Math.max(...ts) + ARCADE_DELAI };
 }
 
+// Pourquoi aucune compo n'est possible (piste qui l'explique : European Contenders). Fonde sur r._pos (joueurs.poste).
+function raisonPisteVide(units, P, fin) {
+  const quoi = "tes cartes Limited (ou plus) qui jouent la Ligue Europa ou la Conference League d'ici le " + dateBx(fin);
+  if (!units.length) return "Aucune compo possible : aucune de tes cartes Limited (ou plus) ne joue la Ligue Europa ou la Conference League d'ici le " + dateBx(fin) + ".";
+  const pos = new Set(units.map((u) => u.r._pos));
+  const manque = [["Goalkeeper", "gardien"], ["Defender", "défenseur"], ["Midfielder", "milieu"], ["Forward", "attaquant"]].filter(([p]) => !pos.has(p)).map(([, n]) => n);
+  if (manque.length) return `Aucune compo possible : aucun ${manque.join(" ni ")} parmi ${quoi}. Il faut une carte de plus à ce poste.`;
+  if (!meilleureCompoPiste(units, P.seuils[0], P.capitaine / 100)) return `Aucune compo possible : il faut 4 joueurs de champ différents (l'extra ne peut pas être gardien) parmi ${quoi}.`;
+  return `Aucune compo possible : les joueurs nécessaires ne jouent pas dans un même créneau de ${Math.max(...P.largeurs) / 3600e3} h.`;
+}
+
 // Plan pour chaque palier de depart (1 a 6) maximisant le nombre espere de paliers franchis d'ici fin.
 // Programmation dynamique sur (palier, premier coup d'envoi autorise) : V(k, i) = max sur la largeur ( jouer le creneau i :
 // p (1 + V(k+1, j)) + (1 − p) V(1, j) ), attendre : V(k, i+1) ), j = premier coup d'envoi >= resultat du lot. Palier 1 : rien a perdre, on joue
 // le premier creneau jouable. Apres le palier 6, plus rien a gagner (V = 0). La recherche ignore la consommation des cartes
 // (un joueur ne joue en principe qu'un match par periode) ; le plan affiche, lui, retire les cartes deja jouees.
-export function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_RECOMPTE }) {
+// opts : { debut, fin, currentSet (Arcade), competitions (Europe), recompte }. Piste qui explique (Europe) sans compo
+// possible : une seule ligne d'information (etape 0, compo 0, conseil = raison).
+export function planPiste(rows, P, opts) {
+  const { debut, fin, recompte = ARCADE_RECOMPTE } = opts;
+  const SEUILS = P.seuils, LARG = P.largeurs, capt = (P.capitaine || 0) / 100;
   const units = [];
   for (const r of rows) {
-    if (r.sport === "NBA" || !r._inSet) continue;
-    const cards = (r._cards || []).filter((k) => k.rarity === "common" && k.set === currentSet);
+    if (r.sport === "NBA" || !P.joueur(r)) continue;
+    const cards = (r._cards || []).filter((k) => P.carte(k, opts));
     for (const g of r._games || []) {
-      if (!(g.t >= debut && g.t <= fin) || !(g.pPlay > 0)) continue;
+      if (!(g.t >= debut && g.t <= fin) || !(g.pPlay > 0) || !P.match(g, opts)) continue;
       for (const card of cards) {
-        // meme loi que loiCompo (Set : bonus de carte × skin, pas de capitaine), avec la projection et la proba du match
-        const value = g.proj * g.pPlay * card.power * card.skinBonus;
-        units.push({ r, g, card, value, sd: ecartTypeJoueur({ sport: r.sport, regularite: r.regularite, proba_titulaire: g.pPlay * 100 }, value) });
+        const base = g.proj * g.pPlay, value = P.valeur(base, card);
+        units.push({ r, g, card, value, base, sd: ecartTypeJoueur({ sport: r.sport, regularite: r.regularite, proba_titulaire: g.pPlay * 100 }, value) });
       }
     }
   }
-  if (!units.length) return [];
+  const info = (conseil) => (P.expliquer ? [{ mode: P.mode, depart: 1, etape: 0, palier: 1, seuil: SEUILS[0], creneau: "", resultat_vers: "", compo: 0, joueurs: "", score_attendu: null, proba_compo: null, proba_palier: null, conseil }] : []);
+  if (!units.length) return info(raisonPisteVide(units, P, fin));
   const T = [...new Set(units.map((u) => u.g.t))].sort((a, b) => a - b);
-  const n = T.length, K = ARCADE_SEUILS.length;
-  const dansCreneau = (i, w, exclus) => units.filter((u) => u.g.t >= T[i] && u.g.t <= T[i] + ARCADE_LARGEURS[w] && !exclus.has(u.card.slug));
+  const n = T.length, K = SEUILS.length;
+  const dansCreneau = (i, w, exclus) => units.filter((u) => u.g.t >= T[i] && u.g.t <= T[i] + LARG[w] && !exclus.has(u.card.slug));
   const memoLot = new Map();
-  const lot = (i, k, w) => { const key = (i * 8 + k) * 8 + w; if (!memoLot.has(key)) memoLot.set(key, lotArcade(dansCreneau(i, w, new Set()), ARCADE_SEUILS[k - 1])); return memoLot.get(key); };
+  const lot = (i, k, w) => { const key = (i * 8 + k) * 8 + w; if (!memoLot.has(key)) memoLot.set(key, lotPiste(dansCreneau(i, w, new Set()), SEUILS[k - 1], capt)); return memoLot.get(key); };
   const suivant = (t) => { let j = 0; while (j < n && T[j] < t) j++; return j; };
   const memo = new Map();
   // V(k, b, i) -> { v, i (creneau joue ou -1), w (largeur), j } ; b = plus haut palier deja franchi (pour ARCADE_RECOMPTE)
@@ -188,7 +273,7 @@ export function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_REC
     if (recompte) b = 0;
     const key = (k * 8 + b) * 1000 + i; if (memo.has(key)) return memo.get(key);
     let res = { v: 0, i: -1 }, jouable = false;
-    ARCADE_LARGEURS.forEach((_, w) => {
+    LARG.forEach((_, w) => {
       const L = lot(i, k, w); if (!L) return;
       jouable = true;
       const j = suivant(L.resultat), v = L.p * (gain(k, b) + V(k + 1, Math.max(b, k), j).v) + (1 - L.p) * V(1, b, j).v;
@@ -199,7 +284,7 @@ export function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_REC
   };
   for (let i = n - 1; i >= 0; i--) for (let k = K; k >= 1; k--) for (let b = 0; b <= K; b++) V(k, b, i); // memo sans recursion profonde
   const plan = [];
-  const fmtJ = ([u, poste]) => `${poste} ${u.r.joueur} (${u.r.club}, ${quand(u.g.t, debut)}) ${String(round(u.value)).replace(".", ",")}`;
+  const fmtJ = (c) => ([u, poste]) => `${poste} ${u.r.joueur} (${u.r.club}, ${quand(u.g.t, debut)}) ${String(round(u.value + (u === c.cap ? u.base * capt : 0))).replace(".", ",")}${u === c.cap ? " (capitaine)" : ""}`;
   const pc = (p) => (p >= 0.995 ? "> 99 %" : p < 0.005 ? "< 1 %" : Math.round(p * 100) + " %");
   for (let depart = 1; depart <= K; depart++) {
     // chemin des reussites : depart, depart + 1, ... ; chaque conseil dit quoi faire en cas d'echec (retour au palier 1)
@@ -207,32 +292,36 @@ export function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_REC
     const esp = V(depart, b, 0).v;
     while (k <= K && i < n) {
       const d = V(k, b, i); if (d.i < 0) break;
-      const L = lotArcade(dansCreneau(d.i, d.w, exclus), ARCADE_SEUILS[k - 1]);
+      const L = lotPiste(dansCreneau(d.i, d.w, exclus), SEUILS[k - 1], capt);
       if (!L) break;
       etape++;
       const j = suivant(L.resultat);
       const echec = V(1, b, j);
-      const apresEchec = echec.i >= 0 ? ` En cas d'échec des ${L.compos.length} : retour au palier 1, rejouer dès ${quand(T[echec.i], debut)}.` : " En cas d'échec : retour au palier 1, plus de créneau avant la fin de la gameweek.";
+      const apresEchec = echec.i >= 0 ? ` En cas d'échec des ${L.compos.length} : retour au palier 1, rejouer dès ${quand(T[echec.i], debut)}.` : ` En cas d'échec : retour au palier 1, plus de créneau avant la fin de ${P.horizon}.`;
       const nC = L.compos.length === 1 ? "1 compo" : L.compos.length + " compos";
       let conseil;
       if (k === 1) conseil = `Jouer ${nC} dès ${quand(L.creneau, debut)} : rien à perdre au palier 1.`;
       else {
-        const premier = ARCADE_LARGEURS.map((_, w) => lot(i, k, w)).filter(Boolean).sort((a, b) => b.p - a.p)[0];
+        const premier = LARG.map((_, w) => lot(i, k, w)).filter(Boolean).sort((a, b) => b.p - a.p)[0];
         const auLieu = premier && d.i > i ? (premier.p < L.p - 0.005 ? ` (${pc(premier.p)} en jouant dès ${quand(premier.creneau, debut)})` : ` (jouer dès ${quand(premier.creneau, debut)} bloquerait les créneaux suivants)`) : "";
         conseil = d.i > i ? `Attendre le créneau de ${quand(L.creneau, debut)} et y jouer ${nC} : ${pc(L.p)} de passer le palier ${k}${auLieu}.` : `Jouer ${nC} dès ${quand(L.creneau, debut)} : ${pc(L.p)} de passer le palier ${k}.`;
         conseil += apresEchec;
       }
-      if (etape === 1) conseil += ` Nouveaux paliers espérés d'ici la fin de la gameweek : ${String(round(esp, 2)).replace(".", ",")}.`;
+      if (etape === 1) conseil += ` Nouveaux paliers espérés d'ici la fin de ${P.horizon} : ${String(round(esp, 2)).replace(".", ",")}.`;
       L.compos.forEach((c, ci) => {
-        plan.push({ depart, etape, palier: k, seuil: ARCADE_SEUILS[k - 1], creneau: new Date(L.creneau).toISOString().slice(0, 16), resultat_vers: new Date(L.resultat).toISOString().slice(0, 16),
-          compo: ci + 1, joueurs: c.picks.map(fmtJ).join(" ; "), score_attendu: round(c.mean), proba_compo: round(c.p * 100), proba_palier: round(L.p * 100), conseil });
+        plan.push({ mode: P.mode, depart, etape, palier: k, seuil: SEUILS[k - 1], creneau: new Date(L.creneau).toISOString().slice(0, 16), resultat_vers: new Date(L.resultat).toISOString().slice(0, 16),
+          compo: ci + 1, joueurs: c.picks.map(fmtJ(c)).join(" ; "), score_attendu: round(c.mean), proba_compo: round(c.p * 100), proba_palier: round(L.p * 100), conseil });
         for (const [u] of c.picks) exclus.add(u.card.slug);
       });
       b = Math.max(b, k); k++; i = j;
     }
   }
-  return plan;
+  return plan.length ? plan : info(raisonPisteVide(units, P, fin));
 }
+// Arcade (Set) : signature d'avant, resultat identique (plus la colonne mode = "arcade")
+export function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_RECOMPTE }) { return planPiste(rows, PISTE_ARCADE, { currentSet, debut, fin, recompte }); }
+// European Contenders (Pro) : competitions = noms autorises lus par collecte.mjs (repli EUROPE_COMPETITIONS)
+export function planEurope(rows, { debut, fin, competitions = EUROPE_COMPETITIONS, capitaine = EUROPE_CAPITAINE, recompte = ARCADE_RECOMPTE }) { return planPiste(rows, { ...PISTE_EUROPE, capitaine }, { debut, fin, competitions, recompte }); }
 
 // NBA In-Season (slug in_season ou regle API "SeasonBonus")
 const estInSeasonNba = (c) => c.sport === "NBA" && !!(c.inSeason || c.minInSeason);
