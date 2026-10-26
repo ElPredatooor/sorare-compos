@@ -186,6 +186,9 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 .sx [hidden] { display: none !important; }
 [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
 [data-dash-source-state=empty] { color: transparent; }
+.sx-vide { border: 1px dashed var(--color-warn); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); margin: var(--cds-pad-sm) 0; background: var(--color-bg); }
+.sx-vide p { margin: 0 0 4px; }
+.sx-dot.sx-dot-vide { border-style: dashed; border-color: var(--color-warn); }
 </style>
 
 <div class="sx">
@@ -232,7 +235,7 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 <section class="sx-page" id="p-compos" role="tabpanel" aria-labelledby="t-compos">
 <details class="sx-card" id="reglages" data-hide-in="FOOTBALL-SET">
 <summary><h2>Régler les compos</h2> <span class="sx-lbl">profil, incertains, minimums, joueurs à exclure ou à forcer</span></summary>
-<p class="sx-note" id="rg-note">Change les réglages ci-dessous, cherche un joueur à exclure ou à forcer dans une compo précise, ou garde et exclus un joueur directement dans une compo : toutes les compos du sport sont recalculées aussitôt, dans l’ordre de priorité des compétitions. Réglages mémorisés dans ce navigateur.</p>
+<p class="sx-note" id="rg-note">Change les réglages ci-dessous, cherche un joueur à exclure ou à forcer dans une compo précise, ou garde et exclus un joueur directement dans une compo : toutes les compos du sport sont recalculées aussitôt, dans l’ordre de priorité des compétitions. Si une compo est impossible avec un joueur forcé, elle reste vide avec la raison et n’est pas comptée ; retire le forçage (puce ×) pour qu’elle soit calculée. Réglages mémorisés dans ce navigateur.</p>
 <div class="sx-tools">
 <span class="sx-lbl">Profil</span>
 <span class="sx-seg" id="rg-style" role="group" aria-label="Profil de compo">
@@ -253,7 +256,7 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 
 <div class="sx-card" id="arc-reglages" data-sport-only="FOOTBALL" data-mode-only="SET" hidden>
 <h2>Régler les compos</h2>
-<p class="sx-note">Palier, vies et stratégie de la piste Arcade ; exclus ou force un joueur avec la recherche ci-dessous, ou avec Garder et Exclure sur chaque joueur du plan : il est aussitôt recalculé dans la page. Réglages mémorisés dans ce navigateur.</p>
+<p class="sx-note">Palier, vies et stratégie de la piste Arcade ; exclus ou force un joueur avec la recherche ci-dessous, ou avec Garder et Exclure sur chaque joueur du plan : il est aussitôt recalculé dans la page. Une compo impossible avec un joueur forcé reste vide, avec la raison : elle ne coûte pas de vie et n’est pas comptée ; retire le forçage (puce ×) pour qu’elle soit calculée. Réglages mémorisés dans ce navigateur.</p>
 <div id="arc-tools" data-source="plan_arcade matchs cartes joueurs"></div>
 <div class="sx-pick" id="arc-pick" data-source="joueurs cartes matchs plan_arcade"></div>
 </div>
@@ -525,7 +528,7 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 <h3>Profils Sûre et Explosive</h3>
 <p>Équilibrée maximise le score attendu. Sûre retire à chaque joueur 0,84 écart-type (son score à 20 % de chances) : les titulaires réguliers passent devant. Explosive en ajoute 0,84 : utile quand il faut un gros score pour atteindre un palier. Le score affiché reste toujours le score attendu.</p>
 <h3>Exclure ou forcer un joueur</h3>
-<p>Dans « Régler les compos », la recherche porte sur tous tes joueurs de football qui ont une carte Limited ou plus, dans une compo ou non : un joueur exclu sort de toutes les compos football ; un joueur forcé entre dans la compétition et la compo choisies avec sa meilleure carte libre (une carte ne sert qu’une fois, un joueur une seule fois par compétition), les autres places sont recalculées et, s’il n’a pas de carte éligible ou que ses postes ne tiennent pas avec les règles, la carte de la compétition le dit et la compo est calculée sans lui.</p>
+<p>Dans « Régler les compos », la recherche porte sur tous tes joueurs de football qui ont une carte Limited ou plus, dans une compo ou non : un joueur exclu sort de toutes les compos football ; un joueur forcé entre dans la compétition et la compo choisies avec sa meilleure carte libre (une carte ne sert qu’une fois, un joueur une seule fois par compétition), les autres places sont recalculées et, s’il n’a pas de carte éligible ou que ses postes ne tiennent pas avec les règles, la compo reste vide (aucun joueur, aucune carte réservée, non comptée dans les chiffres clés) avec la raison, et les compos suivantes sont calculées normalement ; retire le forçage (puce ×) pour qu’elle soit calculée.</p>
 <h3>Remplaçants</h3>
 <p>Pour chaque poste, le meilleur joueur encore libre (carte non utilisée ailleurs) qui respecte les règles de la compo, avec l’écart de points. Utile si un joueur est annoncé forfait juste avant la date limite.</p>
 <h3>Piste European Contenders</h3>
@@ -564,7 +567,7 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 <h3>Profils, remplaçants et calendrier</h3>
 <p>Sûre favorise les joueurs réguliers et sûrs de jouer, Explosive ceux capables de gros scores (± 0,84 écart-type). Le remplaçant proposé pour chaque joueur est le meilleur encore libre qui tient sous le plafond d’étoiles et la limite par équipe. Le calendrier montre, jour par jour, les matchs de chaque joueur et la défense adverse.</p>
 <h3>Exclure ou forcer un joueur</h3>
-<p>Dans « Régler les compos », la recherche porte sur tous tes joueurs NBA qui ont une carte Limited, dans une compo ou non : un joueur exclu sort de toutes les compos NBA ; un joueur forcé entre dans la compétition et la compo choisies avec sa meilleure carte libre (une carte ne sert qu’une fois, un joueur une seule fois par compétition), les autres places sont recalculées et, si ses étoiles dépassent le plafond, s’il manque des cartes In-Season ou s’il n’a pas de carte libre, la carte de la compétition le dit et la compo est calculée sans lui.</p>
+<p>Dans « Régler les compos », la recherche porte sur tous tes joueurs NBA qui ont une carte Limited, dans une compo ou non : un joueur exclu sort de toutes les compos NBA ; un joueur forcé entre dans la compétition et la compo choisies avec sa meilleure carte libre (une carte ne sert qu’une fois, un joueur une seule fois par compétition), les autres places sont recalculées et, si ses étoiles dépassent le plafond, s’il manque des cartes In-Season ou s’il n’a pas de carte libre, la compo reste vide (aucun joueur, aucune carte réservée, non comptée dans les chiffres clés) avec la raison, et les compos suivantes sont calculées normalement ; retire le forçage (puce ×) pour qu’elle soit calculée.</p>
 <h3>Rôle élargi</h3>
 <p>Coéquipiers déclarés Out par ESPN et leurs minutes moyennes : un indice de temps de jeu supplémentaire, affiché sans modifier le score attendu.</p>
 <h3>Changements depuis hier</h3>
@@ -587,7 +590,7 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 <p>Source : aide Sorare « What is Arcade? ».</p>
 <h3>Plan de piste</h3>
 <p>Pour chaque palier de départ possible, le plan propose des étapes : le palier visé et son seuil, le créneau (premier coup d’envoi des joueurs du lot), l’heure vers laquelle le résultat est connu (dernier coup d’envoi + 1h50), les 4 compos avec leur score attendu et leur chance de dépasser le seuil, et la chance qu’au moins une des 4 passe. Une carte jouée dans une étape ne resert pas dans les suivantes. Ta progression n’est pas lisible dans l’API : indique ton palier dans le planificateur, il est mémorisé dans ce navigateur. <span id="ms-fin"></span></p>
-<p>Exclure ou forcer un joueur : dans Régler les compos, la recherche (joueurs avec une carte Common du set en cours) retire un joueur de tout le plan, ou le force dans une compo d’une étape, comme Garder ; le plan est recalculé autour de lui, au besoin à un créneau où il joue, et s’il ne peut pas être placé, un message dit pourquoi et la compo est calculée sans lui.</p>
+<p>Exclure ou forcer un joueur : dans Régler les compos, la recherche (joueurs avec une carte Common du set en cours) retire un joueur de tout le plan, ou le force dans une compo d’une étape, comme Garder ; le plan est recalculé autour de lui, au besoin à un créneau où il joue, et s’il ne peut pas être placé, sa compo reste vide avec la raison : elle n’est pas inscrite, ne coûte pas de vie, ne réserve aucune carte, et les autres compos et étapes sont calculées normalement ; si toutes les compos d’une étape sont vides, l’étape ne compte ni réussite ni vie perdue et le plan reprend au créneau suivant, au même palier.</p>
 <h3>Score attendu et chances</h3>
 <p>Même modèle de joueur que la vue Pro : projection Sorare et forme récente, multipliées par la probabilité d’être titulaire. Le score final multiplie le score attendu par le bonus de la carte et de skin. La chance de dépasser un seuil suppose un score de compo de loi normale (variabilité de chaque joueur et risque qu’il ne soit pas titulaire).</p>
 <h3>Compo de la gameweek</h3>
@@ -1070,7 +1073,7 @@ const names = (l) => l.map((x) => x.r.joueur).join(', ').replace(/, ([^,]*)$/, '
 const lockPos = [];
 comps.forEach((c, ci) => Object.entries(g.locks).forEach(([k, l]) => { const [cn, nn] = splitLock(k); if (cn === c.competition) l.forEach((s) => lockPos.push({ s, ci, n: nn })); }));
 comps.forEach((c, ci) => {
-const max = Number(c.max_compos) || 0; const list = []; let reason = ''; const warns = [];
+const max = Number(c.max_compos) || 0; const list = []; let reason = ''; const warns = []; const vides = [];
 if (!max) {
 lockPos.filter((p) => p.ci === ci).forEach((p) => warns.push(nom(p.s) + ' est forcé dans la compo ' + p.n + ', mais cette compétition n’a aucune compo à faire.'));
 out.push({ c, list, reason: c.statut, warns }); return;
@@ -1082,22 +1085,27 @@ for (let n = 1; n <= max; n++) {
 const later = new Set(lockPos.filter((p) => p.ci > ci || (p.ci === ci && p.n > n)).map((p) => p.s));
 const pool = full.filter((x) => !used.has(x.id) && !later.has(x.slug));
 const forcedSlugs = (g.locks[c.competition + '|' + n] || []);
-const forced = [];
+const forced = [], fails = [];
 for (const s of forcedSlugs) {
 const r = J.get(s);
-if (!r || sportOfRow(r) !== sp) { warns.push(nom(s) + ' (forcé en compo ' + n + ') n’est plus dans cette collecte : retire-le de la liste.'); continue; }
+if (!r || sportOfRow(r) !== sp) { fails.push([nom(s), 'il n’est plus dans cette collecte']); continue; }
 const elig = cartes.filter((k) => k.slug === s && eligibleCard(k, r, c));
-if (!elig.length) { warns.push(r.joueur + ' (forcé en compo ' + n + ') n’a aucune carte éligible à cette compétition' + eligText(c) + ' : il est ignoré.'); continue; }
+if (!elig.length) { fails.push([r.joueur, 'il n’a aucune carte éligible à cette compétition' + eligText(c)]); continue; }
 const ks = elig.filter((k) => !used.has(k.carte_id)).map((k) => mkCand(r, k, c, g.style)).sort((a, b) => (Number(c.min_in_season) > 0 && a.ins !== b.ins ? (b.ins ? 1 : -1) : b.adj - a.adj));
-if (!ks[0]) { const where = [...new Set(elig.map((k) => usedBy.get(k.carte_id)).filter(Boolean))].join(' et '); warns.push(r.joueur + ' (forcé en compo ' + n + ') n’a plus de carte libre : ' + (elig.length > 1 ? 'ses ' + elig.length + ' cartes sont' : 'sa carte est') + ' déjà dans ' + (where || 'une autre compo') + '.'); continue; }
+if (!ks[0]) { const where = [...new Set(elig.map((k) => usedBy.get(k.carte_id)).filter(Boolean))].join(' et '); fails.push([r.joueur, 'il n’a plus de carte libre (' + (elig.length > 1 ? 'ses ' + elig.length + ' cartes sont' : 'sa carte est') + ' déjà dans ' + (where || 'une autre compo') + ')']); continue; }
 forced.push(ks[0]);
 }
-let sol = optimise(c, pool.filter((x) => !forced.some((f) => f.slug === x.slug)), forced);
-if (!sol && forced.length) {
-// Compo impossible avec les joueurs forcés : on le dit, et on calcule la meilleure compo sans eux
-const why = forcedWhy(c, forced, pool);
-sol = optimise(c, pool, []);
-warns.push('Impossible de garder ' + names(forced) + ' dans la compo ' + n + (why ? ' : ' + why : '') + (sol ? ' ; compo calculée sans ' + (forced.length > 1 ? 'eux' : 'lui') + '.' : '.'));
+// Compo impossible avec les joueurs forcés : elle reste vide (aucune carte réservée), la raison est affichée, les compos suivantes sont calculées normalement
+let sol = null, vide = '';
+if (fails.length) vide = 'Compo ' + n + ' impossible avec ' + fails.map((x) => x[0]).join(', ').replace(/, ([^,]*)$/, ' et $1') + ' : ' + (fails.length > 1 ? fails.map((x) => x[0] + ', ' + x[1]).join(' ; ') : fails[0][1]);
+else {
+sol = optimise(c, pool.filter((x) => !forced.some((f) => f.slug === x.slug)), forced);
+if (!sol && forced.length) vide = 'Compo ' + n + ' impossible avec ' + names(forced) + ' : ' + forcedWhy(c, forced, pool);
+}
+if (vide) {
+const nf = forcedSlugs.length > 1;
+vide += '. Elle reste vide et n’est pas comptée ; retire ' + (nf ? 'ces joueurs' : 'ce joueur') + ' des joueurs forcés (puce ×) pour qu’elle soit calculée.';
+vides.push({ numero: n, msg: vide }); warns.push(vide); done = n; continue;
 }
 if (!sol) { reason = whyNot(c, pool, full, out); break; }
 if (sp === 'FOOTBALL' && !(sol.picks.reduce((s, x) => s + x.value, 0) > 0)) { reason = zeroReason(c, true); break; }
@@ -1110,7 +1118,8 @@ list.push({ numero: n, picks }); done = n;
 }
 // Joueurs forcés dans une compo qui n'a pas pu être faite (ou au-delà du nombre de compos possibles)
 lockPos.filter((p) => p.ci === ci && p.n > done).forEach((p) => { if (!warns.some((w) => w.includes(nom(p.s)) && w.includes('compo ' + p.n))) warns.push(nom(p.s) + ' est forcé dans la compo ' + p.n + (p.n > max ? ', mais cette compétition n’en permet que ' + max + '.' : ', qui n’a pas pu être faite.')); });
-out.push({ c, list, reason: list.length < max ? reason : '', warns });
+if (vides.length) reason = (vides.length > 1 ? 'compos ' + vides.map((v) => v.numero).join(', ').replace(/, ([^,]*)$/, ' et $1') + ' vides' : 'compo ' + vides[0].numero + ' vide') + ', impossible avec les joueurs forcés' + (reason ? ' ; ' + reason : '');
+out.push({ c, list, reason: list.length < max ? reason : '', warns, vides });
 });
 cache = { key, res: out };
 return out;
@@ -1746,32 +1755,35 @@ const fk = sport + '|' + c.competition;
 card.open = foldState.has(fk) ? foldState.get(fk) : true;
 if (card.open) card.setAttribute('open', '');
 card.addEventListener('toggle', () => foldState.set(fk, card.open));
-const nums = L.list.map((x) => x.numero);
+// Compos vides (impossibles avec un joueur forcé) : dans la navigation, mais pas comptées
+const all = [...L.list, ...(L.vides || []).map((v) => ({ numero: v.numero, picks: [], vide: v.msg }))].sort((a, b) => a.numero - b.numero);
+const nums = L.list.map((x) => x.numero), nAll = all.length;
 const maxC = Number(c.max_compos) || nums.length || 0;
-const cur = Math.min(Math.max(1, compoIdx.get(c.competition) || 1), Math.max(1, nums.length));
-const lu = L.list.find((x) => x.numero === cur) || L.list[0];
+const lu = all.find((x) => x.numero === (compoIdx.get(c.competition) || 1)) || all[0];
+const cur = lu ? lu.numero : 1, pos = lu ? all.indexOf(lu) + 1 : 1;
 const picks = lu ? lu.picks : [];
 const total = picks.reduce((s, p) => s + p.final, 0);
 const head = el('div', 'sx-comp-head');
-head.append(el('h2', '', c.competition), el('span', 'sx-comp-score', picks.length ? dec(total) + ' pts' : ''));
+head.append(el('h2', '', c.competition), el('span', 'sx-comp-score', picks.length ? dec(total) + ' pts' : lu && lu.vide ? '—' : ''));
 const sum = el('summary'); sum.append(head); card.append(sum);
 const nav = el('div', 'sx-cnav');
 const vide = !isNba && !nums.length && (mode === 'PRO' ? footGw().noMatch : /ne joue/i.test(L.reason || c.statut || ''));
 nav.append(el('span', 'sx-cbadge' + (nums.length >= maxC && nums.length ? ' sx-ok' : nums.length ? ' sx-warn' : vide ? ' sx-mut' : ' sx-bad'), nums.length ? `${nums.length} compo${nums.length > 1 ? 's' : ''} à inscrire sur ${maxC} possible${maxC > 1 ? 's' : ''}` : maxC ? `Aucune compo à inscrire sur ${maxC} possible${maxC > 1 ? 's' : ''}` : 'Aucune compo possible'));
-if (nums.length > 1) {
+if (nAll > 1) {
 const go = (n) => { compoIdx.set(c.competition, n); drawCompos(); document.getElementById(card.id)?.querySelector('.sx-cnav button[data-n="' + n + '"]')?.focus(); };
-const prev = el('button', 'sx-arrow', '‹'); prev.setAttribute('aria-label', 'Compo précédente'); prev.disabled = cur <= 1; prev.addEventListener('click', () => go(cur - 1));
-const next = el('button', 'sx-arrow', '›'); next.setAttribute('aria-label', 'Compo suivante'); next.disabled = cur >= nums.length; next.addEventListener('click', () => go(cur + 1));
+const prev = el('button', 'sx-arrow', '‹'); prev.setAttribute('aria-label', 'Compo précédente'); prev.disabled = pos <= 1; prev.addEventListener('click', () => go(all[pos - 2].numero));
+const next = el('button', 'sx-arrow', '›'); next.setAttribute('aria-label', 'Compo suivante'); next.disabled = pos >= nAll; next.addEventListener('click', () => go(all[pos].numero));
 const dots = el('span', 'sx-dots');
-L.list.forEach((x) => {
+all.forEach((x) => {
 const sc = x.picks.reduce((s, p) => s + p.final, 0);
-const b = el('button', 'sx-dot' + (x.numero === cur ? ' on' : ''), String(x.numero)); b.dataset.n = x.numero; b.title = `Compo ${x.numero} : ${dec(sc)} pts`; b.setAttribute('aria-label', `Compo ${x.numero}, ${dec(sc)} points`); b.setAttribute('aria-pressed', String(x.numero === cur)); b.addEventListener('click', () => go(x.numero)); dots.append(b);
+const b = el('button', 'sx-dot' + (x.vide ? ' sx-dot-vide' : '') + (x.numero === cur ? ' on' : ''), String(x.numero)); b.dataset.n = x.numero; b.title = x.vide ? `Compo ${x.numero} : vide, impossible avec les joueurs forcés` : `Compo ${x.numero} : ${dec(sc)} pts`; b.setAttribute('aria-label', x.vide ? `Compo ${x.numero}, vide` : `Compo ${x.numero}, ${dec(sc)} points`); b.setAttribute('aria-pressed', String(x.numero === cur)); b.addEventListener('click', () => go(x.numero)); dots.append(b);
 });
-const ctrl = el('span', 'sx-cnav-ctrl'); ctrl.append(prev, dots, next, el('span', 'sx-lbl', `Compo ${cur} sur ${nums.length}`)); nav.append(ctrl);
+const ctrl = el('span', 'sx-cnav-ctrl'); ctrl.append(prev, dots, next, el('span', 'sx-lbl', `Compo ${cur} sur ${nAll}`)); nav.append(ctrl);
 }
 card.append(nav);
+if (lu && lu.vide) { const v = el('div', 'sx-vide'); v.setAttribute('role', 'note'); const t = el('p'); t.append(el('strong', '', 'Compo ' + cur + ' vide : aucun joueur, non comptée.')); v.append(t, el('p', '', lu.vide)); card.append(v); }
 // Raison en clair quand il y a moins de compos que possible (statut du stratège ou du recalcul)
-(L.warns || []).forEach((w) => { const p = el('p', 'sx-reason sx-fwarn'); p.append(el('span', 'sx-lbl', 'Joueur forcé : '), w); card.append(p); });
+(L.warns || []).filter((w) => !(L.vides || []).some((v) => v.msg === w && v.numero === cur)).forEach((w) => { const p = el('p', 'sx-reason sx-fwarn'); p.append(el('span', 'sx-lbl', 'Joueur forcé : '), w); card.append(p); });
 if (L.reason) { const why = el('p', 'sx-reason'); why.append(el('span', 'sx-lbl', nums.length ? 'Pourquoi pas plus : ' : 'Pourquoi : '), L.reason.charAt(0).toUpperCase() + L.reason.slice(1) + (/[.!]$/.test(L.reason) ? '' : '.')); card.append(why); }
 card.append(el('p', 'sx-note', [(L.reason || custom) ? '' : c.statut, c.contraintes, 'limite ' + fmtDate(c.date_limite)].filter(Boolean).join(' · ')));
 if (picks.length) {
@@ -2455,28 +2467,50 @@ let k = depart, v = Math.min(PISTE_VIES, Math.max(1, Number(vies0) || PISTE_VIES
 while (k <= K && i0 < n && etape < 12) {
 const fo = [1, 2, 3, 4].map((c) => g.locks[depart + '|' + (etape + 1) + '|' + c] || []), ici = new Set(fo.flat());
 resv = new Set(Object.entries(g.locks).filter(([key]) => { const [d, e] = key.split('|').map(Number); return d === depart && e > etape + 1; }).flatMap(([, l]) => l).filter((x) => !ici.has(x)));
-let a = decide(k, v, i0, ex, fo); const warns = [];
+let a = decide(k, v, i0, ex, fo); let vides = [];
 if (!a && fo.some((l) => l.length)) {
-// Impossible avec tous les forcés : on garde, dans l'ordre, ceux avec qui le plan reste possible
-const keep = fo.map(() => []), nom = (x) => jMap().get(x)?.joueur || x;
-fo.forEach((l, ci) => l.forEach((x) => {
-keep[ci].push(x); const t = decide(k, v, i0, ex, keep); if (t) { a = t; return; }
-keep[ci].pop();
-const us = U.filter((u) => u.slug === x), pos = (y) => (U.find((u) => u.slug === y) || {}).pos;
-const why = !us.length ? 'pas de match d’ici la fin de la période' : us.every((u) => ex.has(u.id)) ? 'ses cartes ont déjà servi aux étapes précédentes'
-: us.every((u) => ex.has(u.id) || u.t < T[i0]) ? 'il ne joue plus après le résultat de l’étape précédente'
-: pos(x) === 'Gardien' && l.some((y) => y !== x && pos(y) === 'Gardien') ? 'un seul gardien par compo' : 'aucun créneau où il joue ne permet une compo complète avec les autres joueurs forcés';
-warns.push('Impossible de garder ' + nom(x) + ' dans la compo ' + (ci + 1) + ' : ' + why + ' ; compo calculée sans lui.');
-}));
+// Impossible avec tous les forcés : compo par compo, on garde les forcés avec qui le plan reste possible ; les autres compos restent vides
+const keep = fo.map(() => []), nom = (x) => jMap().get(x)?.joueur || x, noms = (l) => l.map(nom).join(', ').replace(/, ([^,]*)$/, ' et $1'), pos = (y) => (U.find((u) => u.slug === y) || {}).pos;
+const whyF = (l, ci) => {
+const r = [];
+l.forEach((x) => {
+const us = U.filter((u) => u.slug === x);
+const w = !us.length ? 'pas de match d’ici la fin de la période' : us.every((u) => ex.has(u.id)) ? 'ses cartes ont déjà servi aux étapes précédentes' : us.every((u) => ex.has(u.id) || u.t < T[i0]) ? 'il ne joue plus après le résultat de l’étape précédente' : '';
+if (w) r.push(l.length > 1 ? nom(x) + ', ' + w : w);
+});
+if (!r.length) r.push(l.filter((x) => pos(x) === 'Gardien').length > 1 ? 'un seul gardien par compo' : 'aucun créneau où ' + (l.length > 1 ? 'ils jouent' : 'il joue') + ' ne permet une compo complète' + (fo.some((y, cj) => cj !== ci && y.length) ? ' avec les autres joueurs forcés' : ''));
+return r.join(' ; ');
+};
+fo.forEach((l, ci) => {
+if (!l.length) return;
+keep[ci] = l.slice(); const t = decide(k, v, i0, ex, keep); if (t) { a = t; return; }
+keep[ci] = [];
+vides.push({ ci, msg: 'Compo ' + (ci + 1) + ' impossible avec ' + noms(l) + ' : ' + whyF(l, ci) + '. Elle reste vide, ne coûte pas de vie et n’est pas comptée ; retire ' + (l.length > 1 ? 'ces joueurs' : 'ce joueur') + ' des joueurs forcés (puce ×) pour qu’elle soit calculée.' });
+});
 if (!a) a = decide(k, v, i0, ex, keep);
+// Compo vide au-delà du lot retenu : message général plus bas (« le plan n’engage que… »)
+if (a) vides = vides.filter((x) => x.ci < a.L.compos.length);
+if (a && vides.length) {
+// Lot réel sans les compos vides, au même créneau ; les compos vides gardent leur place (numéro)
+const nReel = a.L.compos.length - vides.length, fc = keep.filter((_, ci) => !vides.some((x) => x.ci === ci));
+a = { ...a, nb0: a.L.compos.length, L: nReel > 0 ? lotPiste(dans(a.i, a.w, ex), seuils[k - 1], P.capt, nReel, fc) : null, L0: a.L };
+}
 }
 if (!a) break;
 etape++;
+const warns = vides.map((x) => x.msg);
+const place = (real, nb0) => { const out = []; let r = 0; for (let ci = 0; ci < nb0; ci++) { const vd = vides.find((x) => x.ci === ci); if (vd) out.push({ vide: vd.msg, picks: [], p: null, mean: null }); else if (real[r]) out.push(real[r++]); } return out; };
+if (!a.L) {
+// Étape vide : aucune compo inscrite, ni réussite ni vie perdue ; le plan reprend au créneau suivant, même palier, mêmes vies
+steps.push({ etape, palier: k, seuil: seuils[k - 1], vies: v, nb: a.nb0, nbReel: 0, vide: true, creneau: lastP(a.L0).creneau, resultat: NaN, p: null, compos: place([], a.nb0), capt: P.capt, warns });
+i0 = a.i + 1; continue;
+}
 const L = a.L, x = lastP(L), nb = L.compos.length;
 L.compos.forEach((c) => c.picks.forEach(([u]) => ex.add(u.id)));
 const j = suivant(x.resultat), reste = v - nb;
 const f = reste > 0 ? decide(k, reste, j, ex, []) : decide(1, PISTE_VIES, j, ex, []);
-steps.push({ etape, palier: k, seuil: seuils[k - 1], vies: v, nb, creneau: x.creneau, resultat: x.resultat, p: x.p, compos: L.compos, capt: P.capt, repli: !!a.repli, seuilOk: !!a.seuilOk,
+const compos = a.nb0 ? place(L.compos, a.nb0) : L.compos;
+steps.push({ etape, palier: k, seuil: seuils[k - 1], vies: v, nb: compos.length, nbReel: nb, creneau: x.creneau, resultat: x.resultat, p: x.p, compos, capt: P.capt, repli: !!a.repli, seuilOk: !!a.seuilOk,
 echec: { reste, palier: reste > 0 ? k : 1, f: f ? { nb: f.L.compos.length, creneau: lastP(f.L).creneau, p: lastP(f.L).p } : null }, warns });
 k++; v = PISTE_VIES; i0 = j;
 }
@@ -2628,7 +2662,7 @@ return { etape: k, palier: Number(r0.palier), seuil: Number(r0.seuil), vies: PIS
 if (!steps.length && !msg && U.length) { const res = calc(); if (res.steps.length) return { src: 'calc', auto: true, ...res }; }
 return { src: 'data', steps, msg };
 }
-const nextCreneau = (m) => { const now = Date.now(), s = stepsOf(m).steps.find((x) => x.creneau > now); return s ? { creneau: isoOf(s.creneau), etape: s.etape, palier: s.palier } : null; };
+const nextCreneau = (m) => { const now = Date.now(), s = stepsOf(m).steps.find((x) => x.creneau > now && (x.nbReel ?? x.nb) > 0); return s ? { creneau: isoOf(s.creneau), etape: s.etape, palier: s.palier } : null; };
 const hmBxl = (s) => { const t = fmtDate(s); const m = / à (\d\d)h(\d\d)$/.exec(t); return m ? m[1] + 'h' + m[2] : t; };
 const dayBxl = (s) => fmtDate(s).replace(/ à .*$/, '');
 const countdown = (ms) => { const m = Math.max(0, Math.round(ms / 6e4)); if (m < 60) return 'dans ' + m + ' min'; const h = Math.floor(m / 60), d = Math.floor(h / 24); return d ? 'dans ' + d + ' j ' + (h % 24) + ' h' : 'dans ' + h + ' h ' + String(m % 60).padStart(2, '0'); };
@@ -2703,35 +2737,41 @@ when.append(el('span', 'sx-lbl', 'Créneau : '), Number.isFinite(s.creneau) ? fm
 if (on) when.append(' · ', el('strong', '', countdown(s.creneau - Date.now())));
 if (Number.isFinite(s.resultat)) when.append(' · résultat vers ' + (dayBxl(isoOf(s.resultat)) === dayBxl(isoOf(s.creneau)) ? hmBxl(isoOf(s.resultat)) : fmtDate(isoOf(s.resultat))));
 art.append(when);
+// Compos vides (impossibles avec un joueur forcé) : ni inscrites, ni comptées, ne coûtent pas de vie
+const reel = s.nbReel ?? s.nb, nVide = s.compos.filter((c) => c.vide).length;
 const kv = el('p');
-kv.append(el('span', 'sx-lbl', 'Compos engagées : '), el('strong', '', String(s.nb)), ' sur ' + plural(s.vies, 'vie', 'vies'), ' · ', el('span', 'sx-lbl', 'vies restantes si toutes échouent : '), el('strong', '', String(Math.max(0, s.vies - s.nb))));
+if (s.vide) kv.append(el('span', 'sx-lbl', 'Compos engagées : '), el('strong', '', '0'), ' · ' + plural(s.vies, 'vie', 'vies') + ', aucune en jeu');
+else kv.append(el('span', 'sx-lbl', 'Compos engagées : '), el('strong', '', String(reel)), ' sur ' + plural(s.vies, 'vie', 'vies'), ' · ', el('span', 'sx-lbl', 'vies restantes si toutes échouent : '), el('strong', '', String(Math.max(0, s.vies - reel))));
+if (nVide) kv.append(' · ', pill(nVide > 1 ? nVide + ' compos vides' : 'compo ' + (s.compos.findIndex((c) => c.vide) + 1) + ' vide', 'sx-warn'));
 if (s.p != null) kv.append(' · ', el('span', 'sx-lbl', 'chance de passer : '), el('span', 'sx-prob ' + probCls(s.p * 100), pct(s.p)));
 art.append(kv);
 let conseil = s.conseil, echec = '';
 if (src === 'calc') {
-conseil = 'Jouer ' + nC(s.nb) + ' dès ' + fmtDate(isoOf(s.creneau)) + (s.repli ? ' : seuil de ' + g.seuil + ' % inatteignable, une compo au meilleur créneau' : s.seuilOk ? ' : le plus petit lot qui atteint ' + g.seuil + ' %' : '') + '.';
-const e = s.echec, suite = e.f ? 'jouer ' + nC(e.f.nb) + ' dès ' + fmtDate(isoOf(e.f.creneau)) + ' (' + pct(e.f.p) + ' de passer).' : 'plus de créneau jouable avant la fin de la période.';
-echec = e.reste > 0 ? 'il te reste ' + plural(e.reste, 'vie', 'vies') + ' au palier ' + s.palier + ' : ' + suite : '0 vie : retour au palier 1 ; ' + suite;
+if (s.vide) conseil = 'Étape vide : aucune compo à inscrire avec ces joueurs forcés. Elle ne compte ni réussite ni vie perdue : le plan reprend à l’étape suivante, au palier ' + s.palier + ' avec ' + plural(s.vies, 'vie', 'vies') + '.';
+else conseil = 'Jouer ' + nC(reel) + ' dès ' + fmtDate(isoOf(s.creneau)) + (s.repli ? ' : seuil de ' + g.seuil + ' % inatteignable, une compo au meilleur créneau' : s.seuilOk ? ' : le plus petit lot qui atteint ' + g.seuil + ' %' : '') + '.';
+const e = s.echec || {}, suite = e.f ? 'jouer ' + nC(e.f.nb) + ' dès ' + fmtDate(isoOf(e.f.creneau)) + ' (' + pct(e.f.p) + ' de passer).' : 'plus de créneau jouable avant la fin de la période.';
+echec = s.vide ? '' : e.reste > 0 ? 'il te reste ' + plural(e.reste, 'vie', 'vies') + ' au palier ' + s.palier + ' : ' + suite : '0 vie : retour au palier 1 ; ' + suite;
 }
 if (conseil) art.append(el('p', 'sx-reco', conseil));
 if (echec) { const p = el('p'); p.append(el('span', 'sx-lbl', 'En cas d’échec : '), echec); art.append(p); }
-(s.warns || []).forEach((w) => art.append(el('p', 'sx-fwarn', w)));
+(s.warns || []).filter((w) => !s.compos.some((c) => c.vide === w)).forEach((w) => art.append(el('p', 'sx-fwarn', w)));
 // Compos de l'étape : navigation ‹ › et pastilles, tableau des joueurs
 const key = m + '|' + P.palier + '|' + s.etape, n = s.compos.length;
 const cur = Math.min(Math.max(1, stepIdx.get(key) || 1), Math.max(1, n));
 const blk = el('div');
-const nav = el('div', 'sx-cnav'); nav.append(el('span', 'sx-cbadge ' + (n >= s.vies ? 'sx-ok' : 'sx-warn'), nC(n) + ' à inscrire sur ' + s.vies + ' possible' + (s.vies > 1 ? 's' : '')));
+const nav = el('div', 'sx-cnav'); nav.append(el('span', 'sx-cbadge ' + (reel >= s.vies ? 'sx-ok' : reel ? 'sx-warn' : 'sx-bad'), (reel ? nC(reel) : 'Aucune compo') + ' à inscrire sur ' + s.vies + ' possible' + (s.vies > 1 ? 's' : '')));
 if (n > 1) {
 const go = (k) => { stepIdx.set(key, k); drawPiste(m); $(P.box).querySelector('[data-step="' + key + '"] .sx-cnav button[data-n="' + k + '"]')?.focus(); };
 const prev = el('button', 'sx-arrow', '‹'); prev.setAttribute('aria-label', 'Compo précédente'); prev.disabled = cur <= 1; prev.addEventListener('click', () => go(cur - 1));
 const next = el('button', 'sx-arrow', '›'); next.setAttribute('aria-label', 'Compo suivante'); next.disabled = cur >= n; next.addEventListener('click', () => go(cur + 1));
 const dots = el('span', 'sx-dots');
-s.compos.forEach((c, i) => { const b = el('button', 'sx-dot' + (i + 1 === cur ? ' on' : ''), String(i + 1)); b.dataset.n = i + 1; b.setAttribute('aria-label', 'Compo ' + (i + 1) + (c.p != null ? ', ' + pct(c.p) + ' de chance' : '')); b.setAttribute('aria-pressed', String(i + 1 === cur)); b.addEventListener('click', () => go(i + 1)); dots.append(b); });
+s.compos.forEach((c, i) => { const b = el('button', 'sx-dot' + (c.vide ? ' sx-dot-vide' : '') + (i + 1 === cur ? ' on' : ''), String(i + 1)); b.dataset.n = i + 1; if (c.vide) b.title = 'Compo ' + (i + 1) + ' : vide, impossible avec les joueurs forcés'; b.setAttribute('aria-label', 'Compo ' + (i + 1) + (c.vide ? ', vide' : c.p != null ? ', ' + pct(c.p) + ' de chance' : '')); b.setAttribute('aria-pressed', String(i + 1 === cur)); b.addEventListener('click', () => go(i + 1)); dots.append(b); });
 const ctrl = el('span', 'sx-cnav-ctrl'); ctrl.append(prev, dots, next, el('span', 'sx-lbl', 'Compo ' + cur + ' sur ' + n)); nav.append(ctrl);
 }
 blk.dataset.step = key; blk.append(nav);
 const c = s.compos[cur - 1];
-if (c) {
+if (c && c.vide) { const v = el('div', 'sx-vide'), t = el('p'); v.setAttribute('role', 'note'); t.append(el('strong', '', 'Compo ' + cur + ' vide : aucun joueur, non inscrite, ne coûte pas de vie.')); v.append(t, el('p', '', c.vide)); blk.append(v); }
+else if (c) {
 const lotIds = new Set(s.compos.flatMap((y) => y.picks.map((p) => (p.u ? p.u.id : p[0] ? p[0].id : '')))), slugs = new Set();
 const picks = c.picks.map((p) => (Array.isArray(p) ? { slot: p[1], name: p[0].r.joueur, r: p[0].r, u: p[0], k: p[0].k, g: p[0].g, value: p[0].value + (p[0] === c.cap ? p[0].base * s.capt : 0), cap: p[0] === c.cap } : p));
 picks.forEach((p) => p.r && p.r.slug && slugs.add(p.r.slug));
