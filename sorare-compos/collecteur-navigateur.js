@@ -66,6 +66,31 @@ const NBA_COMPS = [
   // 150 Limited pour nba_limited_arena_140, verifie le 25/10/2026.
   { suffix: "nba_limited_arena_140", nom: "NBA Rooms Champion", rang: 4, compos: 2, essences: 150, salon: true },
 ];
+// ---------- Priorite des competitions NBA Pro (contrat v8) ----------
+// json : contenu de sorare-compos/priorite-nba.json ({ ordre: [noms] }), deja parse par le point d'entree Node, ou null
+// (fichier absent), ou { erreur } (JSON invalide : lirePrioriteNba des points d'entree).
+// Retourne les noms NBA_COMPS[].nom dans l'ordre voulu : noms inconnus ou en double ignores, competitions manquantes
+// ajoutees a la fin dans l'ordre par defaut. Absent ou illisible : ordre par defaut. Jamais d'erreur (message dans log).
+// Fonction pure (sans fs) : le collecteur navigateur n'a pas de fichier et garde l'ordre par defaut.
+function normalisePrioriteNba(json, log = () => {}) {
+  const defaut = NBA_COMPS.map((c) => c.nom);
+  if (json == null) { log("priorité NBA : fichier absent, ordre par défaut"); return defaut; }
+  const ordre = json && typeof json === "object" && !Array.isArray(json) ? json.ordre : Array.isArray(json) ? json : null;
+  if (!Array.isArray(ordre)) { log(`priorité NBA : fichier illisible (${json?.erreur || "champ ordre manquant"}), ordre par défaut`); return defaut; }
+  const res = [];
+  for (const n of ordre) {
+    const nom = typeof n === "string" ? n.trim() : n;
+    if (!defaut.includes(nom)) { log(`priorité NBA : compétition inconnue ignorée « ${String(n)} »`); continue; }
+    if (res.includes(nom)) { log(`priorité NBA : doublon ignoré « ${nom} »`); continue; }
+    res.push(nom);
+  }
+  const manquantes = defaut.filter((n) => !res.includes(n));
+  if (manquantes.length && res.length) log(`priorité NBA : absentes du fichier, placées à la fin : ${manquantes.join(", ")}`);
+  if (!res.length) log("priorité NBA : aucune compétition valide, ordre par défaut");
+  const fin = res.concat(manquantes);
+  log(`priorité NBA : ${fin.map((n, i) => `${i + 1}. ${n}`).join(" ; ")}`);
+  return fin;
+}
 const POS = { Goalkeeper: "Gardien", Defender: "Défenseur", Midfielder: "Milieu", Forward: "Attaquant" };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -833,7 +858,7 @@ function fusionneSport(sport, nouveaux, anciens = {}) {
   return out;
 }
 
-return { SETS_TERMINES, setEnCours, SET_NBA_POOL, POS, sleep, round, mean, sd, day, collecte, poolSetNBA, posteCartes, cleCompetition, estMatchEurope, chercheEurope, cardLabel, matchOdds, collectePaliers, candidatsBilan, collecteBilan, CHAMPS_RESUME_SPORT, fusionneSport };
+return { SETS_TERMINES, setEnCours, SET_NBA_POOL, normalisePrioriteNba, POS, sleep, round, mean, sd, day, collecte, poolSetNBA, posteCartes, cleCompetition, estMatchEurope, chercheEurope, cardLabel, matchOdds, collectePaliers, candidatsBilan, collecteBilan, CHAMPS_RESUME_SPORT, fusionneSport };
 })();
 
 // ===== modele.mjs =====
@@ -1008,22 +1033,24 @@ const __m_compos = (() => {
 // planEurope (Pro European Contenders, cartes Limited et plus, Ligue Europa / Conference League) et planArcadeNba (Set NBA,
 // cartes Common NBA du set en cours, contrat v7) en sont trois reglages.
 // evalueRentabilite(compRows, lineups, paliers, rows) : apres les paliers (core.mjs), colonnes v3 de competitions et choix
-// NBA entre In-Season en priorite 1 et l'option sans In-Season (modifie compRows et lineups en place).
+// NBA entre In-Season a sa place dans l'ordre de priorite (v8) et l'option sans In-Season (modifie compRows et lineups en place).
 
 
 
 
-function calculeCompos({ comps, currentSet, setName, currentSetNBA, fixtures, advRank, europe }, rows, prev, now = new Date()) {
+function calculeCompos({ comps, currentSet, setName, currentSetNBA, fixtures, advRank, europe, prioriteNba }, rows, prev, now = new Date()) {
   // ---------- 8. Compositions ----------
   const used = new Set();
-  const order = [...comps].sort((a, b) => rank(a) - rank(b));
-  // Option A : ordre de priorite actuel (In-Season NBA en priorite 1, decision de l'utilisateur du 24/10/2026)
+  const order = ordreCompetitions(comps, prioriteNba);
+  // Option A : ordre de priorite NBA de sorare-compos/priorite-nba.json (contrat v8, choix de l'utilisateur du 02/11/2026 ;
+  // defaut = In-Season Champion en priorite 1, decision du 24/10/2026)
   // NBA In-Season : seule In-Season Champion est jouee (In-Season Contender retiree de NBA_COMPS, utilisateur 25/10/2026) ;
   // le choix A / B, les raisons et la rentabilite restent generiques (toute competition NBA In-Season presente).
   const { lineups, compRows } = affecteCompetitions(order, rows, used);
   // Option B (NBA seulement, choix de l'utilisateur du 25/10/2026 : « recommander la meilleure au lieu d'appliquer la
   // priorite 1 aveuglement ») : memes competitions NBA sans les In-Season, les cartes In-Season restant disponibles pour
   // Classic et Rooms. Le choix entre A et B demande les paliers (connus apres les compos) : evalueRentabilite().
+  // In-Season peut etre a n'importe quelle position (v8) : B = meme ordre NBA, In-Season sautee.
   // Football : jamais d'option B (cartes et competitions football non concernees).
   const nbaOrder = order.filter((c) => c.sport === "NBA");
   if (nbaOrder.some(estInSeasonNba)) OPTION_B.set(compRows, affecteCompetitions(nbaOrder, rows, new Set(), (c) => (estInSeasonNba(c) ? NON_RECOMMANDE : null)));
@@ -1434,7 +1461,8 @@ function affecteCompetitions(order, rows, used, sauter = null) {
   // carte -> competition qui l'a prise (pour expliquer un minimum In-Season impossible, proposition 11)
   const prisPar = new Map();
   // priorite affichee = position de la competition dans l'ordre d'affectation de son sport (1 = premiere servie)
-  const priorite = new Map(); for (const sp of ["NBA", "FOOTBALL"]) order.filter((x) => (x.sport === "NBA") === (sp === "NBA")).forEach((x, i) => priorite.set(x, i + 1));
+  // (NBA : rang de l'ordre effectif quand il est connu, pour que l'option B garde les memes numeros que l'option A)
+  const priorite = new Map(); for (const sp of ["NBA", "FOOTBALL"]) order.filter((x) => (x.sport === "NBA") === (sp === "NBA")).forEach((x, i) => priorite.set(x, RANG_NBA.get(x) ?? i + 1));
   for (const c of order) {
     if (c.inSeason && !c.minInSeason) c.minInSeason = 4;
     // nombre de compos a proposer : regle propre a l'utilisateur (NBA) sinon le maximum autorise par Sorare
@@ -1566,7 +1594,28 @@ function raisonInSeasonPrises(c, rows, used, prisPar, nIn) {
 
 function rank(c) { // ordre de priorite d'affectation des cartes
   if (c.sport === "FOOTBALL") return c.inSeason ? 0 : 1;
-  return c.nbaDef ? c.nbaDef.rang : 9;
+  // NBA : position 1, 2, 3... dans l'ordre effectif (contrat v8) ; repli sur NBA_COMPS.rang hors calculeCompos
+  return RANG_NBA.get(c) ?? (c.nbaDef ? c.nbaDef.rang : 9);
+}
+
+// competition NBA -> position dans l'ordre effectif (1 = premiere servie), fixee par ordreCompetitions()
+const RANG_NBA = new WeakMap();
+const rangDefaut = (c) => (c.nbaDef ? c.nbaDef.rang : 9);
+
+// Ordre d'affectation des competitions. Football : rangs fixes 0 / 1 (inchange). NBA (contrat v8, choix de l'utilisateur
+// du 02/11/2026) : ordre de prioriteNba (noms NBA_COMPS[].nom, lu dans sorare-compos/priorite-nba.json) ; tableau absent,
+// vide ou nom inconnu : competitions non citees placees apres, dans l'ordre par defaut (NBA_COMPS.rang). Jamais d'erreur.
+// Les competitions NBA reprennent les places qu'elles occupaient dans l'ordre par defaut (entrelacement avec le football
+// inchange), dans le nouvel ordre.
+function ordreCompetitions(comps, prioriteNba) {
+  const parDefaut = [...comps].sort((a, b) => (a.sport === "FOOTBALL" ? rank(a) : rangDefaut(a)) - (b.sport === "FOOTBALL" ? rank(b) : rangDefaut(b)));
+  const noms = Array.isArray(prioriteNba) ? prioriteNba.map((x) => String(x ?? "").trim()) : [];
+  const nba = parDefaut.filter((c) => c.sport === "NBA");
+  const pos = (c, i) => { const k = noms.indexOf(c.nbaDef?.nom ?? c.nom); return k >= 0 ? k : noms.length + i; };
+  const nbaOrdre = nba.map((c, i) => ({ c, p: pos(c, i) })).sort((a, b) => a.p - b.p).map((x) => x.c);
+  nbaOrdre.forEach((c, i) => RANG_NBA.set(c, i + 1));
+  let j = 0;
+  return parDefaut.map((c) => (c.sport === "NBA" ? nbaOrdre[j++] : c));
 }
 
 // Etoiles comptees sous un plafond (NBA uniquement, seul sport avec capStars). Niveau inconnu (gameplayTier absent,
@@ -1741,7 +1790,7 @@ function evalueRentabilite(compRows, lineups, paliers, rows, optionB = OPTION_B.
   const resA = compRows.map((cr) => ({ cr, e: eco(cr, lineups) }));
   for (const { cr, e } of resA) Object.assign(cr, e);
   if (!optionB) return { option: null };
-  // ---- NBA : In-Season en priorite 1 (A) ou sans In-Season (B) ? (choix de l'utilisateur du 25/10/2026) ----
+  // ---- NBA : In-Season a sa place dans l'ordre (A) ou sans In-Season (B) ? (choix de l'utilisateur du 25/10/2026) ----
   const nbaA = compRows.filter((c) => c.sport === "NBA");
   const nbaB = optionB.compRows.map((cr) => ({ ...cr, ...eco(cr, optionB.lineups) }));
   const bilan = (list) => ({ net: list.reduce((s, c) => s + (c.gain_net_espere || 0), 0), pts: list.reduce((s, c) => s + String(c.scores_compos || "").split(" ").filter(Boolean).reduce((a, x) => a + Number(x), 0), 0) });
@@ -1816,32 +1865,35 @@ function evalueLigne(cr, lus, tiers, bySlug) {
   return out;
 }
 
-return { calculeCompos, fenetreArcade, fenetreArcadeNba, fenetreEurope, ARCADE_SEUILS, ARCADE_DELAI, ARCADE_VIES, ARCADE_LARGEURS, ARCADE_RECOMPTE, EUROPE_SEUILS, EUROPE_CAPITAINE, EUROPE_RARETES, EUROPE_COMPETITIONS, EUROPE_LARGEURS, cleCompetition, puissanceSansRarete, PISTE_ARCADE, PISTE_EUROPE, ARCADE_NBA_SEUILS, ARCADE_NBA_ETOILES, ARCADE_NBA_PAR_EQUIPE, ARCADE_NBA_DELAI, ARCADE_NBA_LARGEURS, PISTE_ARCADE_NBA, planPiste, planArcade, planArcadeNba, planEurope, affecteCompetitions, coutInscription, sansBonusCarte, calculeChangements, raisonInSeasonPrises, rank, optimise, missingReason, plafondEtoiles, assignFootball, pAbove, ecartTypeJoueur, loiCompo, gainCompo, evalueRentabilite };
+return { calculeCompos, fenetreArcade, fenetreArcadeNba, fenetreEurope, ARCADE_SEUILS, ARCADE_DELAI, ARCADE_VIES, ARCADE_LARGEURS, ARCADE_RECOMPTE, EUROPE_SEUILS, EUROPE_CAPITAINE, EUROPE_RARETES, EUROPE_COMPETITIONS, EUROPE_LARGEURS, cleCompetition, puissanceSansRarete, PISTE_ARCADE, PISTE_EUROPE, ARCADE_NBA_SEUILS, ARCADE_NBA_ETOILES, ARCADE_NBA_PAR_EQUIPE, ARCADE_NBA_DELAI, ARCADE_NBA_LARGEURS, PISTE_ARCADE_NBA, planPiste, planArcade, planArcadeNba, planEurope, affecteCompetitions, coutInscription, sansBonusCarte, calculeChangements, raisonInSeasonPrises, rank, ordreCompetitions, optimise, missingReason, plafondEtoiles, assignFootball, pAbove, ecartTypeJoueur, loiCompo, gainCompo, evalueRentabilite };
 })();
 
 // ===== core.mjs =====
 const __m_core = (() => {
-  const { collecte, collectePaliers, collecteBilan } = __m_collecte;
+  const { collecte, collectePaliers, collecteBilan, normalisePrioriteNba } = __m_collecte;
   const { calculeJoueurs } = __m_modele;
   const { calculeCompos, evalueRentabilite } = __m_compos;
 // Collecte et analyse Sorare pour Elpredatooor : point d'entree qui enchaine les trois etapes.
 // collecte.mjs (sections 1 a 6) -> modele.mjs (section 7) -> compos.mjs (sections 8 a 12), puis paliers et sorties.
 // Fonctionne dans Node 20+ (GitHub Actions) et dans un navigateur (fetch natif).
-// collect({ apiKey, oddsKey, prev, history, compsPrecedentes, now, log, sport }) -> { files: { nom: lignes[] }, history }
+// collect({ apiKey, oddsKey, prev, history, compsPrecedentes, now, log, sport, prioriteNba }) -> { files: { nom: lignes[] }, history }
 // sport (facultatif) : "FOOTBALL" ou "NBA" = un seul sport ; les jeux ne contiennent alors utilement que ce sport et
 // doivent etre fusionnes avec la collecte precedente par fusionneSport (collecte.mjs), comme le fait collect.mjs.
 // compsPrecedentes : collectes enregistrees avant la date limite des gameweeks passees ([{ dossier, compos, competitions, paliers, resume }],
 // voir candidatsBilan dans collecte.mjs) ; sert au jeu bilan. Absent (navigateur) -> bilan vide.
+// prioriteNba (contrat v8) : contenu parse de sorare-compos/priorite-nba.json, lu par collect.mjs et collecte-locale.mjs ;
+// normalise par normalisePrioriteNba (collecte.mjs) puis passe a calculeCompos dans ctx.prioriteNba (tableau de noms
+// NBA_COMPS[].nom). Absent (navigateur) ou invalide -> ordre par defaut, message dans le journal. Football : aucun effet.
 
 
 
 
 
-async function collect({ apiKey, oddsKey = null, espn = true, prev = null, history = { samples: [], calibration: [] }, compsPrecedentes = null, now = new Date(), log = console.log, sport = null }) {
+async function collect({ apiKey, oddsKey = null, espn = true, prev = null, history = { samples: [], calibration: [] }, compsPrecedentes = null, now = new Date(), log = console.log, sport = null, prioriteNba = null }) {
   const ctx = await collecte({ apiKey, oddsKey, espn, history, now, log, sport });
   const { gq, comps, cards, players, setName, fixtures, odds, samples, w, calib } = ctx;
   const { rows, newSamples } = calculeJoueurs(ctx, now);
-  const { lineups, compRows, jours, changes, cartes, matchs, plan_arcade } = calculeCompos(ctx, rows, prev, now);
+  const { lineups, compRows, jours, changes, cartes, matchs, plan_arcade } = calculeCompos({ ...ctx, prioriteNba: normalisePrioriteNba(prioriteNba, log) }, rows, prev, now);
 
   // ---------- 13. Paliers de recompense de la derniere gameweek terminee ----------
   let paliers = [];

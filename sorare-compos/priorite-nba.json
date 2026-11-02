@@ -1,0 +1,5 @@
+{
+  "ordre": ["NBA In-Season Champion", "NBA Classic Champion", "NBA Classic Contender", "NBA Rooms Champion"],
+  "maj": "2026-11-02",
+  "note": "Ordre de priorité des compétitions NBA Pro, de la première servie à la dernière (contrat v8). Ordre par défaut ; à changer à la demande de l'utilisateur."
+}

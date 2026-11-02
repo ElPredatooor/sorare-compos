@@ -83,6 +83,9 @@
 /* Boutons d'action dans les compos */
 .sx-btn { appearance: none; border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); font: inherit; font-size: var(--cds-font-size-caption); padding: 0 8px; min-height: 1.6rem; border-radius: 999px; cursor: pointer; white-space: nowrap; }
 .sx-btn[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+.sx-ordre ol { margin: 0 0 var(--cds-gap-xs); padding-left: 1.5em; display: grid; gap: 4px; }
+.sx-ordre li .sx-btn { margin-left: 6px; } .sx-ordre .sx-btn:disabled { opacity: .35; cursor: default; }
+#ordre-txt { display: block; margin-bottom: var(--cds-gap-xs); user-select: all; overflow-wrap: anywhere; font-size: var(--cds-font-size-caption); }
 .sx-btn.sx-strong { font-weight: var(--cds-font-weight-medium); }
 .sx-acts { display: flex; gap: 4px; justify-content: flex-end; }
 .sx-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: 999px; overflow: hidden; }
@@ -298,6 +301,16 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 <span id="rg-banner-txt"></span>
 <span class="sx-chips" id="rg-chips"></span>
 <button class="sx-btn sx-strong" id="rg-reset">Revenir aux compos proposées</button>
+</div>
+
+<div class="sx-card sx-ordre" id="ordre-nba" data-sport-only="NBA" data-mode-only="PRO" data-source="competitions" data-field="rang" hidden>
+<h2>Priorité des compétitions</h2>
+<p class="sx-note">La première reçoit ses cartes d’abord ; une carte ne sert qu’une fois.</p>
+<ol id="ordre-list" aria-label="Priorité des compétitions NBA Pro"></ol>
+<p class="sx-note" id="ordre-col" hidden></p>
+<p class="sx-note" id="ordre-ins" hidden>Le choix de jouer ou non l’In-Season sera refait par la collecte avec cet ordre.</p>
+<div id="ordre-copie" hidden><p class="sx-note">Pour que la collecte quotidienne l’utilise, demande à Claude de l’enregistrer (fichier priorite-nba.json).</p><code id="ordre-txt"></code></div>
+<button class="sx-btn sx-strong" id="ordre-reset" hidden>Revenir à l’ordre de la collecte</button>
 </div>
 
 <div data-hide-in="FOOTBALL-SET NBA-SET" class="sx-card" id="decisions" data-source="competitions compos paliers">
@@ -561,7 +574,7 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 <h3>Étoiles, gain et progression</h3>
 <p>Les étoiles vont par demi-points selon la L10 : 5★ dès 50, 4,5★ dès 45, 4★ dès 40, 3,5★ dès 35, 3★ dès 30, 2,5★ dès 25, 2★ dès 20, 1,5★ dès 15, 1★ en dessous. Une carte sans niveau connu compte 1★ sous le plafond. Le gain est l’écart entre le score attendu et ce seuil. La L10 après la gameweek remplace autant d’anciens matchs que de matchs prévus (supposés valoir la L10 actuelle) par le score attendu par match ; c’est une estimation, Sorare recalcule les étoiles à chaque gameweek.</p>
 <h3>Compétitions et ordre de priorité</h3>
-<p>Ordre de priorité (ton choix du 24/10) : <span id="mn-ordre">In-Season Champion puis In-Season Contender (16 et 11 étoiles, min 4 cartes In-Season, une compo chacune), puis jusqu’à 3 compos en Classic Champion (16 étoiles), 3 en Classic Contender (11 étoiles) et 2 en Rooms Champion (16 étoiles, 150 essences Limited par compo).</span></p>
+<p>Ordre de priorité : <span id="mn-ordre">In-Season Champion puis In-Season Contender (16 et 11 étoiles, min 4 cartes In-Season, une compo chacune), puis jusqu’à 3 compos en Classic Champion (16 étoiles), 3 en Classic Contender (11 étoiles) et 2 en Rooms Champion (16 étoiles, 150 essences Limited par compo).</span> Tu peux changer cet ordre dans Décider (bloc « Priorité des compétitions ») : la page recalcule alors les compos dans ton ordre, et la collecte l’utilisera une fois l’ordre enregistré par Claude.</p>
 <p>Cartes Limited uniquement. Une carte n’est utilisée qu’une fois, au maximum 4 joueurs de la même équipe, pas de capitaine. Dans les compétitions In-Season, toutes tes cartes In-Season restent candidates, même quand le joueur a une autre carte mieux notée ; un joueur n’a qu’une carte par compo. Le score final multiplie le score attendu par le bonus de la carte (niveau, In-Season, collection), sauf en Rooms : les salons n’appliquent aucun bonus de carte, le score final y est le score attendu.</p>
 <h3>In-Season : choix automatique</h3>
 <p>Tes cartes In-Season ne vont en In-Season que si c’est la meilleure option chiffrée (ton choix du 25/10) : le modèle compare les essences espérées avec ces cartes en In-Season et avec les mêmes cartes laissées en Classic et Rooms, et garde l’option qui rapporte le plus. Quand la collecte fournit cette comparaison, la première carte In-Season (In-Season Champion) donne le choix retenu et l’écart en essences et en points, avec le détail replié ; In-Season Contender renvoie à cette carte.</p>
@@ -836,7 +849,7 @@ let current = 'p-compos';
 
 const CDEF = () => ({ style: 'equilibre', noDoubt: false, minGames: 0, minStart: 0 });
 const DEF = () => ({ def: CDEF(), excl: [], locks: {}, comps: {} });
-const rgLoad = (s) => (s.comps ? { ...DEF(), ...s, def: { ...CDEF(), ...s.def } } : { ...DEF(), def: { style: s.style || 'equilibre', noDoubt: !!s.noDoubt, minGames: Number(s.minGames) || 0, minStart: Number(s.minStart) || 0 }, excl: s.excl || [], locks: s.locks || {} });
+const rgLoad = (s) => ({ ...(s.comps ? { ...DEF(), ...s, def: { ...CDEF(), ...s.def } } : { ...DEF(), def: { style: s.style || 'equilibre', noDoubt: !!s.noDoubt, minGames: Number(s.minGames) || 0, minStart: Number(s.minStart) || 0 }, excl: s.excl || [], locks: s.locks || {} }), ordre: Array.isArray(s.ordre) ? s.ordre.filter((x) => typeof x === 'string') : [] });
 let RG = { FOOTBALL: DEF(), NBA: DEF() };
 try { const s = JSON.parse(localStorage.getItem('sx-reglages-v2') || localStorage.getItem('sx-reglages-v1') || 'null'); if (s && s.FOOTBALL && s.NBA) RG = { FOOTBALL: rgLoad(s.FOOTBALL), NBA: rgLoad(s.NBA) }; } catch (e) { /* stockage indisponible */ }
 const saveRG = () => { try { localStorage.setItem('sx-reglages-v2', JSON.stringify(RG)); } catch (e) { /* stockage indisponible */ } };
@@ -844,7 +857,7 @@ const cfgOf = (sp, comp) => { const g = RG[sp], o = g.comps[comp] || {}; return 
 const cDiff = (o) => o.style !== 'equilibre' || !!o.noDoubt || o.minGames > 0 || o.minStart > 0 || (o.excl || []).length > 0;
 const locksOf = (sp, comp) => Object.entries(RG[sp].locks).filter(([k, l]) => l.length && splitLock(k)[0] === comp);
 const nCustom = (sp, comp) => { const c = cfgOf(sp, comp); return (c.style !== 'equilibre') + !!c.noDoubt + (sp === 'NBA' ? c.minGames > 0 : c.minStart > 0) + ((RG[sp].comps[comp] || {}).excl || []).length + locksOf(sp, comp).reduce((s, [, l]) => s + l.length, 0); };
-const isCustom = (sp, list = compsOf(sp)) => { const g = RG[sp]; return cDiff(g.def) || g.excl.length > 0 || list.some((c) => cDiff(cfgOf(sp, c.competition)) || locksOf(sp, c.competition).length > 0); };
+const isCustom = (sp, list = compsOf(sp)) => { const g = RG[sp]; return cDiff(g.def) || g.excl.length > 0 || list.some((c) => cDiff(cfgOf(sp, c.competition)) || locksOf(sp, c.competition).length > 0) || (sp === 'NBA' && list.some((c) => sxModeOf(c) === 'PRO') && ordreDiff()); };
 let cache = { key: '', res: null };
 
 const ok = (id) => { const d = dash.data(id); if (d.status !== 'ok') return null; return SX_SUIVIE_JEUX.includes(id) && Array.isArray(d.data) ? d.data.filter(sxSuivie) : d.data; };
@@ -855,7 +868,11 @@ const chIn = (c, sp = sport, md = mode) => sportOfChange(c) === sp && ((has(c.sl
 const nomVue = (sp, nom, md = mode) => { const i = cardIdx(); if (!i) return null; const l = (ok('joueurs') || []).filter((r) => sportOfRow(r) === sp && r.joueur === nom && i.has(r.slug)); return l.length === 1 ? has(l[0].modes) && cat(l[0].slug, md) : null; };
 const jMap = () => new Map((ok('joueurs') || []).map((r) => [r.slug, r]));
 const compType = (c) => c.type || (c.sport === 'NBA' ? 'NBA' : /set/i.test(c.slug || c.competition) ? 'SET' : 'JPL');
-const compsOf = (sp, md = mode) => (ok('competitions') || []).filter((c) => sportOfRow(c) === sp && (!md || sxModeOf(c) === md)).slice().sort((a, b) => (Number(a.rang) || 0) - (Number(b.rang) || 0));
+const compsOf = (sp, md = mode) => { const b = compsCol(sp, md), o = RG.NBA.ordre || []; if (sp !== 'NBA' || !o.length) return b;
+const ix = (c) => { const k = o.indexOf(c.competition); return k < 0 ? o.length + b.indexOf(c) : k; }, pro = b.filter((c) => sxModeOf(c) === 'PRO').sort((x, y) => ix(x) - ix(y)); let k = 0;
+return b.map((c) => (sxModeOf(c) === 'PRO' ? pro[k++] : c)); };
+const ordreDiff = () => { const a = compsCol('NBA', 'PRO'), b = compsOf('NBA', 'PRO'); return a.some((c, i) => c !== b[i]); };
+const compsCol = (sp, md = mode) => (ok('competitions') || []).filter((c) => sportOfRow(c) === sp && (!md || sxModeOf(c) === md)).slice().sort((a, b) => (Number(a.rang) || 0) - (Number(b.rang) || 0));
 
 function mkCand(r, k, c, style) {
 const set = compType(c) === 'SET';
@@ -1205,6 +1222,7 @@ $('#ch-more').addEventListener('click', () => { chOpen[sport] = !chOpen[sport]; 
 
 let refocus = '';
 const changed = (fid) => { refocus = fid || ''; saveRG(); cache.key = ''; draw(); };
+$('#ordre-reset').addEventListener('click', () => { RG.NBA.ordre = []; changed('ord-d-0'); });
 $('#rg-reset').addEventListener('click', () => { RG[sport] = DEF(); pickMsg[sport] = {}; changed(); });
 const compRG = (comp) => (RG[sport].comps[comp] ||= { excl: [] });
 const setComp = (comp, k, v, fid) => { compRG(comp)[k] = v; changed(fid); };
@@ -1683,6 +1701,23 @@ msgEx: M.ex, msgFo: M.fo, warns: [] });
 return n;
 }
 
+function drawOrdre() {
+const col = compsCol('NBA', 'PRO'), cur = compsOf('NBA', 'PRO'), n = cur.length, names = cur.map((c) => c.competition), diff = ordreDiff(), ol = $('#ordre-list');
+$('#ordre-nba').hidden = n < 2; ol.replaceChildren();
+cur.forEach((c, i) => {
+const li = el('li'), nm = shortComp(c.competition); li.append(el('span', '', nm));
+[['u', '↑', 'Monter', -1], ['d', '↓', 'Descendre', 1]].forEach(([k, s, v, d]) => {
+const b = el('button', 'sx-btn', s), j = i + d; b.id = 'ord-' + k + '-' + i; b.setAttribute('aria-label', v + ' ' + nm + ' dans la priorité'); b.disabled = !cur[j];
+b.addEventListener('click', () => { const o = [...names]; [o[i], o[j]] = [o[j], o[i]]; RG.NBA.ordre = o; changed('ord-' + ((d < 0 ? j > 0 : j === n - 1) ? 'u' : 'd') + '-' + j); });
+li.append(b);
+});
+ol.append(li);
+});
+$('#ordre-col').hidden = !diff; $('#ordre-col').textContent = 'Ordre de la collecte : ' + col.map((c) => shortComp(c.competition)).join(', ') + '.';
+$('#ordre-ins').hidden = !col.some((c, i) => /in-season/i.test(c.competition) && cur[i] !== c);
+$('#ordre-copie').hidden = $('#ordre-reset').hidden = !diff; $('#ordre-txt').textContent = '"ordre": ' + JSON.stringify(names);
+}
+
 function drawCompos() {
 const g = RG[sport]; const custom = isCustom(sport);
 $('#rg-banner').hidden = !custom;
@@ -1694,11 +1729,12 @@ if (d.style !== 'equilibre') parts.push('profil ' + (d.style === 'sure' ? 'Sûre
 if (d.noDoubt) parts.push('sans incertains');
 if (d.minGames && sport === 'NBA') parts.push(d.minGames + ' matchs minimum');
 if (d.minStart && sport !== 'NBA') parts.push('titulaire ≥ ' + d.minStart + ' %');
-$('#rg-banner-txt').textContent = 'Compos recalculées avec tes réglages' + (rc.length ? ' (' + joinFr(rc) + ')' : '') + '.' + (parts.length ? ' Réglage commun : ' + parts.join(', ') + '.' : '') + (g.excl.length ? ' Exclus partout :' : '');
+$('#rg-banner-txt').textContent = 'Compos recalculées avec tes réglages' + (rc.length ? ' (' + joinFr(rc) + ')' : '') + '.' + (parts.length ? ' Réglage commun : ' + parts.join(', ') + '.' : '') + (sport === 'NBA' && mode === 'PRO' && ordreDiff() ? ' Ordre des compétitions changé.' : '') + (g.excl.length ? ' Exclus partout :' : '');
 g.excl.forEach((s) => { const b = el('button', 'sx-btn', '× ' + (J.get(s)?.joueur || s)); b.title = 'Réintégrer ce joueur partout'; b.addEventListener('click', () => toggleExcl(s)); chips.append(b); });
 }
 
 drawGwVide();
+if (sport === 'NBA' && mode === 'PRO') drawOrdre();
 const lineups = lineupsFor(sport);
 drawChanges(lineups, J);
 drawBar(lineups);

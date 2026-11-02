@@ -2,6 +2,7 @@
 // SPORT=football ou SPORT=nba : collecte d'un seul sport (workflows manuels), fusionnee avec data/latest : les lignes de
 // l'autre sport y sont gardees telles quelles (fusionneSport, collecte.mjs). SPORT absent, vide ou « tout » : les deux sports.
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { collect } from "./core.mjs";
 import { candidatsBilan, fusionneSport } from "./collecte.mjs";
 
@@ -14,6 +15,10 @@ const SPORTS = { "": null, tout: null, all: null, football: "FOOTBALL", nba: "NB
 if (!(sportBrut in SPORTS)) { console.error(`SPORT « ${sportBrut} » inconnu : football, nba ou tout`); process.exit(1); }
 const sport = SPORTS[sportBrut];
 
+// Priorite des competitions NBA Pro (contrat v8) : fichier a cote de ce module (et non relatif au cwd).
+// Absent -> null ; JSON invalide -> { erreur } ; dans les deux cas collect() garde l'ordre par defaut et le journalise.
+const prioriteNba = await readFile(fileURLToPath(new URL("./priorite-nba.json", import.meta.url)), "utf8")
+  .then((t) => { try { return JSON.parse(t); } catch (e) { return { erreur: "JSON invalide : " + e.message }; } }, () => null);
 const prev = await readJson("data/latest/joueurs.json", null);
 const history = await readJson("data/history.json", { samples: [], calibration: [] });
 // Bilan : archives faites avant la date limite d'une gameweek passee (les archives sans resume.json, d'avant le contrat v3, sont ignorees)
@@ -22,7 +27,7 @@ const jours = (await readdir("data/archive").catch(() => [])).filter((d) => /^\d
 const resumes = await Promise.all(jours.map(async (d) => ({ dossier: `data/archive/${d}`, resume: await readJson(`data/archive/${d}/resume.json`, null) })));
 const compsPrecedentes = await Promise.all(candidatsBilan(resumes, now).map(async (x) => ({ ...x,
   compos: await readJson(`${x.dossier}/compos.json`, []), competitions: await readJson(`${x.dossier}/competitions.json`, []), paliers: await readJson(`${x.dossier}/paliers.json`, []) })));
-const { files: collecte, history: h } = await collect({ apiKey, oddsKey, prev, history, compsPrecedentes, now, log: (m) => console.log(m), sport });
+const { files: collecte, history: h } = await collect({ apiKey, oddsKey, prev, history, compsPrecedentes, now, log: (m) => console.log(m), sport, prioriteNba });
 let files = collecte;
 if (sport) {
   // Fusion : chaque jeu de data/latest garde les lignes de l'autre sport ; jeu absent = seulement le sport collecte

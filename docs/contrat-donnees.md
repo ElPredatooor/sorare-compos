@@ -1,6 +1,6 @@
 # Contrat de données : collecte → modèle → dashboard
 
-Version 6 (02/11/2026, agent `donnees`) ; version 5 (25/10/2026, orchestrateur) ; version 4 (25/10/2026, orchestrateur) ; version 3 (25/10/2026, orchestrateur) ; version 2 (25/10/2026, agent `donnees`) ; version 1 (24/10/2026) relevée dans `core.mjs` et `dashboard/index.html` (v7).
+Version 8 (02/11/2026, orchestrateur : priorité des compétitions NBA) ; version 7 (02/11/2026, orchestrateur) ; version 6 (02/11/2026, agent `donnees`) ; version 5 (25/10/2026, orchestrateur) ; version 4 (25/10/2026, orchestrateur) ; version 3 (25/10/2026, orchestrateur) ; version 2 (25/10/2026, agent `donnees`) ; version 1 (24/10/2026) relevée dans `core.mjs` et `dashboard/index.html` (v7).
 Ce fichier fait foi. Toute colonne ajoutée, renommée ou supprimée est d'abord écrite ici,
 avec la version et le nom de l'agent, puis implémentée. `outils/verifier.mjs` contrôle ce contrat.
 
@@ -122,7 +122,7 @@ que pour les matchs du lendemain au moment de la collecte (collecte du jour de l
 | statut | texte | Avec la raison si nb_compos < max_compos |
 | regles | texte | Règles Sorare lues dans l'API |
 | type | `NBA`/`JPL`/`SET` | Famille de compétition |
-| rang | entier | Ordre de priorité d'affectation des cartes (dans le sport) |
+| rang | entier | Ordre de priorité d'affectation des cartes (dans le sport). v8 (N) : compétitions NBA Pro = position (1, 2, 3…) dans `sorare-compos/priorite-nba.json` (section « Priorité des compétitions NBA ») ; football inchangé |
 | cap_points, cap_etoiles, min_in_season, max_par_club, capitaine_pct | nombre | Règles numériques lues dans `displayedTypedRules` (null si absentes) |
 | cout_inscription | entier | v3. Essences Limited à payer par compo (Rooms NBA : 150) ; 0 sinon |
 | gains_esperes | texte | v3. Gain espéré de chaque compo, en essences Limited, séparé par une espace et aligné sur `scores_compos`. Seules les récompenses en essences comptent ; probabilité d'atteindre chaque palier = loi normale (moyenne = score de la compo, écart-type = celui de la fourchette 10–90 %). Vide si aucun palier connu |
@@ -215,6 +215,14 @@ maj, cartes, joueurs, set, gw_football, gw_nba, limite_football, limite_nba, poi
 ## Collecte d'un seul sport (v6)
 Tous les jeux de `data/latest/` et l'archive du jour (`data/archive/<date>/`) sont alors **fusionnés** : lignes du sport collecté = nouvelle collecte ; lignes de l'autre sport = collecte précédente, telles quelles (jeu sans ligne de l'autre sport : seulement le sport collecté). Sport d'une ligne : colonne `sport` ; `jours` : `mode` contient `NBA` ; `changements` : sport du joueur (à défaut `modes` contient `NBA`) ; `plan_arcade` : `mode` = `arcade_nba` → NBA, sinon football (v7). Colonnes et formats inchangés ; `resume` : voir v6 ci-dessus. `history.json` garde les échantillons et la calibration de l'autre sport.
 
+## Priorité des compétitions NBA (v8, N ; demande de l'utilisateur du 02/11/2026)
+Fichier `sorare-compos/priorite-nba.json` (projet local, recopié dans le dépôt GitHub par `outils/prepare-depot.sh`) :
+`{ "ordre": ["NBA In-Season Champion", "NBA Classic Champion", "NBA Classic Contender", "NBA Rooms Champion"], "maj": "AAAA-MM-JJ", "note": "…" }`.
+- `ordre` = noms des compétitions NBA Pro (`NBA_COMPS[].nom` de `collecte.mjs`), de la première servie à la dernière. L'ordre ci-dessus est l'ordre par défaut (celui d'avant la v8).
+- Lu par les points d'entrée Node (`collect.mjs`, `outils/collecte-locale.mjs`) et passé à `collect({ prioriteNba })` → `calculeCompos` (contexte `prioriteNba`, tableau de noms). Absent, illisible, ou nom inconnu : ordre par défaut pour ce qui manque (compétitions absentes de `ordre` placées après, dans l'ordre par défaut), avec un message dans le journal de collecte ; jamais d'échec de la collecte. Collecteur navigateur : ordre par défaut.
+- Effets : ordre d'affectation des cartes NBA (une carte ne sert qu'une fois), `competitions.rang`, textes « priorité N ». **In-Season Champion se place où l'utilisateur veut** et garde le choix A / B : option A = l'ordre du fichier, option B = le même ordre sans In-Season (cartes In-Season libres pour les autres). Football : aucun effet.
+- Dashboard (vue NBA Pro) : l'ordre de la collecte se lit dans `competitions.rang`. L'utilisateur peut le changer sur la page (réglage enregistré dans son navigateur, `sx-reglages-v2`, champ `NBA.ordre`) : la page recalcule alors les compos NBA dans cet ordre. Pour que la collecte l'utilise, la page affiche l'ordre à recopier dans `priorite-nba.json` (l'utilisateur le donne à Claude). Le type Dashboard ne permet pas à la page d'écrire dans un fichier partagé.
+
 ## Calculs du dashboard (ne pas fournir, calculés par la page)
 - `nb_changements` : {sport, n} depuis `changements`.
 - `nb_compos` : {sport, n} = somme de `competitions.nb_compos` par sport.
@@ -232,6 +240,7 @@ Tous les jeux de `data/latest/` et l'archive du jour (`data/archive/<date>/`) so
 |---|---|---|---|
 | 1 | 24/10/2026 | orchestrateur | Relevé initial depuis la v7 |
 | 2 | 25/10/2026 | donnees | `joueurs.source_titulaire` (F) ; jeu `matchs` décrit, avec `proba_victoire` et `total` par match (N) |
+| 8 | 02/11/2026 | orchestrateur | Priorité des compétitions NBA : fichier `sorare-compos/priorite-nba.json`, `competitions.rang` NBA = position dans ce fichier ; réglage de la page `NBA.ordre` |
 | 7 | 02/11/2026 | orchestrateur | Séparation Pro / Set : `joueurs.modes` redéfini (NBA / JPL seulement avec une carte Limited+, SET seulement avec une Common du set en cours) ; `changements.sport` et `slug` ; `jours` modes non exclusifs. Set Divination football et NBA : `plan_arcade.mode` = `arcade_nba` (lignes NBA) ; `resume.set_nba`, `arcade_nba_debut`, `arcade_nba_fin` ; `cartes.set_courant` NBA ; fusion d'un seul sport selon `mode` |
 | 6 | 02/11/2026 | donnees | `resume.maj_football` (F) / `resume.maj_nba` (N) ; collectes d'un seul sport fusionnées avec la précédente (section « Collecte d'un seul sport ») |
 | 5 | 25/10/2026 | orchestrateur | `plan_arcade.mode` (arcade / europe) ; `resume.europe_*` ; `matchs` football Pro européen + `competition_match` |

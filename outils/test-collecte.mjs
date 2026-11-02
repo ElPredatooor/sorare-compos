@@ -436,6 +436,47 @@ if (f.competitions.some((c) => c.recommandation)) {
   ok(/^> 99 % d'au moins une carte Limited 5★$/.test(o4.compRows.find((c) => c.competition === "NBA Classic Champion").autres_recompenses), "autres_recompenses : phrase inattendue");
 }
 
+// Priorité des compétitions NBA (contrat v8, choix de l'utilisateur du 02/11/2026) : ordre lu dans priorite-nba.json et
+// passé à calculeCompos (prioriteNba) ; rang = position 1..n ; nom inconnu / tableau absent = ordre par défaut ; football inchangé.
+{
+  const { calculeCompos, evalueRentabilite, ordreCompetitions } = await import(pathToFileURL(join(racine, "sorare-compos", "compos.mjs")).href);
+  const r = (slug, etoiles, score, inSeason, n = 1) => ({ joueur: slug, slug, sport: "NBA", modes: "NBA", score_attendu: score, matchs_gw: 2, etoiles, proba_titulaire: 95, regularite: 30, _games: [], _cv: 0.3, _clubSlug: "c-" + slug,
+    _cards: Array.from({ length: n }, (_, i) => ({ slug: slug + "-l" + i, rarity: "limited", inSeason: inSeason && i === 0, power: 1.05, skinBonus: 1, season: inSeason && i === 0 ? 2026 : 2024 })) });
+  const rows = [r("dosunmu", 2.5, 31, true), r("missi", 2.5, 0, true), r("holiday", 3, 33, true), r("gordon", 2.5, 34, true, 2), r("jokic", 5, 68, false),
+    ...Array.from({ length: 12 }, (_, i) => r("role-" + i, 2.5, 30 - i, false)), r("star2", 4, 50, false), r("star3", 4, 48, false)];
+  const IS = "NBA In-Season Champion", CC = "NBA Classic Champion", CT = "NBA Classic Contender", RO = "NBA Rooms Champion";
+  const mk = () => [{ nom: "Jupiler In-Season", sport: "FOOTBALL", inSeason: true, equipes: 1, capitaine: 50, minInSeason: 4 }, { nom: "Jupiler Champion", sport: "FOOTBALL", equipes: 1 },
+    { nom: RO, slug: "nba-x-nba_limited_arena_140", sport: "NBA", nbaDef: { nom: RO, rang: 4, compos: 1, essences: 150, salon: true }, capStars: 16, maxParClub: 4 },
+    { nom: CT, sport: "NBA", nbaDef: { nom: CT, rang: 3, compos: 1 }, capStars: 16, maxParClub: 4 },
+    { nom: IS, sport: "NBA", inSeason: true, nbaDef: { nom: IS, rang: 0, compos: 1 }, capStars: 16, minInSeason: 4, maxParClub: 4 },
+    { nom: CC, sport: "NBA", nbaDef: { nom: CC, rang: 2, compos: 1 }, capStars: 16, maxParClub: 4 }];
+  const ctx = (prioriteNba) => ({ comps: mk(), currentSet: "x", setName: "x", fixtures: { FOOTBALL: { cutOffDate: "x" }, NBA: {} }, advRank: () => ({}), prioriteNba });
+  const rangs = (o) => o.compRows.filter((c) => c.sport === "NBA").sort((a, b) => a.rang - b.rang).map((c) => c.rang + ":" + c.competition).join(", ");
+  const foot = (o) => o.compRows.filter((c) => c.sport === "Football" || /^Jupiler/.test(c.competition)).map((c) => c.competition + "=" + c.rang).join(", ");
+  // Rooms en premier, In-Season en dernier
+  const o = calculeCompos(ctx([RO, CC, CT, IS]), rows, null);
+  ok(rangs(o) === `1:${RO}, 2:${CC}, 3:${CT}, 4:${IS}`, "prioriteNba : rangs NBA inattendus : " + rangs(o));
+  ok(o.lineups.some((l) => l.competition === RO && l.joueur === "jokic"), "prioriteNba : Rooms en priorité 1 devrait prendre Jokić");
+  ok(foot(o) === "Jupiler In-Season=0, Jupiler Champion=1, Football Set x (Common)=9", "prioriteNba : rangs football modifiés : " + foot(o));
+  const isc = o.compRows.find((c) => c.competition === IS);
+  ok(isc.nb_compos === 1 || /priorité [123]\)/.test(isc.statut), "prioriteNba : In-Season en dernier, statut sans la priorité de la compo qui a pris ses cartes : " + isc.statut);
+  const ids = o.lineups.map((l) => l.carte_id); ok(new Set(ids).size === ids.length, "prioriteNba : une carte utilisée deux fois");
+  const pal = [{ competition: IS, rang: 1, score: 120, recompense: "5000 essences Limited" }, { competition: CC, rang: 1, score: 240, recompense: "3000 essences Limited" }, { competition: RO, rang: 1, score: 200, recompense: "500 essences Limited", type: "salon" }];
+  const res = evalueRentabilite(o.compRows, o.lineups, pal, rows);
+  ok(res.option !== null && res.B && rangs(o) === `1:${RO}, 2:${CC}, 3:${CT}, 4:${IS}`, "prioriteNba : option B non calculée ou rangs changés par evalueRentabilite (" + res.option + ", " + rangs(o) + ")");
+  // nom inconnu : les compétitions non citées suivent, dans l'ordre par défaut
+  const o2 = calculeCompos(ctx(["NBA Inconnue", CT]), rows, null);
+  ok(rangs(o2) === `1:${CT}, 2:${IS}, 3:${CC}, 4:${RO}`, "prioriteNba avec nom inconnu : rangs inattendus : " + rangs(o2));
+  // absent, vide, ou pas un tableau : ordre par défaut
+  for (const p of [undefined, [], "n'importe quoi", null]) {
+    const o3 = calculeCompos(ctx(p), rows, null);
+    ok(rangs(o3) === `1:${IS}, 2:${CC}, 3:${CT}, 4:${RO}`, "prioriteNba " + JSON.stringify(p) + " : ordre par défaut attendu, trouvé " + rangs(o3));
+    ok(foot(o3) === "Jupiler In-Season=0, Jupiler Champion=1, Football Set x (Common)=9", "prioriteNba " + JSON.stringify(p) + " : rangs football modifiés");
+  }
+  // l'entrelacement football / NBA de l'ordre d'affectation ne change pas
+  ok(ordreCompetitions(mk(), [RO]).map((c) => c.sport).join() === ordreCompetitions(mk()).map((c) => c.sport).join(), "ordreCompetitions : places football / NBA modifiées");
+}
+
 // Jeu jours (25/10/2026) : en NBA, jour = soirée américaine (UTC − 5, comme matchs.jour) ; football inchangé (date UTC)
 {
   const { calculeCompos } = await import(pathToFileURL(join(racine, "sorare-compos", "compos.mjs")).href);

@@ -5,22 +5,24 @@
 // planEurope (Pro European Contenders, cartes Limited et plus, Ligue Europa / Conference League) et planArcadeNba (Set NBA,
 // cartes Common NBA du set en cours, contrat v7) en sont trois reglages.
 // evalueRentabilite(compRows, lineups, paliers, rows) : apres les paliers (core.mjs), colonnes v3 de competitions et choix
-// NBA entre In-Season en priorite 1 et l'option sans In-Season (modifie compRows et lineups en place).
+// NBA entre In-Season a sa place dans l'ordre de priorite (v8) et l'option sans In-Season (modifie compRows et lineups en place).
 
 import { POS, round, day, cardLabel } from "./collecte.mjs";
 import { jourDuMatch } from "./modele.mjs";
 
-export function calculeCompos({ comps, currentSet, setName, currentSetNBA, fixtures, advRank, europe }, rows, prev, now = new Date()) {
+export function calculeCompos({ comps, currentSet, setName, currentSetNBA, fixtures, advRank, europe, prioriteNba }, rows, prev, now = new Date()) {
   // ---------- 8. Compositions ----------
   const used = new Set();
-  const order = [...comps].sort((a, b) => rank(a) - rank(b));
-  // Option A : ordre de priorite actuel (In-Season NBA en priorite 1, decision de l'utilisateur du 24/10/2026)
+  const order = ordreCompetitions(comps, prioriteNba);
+  // Option A : ordre de priorite NBA de sorare-compos/priorite-nba.json (contrat v8, choix de l'utilisateur du 02/11/2026 ;
+  // defaut = In-Season Champion en priorite 1, decision du 24/10/2026)
   // NBA In-Season : seule In-Season Champion est jouee (In-Season Contender retiree de NBA_COMPS, utilisateur 25/10/2026) ;
   // le choix A / B, les raisons et la rentabilite restent generiques (toute competition NBA In-Season presente).
   const { lineups, compRows } = affecteCompetitions(order, rows, used);
   // Option B (NBA seulement, choix de l'utilisateur du 25/10/2026 : « recommander la meilleure au lieu d'appliquer la
   // priorite 1 aveuglement ») : memes competitions NBA sans les In-Season, les cartes In-Season restant disponibles pour
   // Classic et Rooms. Le choix entre A et B demande les paliers (connus apres les compos) : evalueRentabilite().
+  // In-Season peut etre a n'importe quelle position (v8) : B = meme ordre NBA, In-Season sautee.
   // Football : jamais d'option B (cartes et competitions football non concernees).
   const nbaOrder = order.filter((c) => c.sport === "NBA");
   if (nbaOrder.some(estInSeasonNba)) OPTION_B.set(compRows, affecteCompetitions(nbaOrder, rows, new Set(), (c) => (estInSeasonNba(c) ? NON_RECOMMANDE : null)));
@@ -431,7 +433,8 @@ export function affecteCompetitions(order, rows, used, sauter = null) {
   // carte -> competition qui l'a prise (pour expliquer un minimum In-Season impossible, proposition 11)
   const prisPar = new Map();
   // priorite affichee = position de la competition dans l'ordre d'affectation de son sport (1 = premiere servie)
-  const priorite = new Map(); for (const sp of ["NBA", "FOOTBALL"]) order.filter((x) => (x.sport === "NBA") === (sp === "NBA")).forEach((x, i) => priorite.set(x, i + 1));
+  // (NBA : rang de l'ordre effectif quand il est connu, pour que l'option B garde les memes numeros que l'option A)
+  const priorite = new Map(); for (const sp of ["NBA", "FOOTBALL"]) order.filter((x) => (x.sport === "NBA") === (sp === "NBA")).forEach((x, i) => priorite.set(x, RANG_NBA.get(x) ?? i + 1));
   for (const c of order) {
     if (c.inSeason && !c.minInSeason) c.minInSeason = 4;
     // nombre de compos a proposer : regle propre a l'utilisateur (NBA) sinon le maximum autorise par Sorare
@@ -563,7 +566,28 @@ export function raisonInSeasonPrises(c, rows, used, prisPar, nIn) {
 
 export function rank(c) { // ordre de priorite d'affectation des cartes
   if (c.sport === "FOOTBALL") return c.inSeason ? 0 : 1;
-  return c.nbaDef ? c.nbaDef.rang : 9;
+  // NBA : position 1, 2, 3... dans l'ordre effectif (contrat v8) ; repli sur NBA_COMPS.rang hors calculeCompos
+  return RANG_NBA.get(c) ?? (c.nbaDef ? c.nbaDef.rang : 9);
+}
+
+// competition NBA -> position dans l'ordre effectif (1 = premiere servie), fixee par ordreCompetitions()
+const RANG_NBA = new WeakMap();
+const rangDefaut = (c) => (c.nbaDef ? c.nbaDef.rang : 9);
+
+// Ordre d'affectation des competitions. Football : rangs fixes 0 / 1 (inchange). NBA (contrat v8, choix de l'utilisateur
+// du 02/11/2026) : ordre de prioriteNba (noms NBA_COMPS[].nom, lu dans sorare-compos/priorite-nba.json) ; tableau absent,
+// vide ou nom inconnu : competitions non citees placees apres, dans l'ordre par defaut (NBA_COMPS.rang). Jamais d'erreur.
+// Les competitions NBA reprennent les places qu'elles occupaient dans l'ordre par defaut (entrelacement avec le football
+// inchange), dans le nouvel ordre.
+export function ordreCompetitions(comps, prioriteNba) {
+  const parDefaut = [...comps].sort((a, b) => (a.sport === "FOOTBALL" ? rank(a) : rangDefaut(a)) - (b.sport === "FOOTBALL" ? rank(b) : rangDefaut(b)));
+  const noms = Array.isArray(prioriteNba) ? prioriteNba.map((x) => String(x ?? "").trim()) : [];
+  const nba = parDefaut.filter((c) => c.sport === "NBA");
+  const pos = (c, i) => { const k = noms.indexOf(c.nbaDef?.nom ?? c.nom); return k >= 0 ? k : noms.length + i; };
+  const nbaOrdre = nba.map((c, i) => ({ c, p: pos(c, i) })).sort((a, b) => a.p - b.p).map((x) => x.c);
+  nbaOrdre.forEach((c, i) => RANG_NBA.set(c, i + 1));
+  let j = 0;
+  return parDefaut.map((c) => (c.sport === "NBA" ? nbaOrdre[j++] : c));
 }
 
 // Etoiles comptees sous un plafond (NBA uniquement, seul sport avec capStars). Niveau inconnu (gameplayTier absent,
@@ -738,7 +762,7 @@ export function evalueRentabilite(compRows, lineups, paliers, rows, optionB = OP
   const resA = compRows.map((cr) => ({ cr, e: eco(cr, lineups) }));
   for (const { cr, e } of resA) Object.assign(cr, e);
   if (!optionB) return { option: null };
-  // ---- NBA : In-Season en priorite 1 (A) ou sans In-Season (B) ? (choix de l'utilisateur du 25/10/2026) ----
+  // ---- NBA : In-Season a sa place dans l'ordre (A) ou sans In-Season (B) ? (choix de l'utilisateur du 25/10/2026) ----
   const nbaA = compRows.filter((c) => c.sport === "NBA");
   const nbaB = optionB.compRows.map((cr) => ({ ...cr, ...eco(cr, optionB.lineups) }));
   const bilan = (list) => ({ net: list.reduce((s, c) => s + (c.gain_net_espere || 0), 0), pts: list.reduce((s, c) => s + String(c.scores_compos || "").split(" ").filter(Boolean).reduce((a, x) => a + Number(x), 0), 0) });

@@ -57,6 +57,31 @@ const NBA_COMPS = [
   // 150 Limited pour nba_limited_arena_140, verifie le 25/10/2026.
   { suffix: "nba_limited_arena_140", nom: "NBA Rooms Champion", rang: 4, compos: 2, essences: 150, salon: true },
 ];
+// ---------- Priorite des competitions NBA Pro (contrat v8) ----------
+// json : contenu de sorare-compos/priorite-nba.json ({ ordre: [noms] }), deja parse par le point d'entree Node, ou null
+// (fichier absent), ou { erreur } (JSON invalide : lirePrioriteNba des points d'entree).
+// Retourne les noms NBA_COMPS[].nom dans l'ordre voulu : noms inconnus ou en double ignores, competitions manquantes
+// ajoutees a la fin dans l'ordre par defaut. Absent ou illisible : ordre par defaut. Jamais d'erreur (message dans log).
+// Fonction pure (sans fs) : le collecteur navigateur n'a pas de fichier et garde l'ordre par defaut.
+export function normalisePrioriteNba(json, log = () => {}) {
+  const defaut = NBA_COMPS.map((c) => c.nom);
+  if (json == null) { log("priorité NBA : fichier absent, ordre par défaut"); return defaut; }
+  const ordre = json && typeof json === "object" && !Array.isArray(json) ? json.ordre : Array.isArray(json) ? json : null;
+  if (!Array.isArray(ordre)) { log(`priorité NBA : fichier illisible (${json?.erreur || "champ ordre manquant"}), ordre par défaut`); return defaut; }
+  const res = [];
+  for (const n of ordre) {
+    const nom = typeof n === "string" ? n.trim() : n;
+    if (!defaut.includes(nom)) { log(`priorité NBA : compétition inconnue ignorée « ${String(n)} »`); continue; }
+    if (res.includes(nom)) { log(`priorité NBA : doublon ignoré « ${nom} »`); continue; }
+    res.push(nom);
+  }
+  const manquantes = defaut.filter((n) => !res.includes(n));
+  if (manquantes.length && res.length) log(`priorité NBA : absentes du fichier, placées à la fin : ${manquantes.join(", ")}`);
+  if (!res.length) log("priorité NBA : aucune compétition valide, ordre par défaut");
+  const fin = res.concat(manquantes);
+  log(`priorité NBA : ${fin.map((n, i) => `${i + 1}. ${n}`).join(" ; ")}`);
+  return fin;
+}
 export const POS = { Goalkeeper: "Gardien", Defender: "Défenseur", Midfielder: "Milieu", Forward: "Attaquant" };
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

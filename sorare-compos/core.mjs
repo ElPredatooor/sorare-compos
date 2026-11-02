@@ -1,21 +1,24 @@
 // Collecte et analyse Sorare pour Elpredatooor : point d'entree qui enchaine les trois etapes.
 // collecte.mjs (sections 1 a 6) -> modele.mjs (section 7) -> compos.mjs (sections 8 a 12), puis paliers et sorties.
 // Fonctionne dans Node 20+ (GitHub Actions) et dans un navigateur (fetch natif).
-// collect({ apiKey, oddsKey, prev, history, compsPrecedentes, now, log, sport }) -> { files: { nom: lignes[] }, history }
+// collect({ apiKey, oddsKey, prev, history, compsPrecedentes, now, log, sport, prioriteNba }) -> { files: { nom: lignes[] }, history }
 // sport (facultatif) : "FOOTBALL" ou "NBA" = un seul sport ; les jeux ne contiennent alors utilement que ce sport et
 // doivent etre fusionnes avec la collecte precedente par fusionneSport (collecte.mjs), comme le fait collect.mjs.
 // compsPrecedentes : collectes enregistrees avant la date limite des gameweeks passees ([{ dossier, compos, competitions, paliers, resume }],
 // voir candidatsBilan dans collecte.mjs) ; sert au jeu bilan. Absent (navigateur) -> bilan vide.
+// prioriteNba (contrat v8) : contenu parse de sorare-compos/priorite-nba.json, lu par collect.mjs et collecte-locale.mjs ;
+// normalise par normalisePrioriteNba (collecte.mjs) puis passe a calculeCompos dans ctx.prioriteNba (tableau de noms
+// NBA_COMPS[].nom). Absent (navigateur) ou invalide -> ordre par defaut, message dans le journal. Football : aucun effet.
 
-import { collecte, collectePaliers, collecteBilan } from "./collecte.mjs";
+import { collecte, collectePaliers, collecteBilan, normalisePrioriteNba } from "./collecte.mjs";
 import { calculeJoueurs } from "./modele.mjs";
 import { calculeCompos, evalueRentabilite } from "./compos.mjs";
 
-export async function collect({ apiKey, oddsKey = null, espn = true, prev = null, history = { samples: [], calibration: [] }, compsPrecedentes = null, now = new Date(), log = console.log, sport = null }) {
+export async function collect({ apiKey, oddsKey = null, espn = true, prev = null, history = { samples: [], calibration: [] }, compsPrecedentes = null, now = new Date(), log = console.log, sport = null, prioriteNba = null }) {
   const ctx = await collecte({ apiKey, oddsKey, espn, history, now, log, sport });
   const { gq, comps, cards, players, setName, fixtures, odds, samples, w, calib } = ctx;
   const { rows, newSamples } = calculeJoueurs(ctx, now);
-  const { lineups, compRows, jours, changes, cartes, matchs, plan_arcade } = calculeCompos(ctx, rows, prev, now);
+  const { lineups, compRows, jours, changes, cartes, matchs, plan_arcade } = calculeCompos({ ...ctx, prioriteNba: normalisePrioriteNba(prioriteNba, log) }, rows, prev, now);
 
   // ---------- 13. Paliers de recompense de la derniere gameweek terminee ----------
   let paliers = [];
