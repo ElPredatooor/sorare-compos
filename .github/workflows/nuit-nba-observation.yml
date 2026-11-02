@@ -1,0 +1,65 @@
+# Copié par outils/prepare-depot.sh vers .github/workflows/nuit-nba-observation.yml du dépôt public.
+# Observation de nuit NBA, LECTURE SEULE : relève toutes les N minutes l'état des paliers NBA d'Elpredatooor (piste Set
+# avec le jeton SORARE_JWT, pistes publiques sans jeton) et l'état des matchs NBA (ESPN), puis résume les changements
+# d'état avec leur heure. Aucune écriture sur Sorare, aucun commit, aucun déploiement.
+# Journaux publics : le script n'écrit ni nom de joueur, ni slug de carte, ni identifiant de compo ou d'étape.
+name: "Nuit NBA : observation"
+
+on:
+  workflow_dispatch:
+    inputs:
+      duree_minutes:
+        description: "Durée totale de l'observation (minutes)"
+        required: false
+        default: "350"
+      intervalle_minutes:
+        description: "Intervalle entre deux relevés (minutes)"
+        required: false
+        default: "5"
+  schedule:
+    # 23h45 UTC le 2 novembre = 00h45 à Bruxelles dans la nuit du 2 au 3/11/2026 (à retirer après cette nuit :
+    # sinon le cron se redéclenche chaque 2 novembre)
+    - cron: "45 23 2 11 *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nuit-nba-observation
+  cancel-in-progress: false
+
+jobs:
+  observation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Masquer le jeton dans les journaux
+        env:
+          SORARE_JWT: ${{ secrets.SORARE_JWT }}
+        run: |
+          if [ -n "$SORARE_JWT" ]; then echo "::add-mask::$SORARE_JWT"; echo "Jeton présent (masqué)."; else echo "Jeton SORARE_JWT absent : mode public seulement."; fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Observation (lecture seule)
+        env:
+          SORARE_API_KEY: ${{ secrets.SORARE_API_KEY }}
+          SORARE_JWT: ${{ secrets.SORARE_JWT }}
+          JWT_AUD: elpredatooor-nuit
+          DUREE_MINUTES: ${{ inputs.duree_minutes || '350' }}
+          INTERVALLE_MINUTES: ${{ inputs.intervalle_minutes || '5' }}
+          SORTIE: observation-nuit-nba
+        run: node outils/observation-nuit-nba.mjs
+
+      - name: Joindre les relevés
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observation-nuit-nba
+          path: observation-nuit-nba/
+          retention-days: 7
+          if-no-files-found: warn
