@@ -1,6 +1,6 @@
 # Contrat de données : collecte → modèle → dashboard
 
-Version 5 (25/10/2026, orchestrateur) ; version 4 (25/10/2026, orchestrateur) ; version 3 (25/10/2026, orchestrateur) ; version 2 (25/10/2026, agent `donnees`) ; version 1 (24/10/2026) relevée dans `core.mjs` et `dashboard/index.html` (v7).
+Version 6 (02/11/2026, agent `donnees`) ; version 5 (25/10/2026, orchestrateur) ; version 4 (25/10/2026, orchestrateur) ; version 3 (25/10/2026, orchestrateur) ; version 2 (25/10/2026, agent `donnees`) ; version 1 (24/10/2026) relevée dans `core.mjs` et `dashboard/index.html` (v7).
 Ce fichier fait foi. Toute colonne ajoutée, renommée ou supprimée est d'abord écrite ici,
 avec la version et le nom de l'agent, puis implémentée. `outils/verifier.mjs` contrôle ce contrat.
 
@@ -199,11 +199,15 @@ joueur, modes, type (`Nouvelle blessure`, `Retour de blessure`, `Suspension`, `S
 date, sport (`FOOTBALL`/`NBA`), matchs, erreur_modele, erreur_sorare, erreur_forme, poids_sorare (0 à 1).
 
 ## resume (une seule ligne)
+v6 : ajoute `maj_football` (F) et `maj_nba` (N) : date ISO de la collecte dont viennent les lignes de ce sport. Collecte complète : les deux = `maj`. Collecte d'un seul sport (workflows manuels « Collecte NBA seule » / « Collecte football seule », `SPORT=nba|football`) : `maj` et `maj_<sport collecté>` = maintenant ; `maj_<autre sport>` et les champs de l'autre sport (football : `set`, `gw_football`, `limite_football`, `gw_debut_football`, `gw_fin_football`, `arcade_*`, `europe_*` ; NBA : `gw_nba`, `limite_nba`, `gw_debut_nba`, `gw_fin_nba`) sont repris de la collecte précédente (`maj_<autre>` vide s'il n'y en avait pas). Le bilan choisit ses archives d'après `maj_<sport>` (à défaut `maj`).
 v5 : ajoute `europe_slug`, `europe_debut`, `europe_fin` (période de la compétition European Contenders en cours ou à venir ; vides si aucune).
 v4 : ajoute `arcade_debut`, `arcade_fin` (fenêtre de la gameweek football en cours, `so5Fixture(type: LIVE)`, pendant laquelle se joue l'Arcade / Set).
 v3 : ajoute `gw_debut_football`, `gw_fin_football`, `gw_debut_nba`, `gw_fin_nba` (dates ISO de la fenêtre de chaque gameweek, lues dans `so5Fixture.startDate` / `endDate`).
 
 maj, cartes, joueurs, set, gw_football, gw_nba, limite_football, limite_nba, poids_sorare, cotes_externes (`oui`/`non`), appels_api.
+
+## Collecte d'un seul sport (v6)
+Tous les jeux de `data/latest/` et l'archive du jour (`data/archive/<date>/`) sont alors **fusionnés** : lignes du sport collecté = nouvelle collecte ; lignes de l'autre sport = collecte précédente, telles quelles (jeu sans ligne de l'autre sport : seulement le sport collecté). Sport d'une ligne : colonne `sport` ; `jours` : `mode` contient `NBA` ; `changements` : sport du joueur (à défaut `modes` contient `NBA`) ; `plan_arcade` : football. Colonnes et formats inchangés ; `resume` : voir v6 ci-dessus. `history.json` garde les échantillons et la calibration de l'autre sport.
 
 ## Calculs du dashboard (ne pas fournir, calculés par la page)
 - `nb_changements` : {sport, n} depuis `changements`.
@@ -222,6 +226,7 @@ maj, cartes, joueurs, set, gw_football, gw_nba, limite_football, limite_nba, poi
 |---|---|---|---|
 | 1 | 24/10/2026 | orchestrateur | Relevé initial depuis la v7 |
 | 2 | 25/10/2026 | donnees | `joueurs.source_titulaire` (F) ; jeu `matchs` décrit, avec `proba_victoire` et `total` par match (N) |
+| 6 | 02/11/2026 | donnees | `resume.maj_football` (F) / `resume.maj_nba` (N) ; collectes d'un seul sport fusionnées avec la précédente (section « Collecte d'un seul sport ») |
 | 5 | 25/10/2026 | orchestrateur | `plan_arcade.mode` (arcade / europe) ; `resume.europe_*` ; `matchs` football Pro européen + `competition_match` |
 | 4 | 25/10/2026 | orchestrateur | `matchs` étendu au football (Set) ; `resume.arcade_debut` / `arcade_fin` ; nouveau jeu `plan_arcade` |
 | 3 | 25/10/2026 | orchestrateur | Colonnes déjà produites ajoutées (joueurs, compos, competitions) ; jeux `cartes` et `paliers` décrits ; `competitions` : cout_inscription, gains_esperes, gain_net_espere, autres_recompenses, rentable, recommandation, alternative ; nouveau jeu `bilan` ; `resume` : fenêtres des gameweeks |

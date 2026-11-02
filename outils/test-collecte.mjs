@@ -2,7 +2,8 @@
 // 1. lance collect() depuis les modules (sorare-compos/core.mjs) ;
 // 2. lance la même collecte depuis le fichier généré sorare-compos/collecteur-navigateur.js ;
 // 3. vérifie que les deux sorties sont identiques et contrôle quelques règles (football et NBA séparés).
-// Usage : node outils/test-collecte.mjs [--sortie <dossier>] [--modules] [--arcade]
+// Usage : node outils/test-collecte.mjs [--sortie <dossier>] [--modules] [--arcade] [--sport-detail]
+//   --sport-detail affiche les appels et les lignes des collectes d'un seul sport (avec --sortie : jeux fusionnés dans <dossier>/nba-seul et football-seul)
 //   --arcade affiche le plan Arcade calculé sur le monde simulé
 //   --sortie écrit les jeux simulés pour outils/verifier.mjs
 //   --modules ne teste que les modules (saute la comparaison avec collecteur-navigateur.js, utile avant de régénérer le bundle)
@@ -468,6 +469,74 @@ if (f.competitions.some((c) => c.recommandation)) {
   const r1 = C.calculeCompos(ctx({ slug: "eu", debut: iso(debut - J), fin: iso(fin), competitions: ["Europa Conference League", "Europa League"], capitaine: 50 }), rows, null, new Date(debut));
   ok(r1.plan_arcade.some((x) => x.mode === "europe") && r1.matchs.length === 20 && r1.matchs.every((m) => compets.includes(m.competition_match) && m.sport === "Football"), "Europe : matchs européens incorrects : " + r1.matchs.map((m) => m.slug + ":" + m.competition_match).join());
   if (process.argv.includes("--europe")) console.log(plan.filter((x) => x.depart <= 2).map((x) => [x.depart, x.etape, x.palier, x.seuil, x.creneau, x.compo, x.score_attendu, x.proba_compo, x.proba_palier, x.joueurs, x.compo === 1 ? x.conseil : ""].join(" | ")).join("\n") + "\n" + vide[0].conseil);
+}
+
+// Collecte d'un seul sport (workflows manuels « Collecte NBA seule » / « Collecte football seule », 02/11/2026) :
+// sur une collecte précédente complète, les lignes de l'autre sport restent identiques (marquées _ancien ici), celles du
+// sport collecté sont celles d'une collecte complète, et le resume garde les champs de l'autre sport.
+{
+  const { fusionneSport, candidatsBilan, CHAMPS_RESUME_SPORT } = await import(pathToFileURL(join(racine, "sorare-compos", "collecte.mjs")).href);
+  const NOM = { FOOTBALL: "Football", NBA: "NBA" };
+  const SPORT_PAR_JEU = { jours: (r) => (/NBA/.test(r.mode) ? "NBA" : "FOOTBALL"), plan_arcade: () => "FOOTBALL" };
+  const sportJ = new Map(f.joueurs.map((r) => [r.joueur, r.sport]));
+  const sportDe = (nom, r) => SPORT_PAR_JEU[nom] ? SPORT_PAR_JEU[nom](r) : nom === "changements" ? sportJ.get(r.joueur) : String(r.sport).toUpperCase() === "NBA" ? "NBA" : "FOOTBALL";
+  // collecte précédente complète, marquée et avec un resume de la veille
+  const anciens = JSON.parse(JSON.stringify(f));
+  for (const [nom, l] of Object.entries(anciens)) if (nom !== "resume") for (const r of l) r._ancien = true;
+  // changements : la collecte simulée n'en produit pas ; une ligne par sport pour vérifier qu'elle est gardée
+  anciens.changements.push({ joueur: "koffi", modes: "JPL", type: "Suspension", detail: "x", _ancien: true }, { joueur: "luka-doncic", modes: "NBA", type: "Statut modifié", detail: "y", _ancien: true });
+  const ligneBilan = (sport, gw, competition) => ({ sport, gw, competition, numero: 1, score_prevu: 300, score_reel: 310, ecart: 10, palier_vise: "aucun palier", palier_atteint: "aucun palier", joueurs: "a 60→62 ; b 60→62 ; c 60→62 ; d 60→62 ; e 60→62", source_compos: "data/archive/2026-10-22", _ancien: true });
+  anciens.bilan.push(ligneBilan("Football", CLOSED.FOOTBALL, f.competitions.find((c) => c.sport === "Football").competition), ligneBilan("NBA", CLOSED.NBA, "NBA Classic Champion"));
+  const ligneCalib = (sport) => ({ date: "2026-10-25", sport, matchs: 9, erreur_modele: 8, erreur_sorare: 9, erreur_forme: 10, poids_sorare: 0.5, _ancien: true });
+  anciens.calibration.push(ligneCalib("FOOTBALL"), ligneCalib("NBA"));
+  // history : calibration des deux sports, dont une ligne du jour par sport (collecte complète plus tôt dans la journée)
+  const hist = { samples: a.history.samples, calibration: [["2026-10-25", "FOOTBALL"], ["2026-10-25", "NBA"], ["2026-10-26", "FOOTBALL"], ["2026-10-26", "NBA"]].map(([date, sport]) => ({ date, sport, matchs: 5, erreur_modele: 8, erreur_sorare: 9, erreur_forme: 10, poids_sorare: 0.5 })) };
+  const veille = new Date(NOW.getTime() - J).toISOString();
+  Object.assign(anciens.resume[0], { maj: veille, maj_football: veille, maj_nba: veille, gw_football: "football-ancienne", gw_nba: "nba-ancienne", set: "Set ancien" });
+  sportJ.set("koffi", "FOOTBALL"); sportJ.set("luka-doncic", "NBA");
+  globalThis.setTimeout = (fn) => vraiTimeout(fn, 0);
+  for (const sport of ["NBA", "FOOTBALL"]) {
+    appels = 0;
+    const s = await collect({ ...opts(), sport, prev: anciens.joueurs, history: JSON.parse(JSON.stringify(hist)) });
+    const appelsSport = appels;
+    const m = fusionneSport(sport, s.files, anciens);
+    const iS = process.argv.indexOf("--sortie");
+    if (iS > 0) { const d = resolve(process.argv[iS + 1], sport.toLowerCase() + "-seul"); await mkdir(d, { recursive: true }); for (const [k, v] of Object.entries(m)) await writeFile(join(d, k + ".json"), JSON.stringify(v.map(({ _ancien, ...x }) => x))); }
+    if (process.argv.includes("--sport-detail")) console.log(sport, appelsSport, "appels ;", Object.entries(m).map(([k, l]) => `${k} ${l.length} (${l.filter((x) => x._ancien).length} anciennes)`).join(", "));
+    const autre = sport === "NBA" ? "FOOTBALL" : "NBA";
+    ok(appelsSport < appelsModules, `${sport} seul : ${appelsSport} appels, pas moins que la collecte complète (${appelsModules})`);
+    for (const nom of Object.keys(f)) {
+      if (nom === "resume") continue;
+      const avant = anciens[nom].filter((r) => sportDe(nom, r) === autre), apres = m[nom].filter((r) => sportDe(nom, r) === autre);
+      ok(JSON.stringify(avant) === JSON.stringify(apres), `${sport} seul : lignes ${autre} de ${nom} modifiées (${avant.length} avant, ${apres.length} après)`);
+      const neuves = m[nom].filter((r) => sportDe(nom, r) === sport);
+      ok(neuves.every((r) => !r._ancien), `${sport} seul : ${nom} garde des lignes ${sport} de la collecte précédente`);
+      // le sport collecté sort comme dans une collecte complète (bilan et calibration exclus : dépendent de l'historique passé)
+      if (!["calibration", "bilan"].includes(nom)) ok(JSON.stringify(neuves) === JSON.stringify(f[nom].filter((r) => sportDe(nom, r) === sport)), `${sport} seul : lignes ${sport} de ${nom} différentes de la collecte complète`);
+    }
+    const r = m.resume[0], v = anciens.resume[0];
+    ok(m.resume.length === 1, `${sport} seul : resume doit avoir 1 ligne`);
+    for (const k of CHAMPS_RESUME_SPORT[autre]) ok(r[k] === v[k], `${sport} seul : resume.${k} de l'autre sport non gardé (${r[k]} au lieu de ${v[k]})`);
+    ok(r["maj_" + sport.toLowerCase()] === NOW.toISOString() && r.maj === NOW.toISOString(), `${sport} seul : resume.maj_${sport.toLowerCase()} non mis à jour`);
+    ok(r["gw_" + sport.toLowerCase()] === FX[sport], `${sport} seul : resume.gw_${sport.toLowerCase()} non mis à jour`);
+    // history : échantillons et calibration de l'autre sport conservés
+    const garde = (l) => JSON.stringify(l.filter((x) => x.sport === autre));
+    ok(a.history.samples.some((x) => x.sport === autre) && garde(s.history.samples) === garde(a.history.samples), `${sport} seul : échantillons ${autre} de history modifiés`);
+    ok(garde(s.history.calibration) === garde(hist.calibration), `${sport} seul : calibration ${autre} de history modifiée (ligne du jour comprise)`);
+    ok(!s.history.calibration.some((x) => x.sport === sport && x.date === "2026-10-26"), `${sport} seul : ancienne ligne du jour ${sport} non remplacée dans la calibration`);
+    // sans collecte précédente : seulement le sport collecté
+    const seul = fusionneSport(sport, s.files, {});
+    ok(seul.joueurs.length > 0 && seul.joueurs.every((x) => x.sport === sport) && seul.compos.every((x) => x.sport === NOM[sport]), `${sport} seul sans collecte précédente : lignes de l'autre sport présentes`);
+    ok(seul.resume[0]["maj_" + autre.toLowerCase()] === null, `${sport} seul sans collecte précédente : resume.maj_${autre.toLowerCase()} devrait être vide`);
+  }
+  globalThis.setTimeout = vraiTimeout;
+  ok(f.resume[0].maj_football === NOW.toISOString() && f.resume[0].maj_nba === NOW.toISOString(), "collecte complète : resume.maj_football / maj_nba = maj attendus");
+  // Bilan : la date de collecte d'un sport (maj_<sport>) décide si une archive fusionnée sert au bilan de ce sport
+  const lim = (h) => new Date(NOW.getTime() - h * H).toISOString();
+  const arch = { dossier: "d", resume: [{ maj: lim(10), maj_football: lim(40), maj_nba: lim(10), gw_football: "gf", limite_football: lim(30), gw_fin_football: lim(5), gw_nba: "gn", limite_nba: lim(20), gw_fin_nba: lim(5) }] };
+  ok(candidatsBilan([arch], NOW).length === 1, "bilan : archive fusionnée (football collecté avant la limite) non retenue");
+  ok(candidatsBilan([{ dossier: "d", resume: [{ ...arch.resume[0], maj_football: lim(10) }] }], NOW).length === 0, "bilan : archive collectée après les limites retenue à tort");
+  ok(candidatsBilan([{ dossier: "d", resume: [{ ...arch.resume[0], maj: lim(40), maj_football: undefined, maj_nba: undefined }].map(({ maj_football, maj_nba, ...x }) => x) }], NOW).length === 1, "bilan : archive sans maj_<sport> (avant le contrat v6) : resume.maj doit servir");
 }
 
 const i = process.argv.indexOf("--sortie");

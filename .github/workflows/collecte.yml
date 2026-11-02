@@ -1,33 +1,47 @@
 # Copié par outils/prepare-depot.sh vers .github/workflows/collecte.yml du dépôt public.
 # Collecte quotidienne Sorare (lecture seule) -> vérification du contrat -> commit des données -> site GitHub Pages.
+# Aussi appelé (workflow_call, entrée sport) par les workflows manuels collecte-nba.yml et collecte-football.yml :
+# un seul sport collecté, fusionné avec data/latest (les lignes de l'autre sport restent celles de la collecte précédente).
 name: Collecte Sorare quotidienne
 
 on:
   schedule:
     - cron: "15 5 * * *"   # 05:15 UTC, soit 6h15 (hiver) ou 7h15 (été) à Bruxelles
   workflow_dispatch: {}     # bouton « Run workflow » pour lancer à la main
+  workflow_call:            # appelé par « Collecte NBA seule » / « Collecte football seule »
+    inputs:
+      sport:
+        description: "nba, football, ou vide = les deux sports"
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: write   # commit des données dans data/
   pages: write      # déploiement GitHub Pages
   id-token: write   # exigé par actions/deploy-pages
 
-concurrency:
-  group: collecte
-  cancel-in-progress: false
-
+# Concurrence au niveau des jobs (et non du workflow) : les trois workflows (quotidien, NBA seule, football seule)
+# partagent le groupe « collecte » sans le blocage connu appelant / appelé sur un même groupe de workflow.
 jobs:
   collecte:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    concurrency:
+      group: collecte
+      cancel-in-progress: false
+    env:
+      SPORT: ${{ inputs.sport }}   # vide pour la collecte quotidienne (les deux sports)
     steps:
-      # 1 appel Sorare, sans clé
+      # 1 appel Sorare, sans clé (sur le sport collecté ; NBA pour la collecte des deux sports)
       - name: Diagnostic - les serveurs de GitHub joignent-ils api.sorare.com ?
+        env:
+          SPORT_API: ${{ inputs.sport == 'football' && 'FOOTBALL' || 'NBA' }}
         run: |
           set +e
           corps=$(curl -sS -m 20 -w '\n%{http_code}' https://api.sorare.com/graphql \
             -H 'Content-Type: application/json' \
-            -d '{"query":"{ so5 { so5Fixture(type: UPCOMING, sport: NBA) { slug cutOffDate } } }"}' 2>&1)
+            -d '{"query":"{ so5 { so5Fixture(type: UPCOMING, sport: '"$SPORT_API"') { slug cutOffDate } } }"}' 2>&1)
           code_curl=$?
           set -e
           http=$(printf '%s' "$corps" | tail -n 1)
@@ -44,7 +58,11 @@ jobs:
           fi
           echo "OK : api.sorare.com joignable depuis GitHub (HTTP 200). Réponse : $reponse"
 
+      # Pointe de la branche au moment du job (et non du déclenchement) : une collecte mise en attente derrière une autre
+      # repart des données que celle-ci vient d'enregistrer
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -56,7 +74,8 @@ jobs:
           node outils/test-bilan.mjs
           node outils/test-regles-delta.mjs
 
-      # Environ 400 à 500 appels Sorare (limite : environ 1 000 par 10 minutes), 2 appels The Odds API
+      # Environ 400 à 500 appels Sorare (limite : environ 1 000 par 10 minutes), 6 appels The Odds API ;
+      # un seul sport (SPORT) : seuls ses joueurs, compétitions, paliers, cotes et données ESPN sont lus, puis fusion
       - name: Collecter les données Sorare
         env:
           SORARE_API_KEY: ${{ secrets.SORARE_API_KEY }}
@@ -109,7 +128,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A data
           if git diff --cached --quiet; then echo "Aucune donnée nouvelle"; exit 0; fi
-          git commit -m "Données du $(date -u +%Y-%m-%d)"
+          case "$SPORT" in nba) quoi=" (NBA seule)";; football) quoi=" (football seul)";; *) quoi="";; esac
+          git commit -m "Données du $(date -u +%Y-%m-%d)$quoi"
           git pull --rebase
           git push
 
@@ -135,6 +155,9 @@ jobs:
   deploiement:
     needs: collecte
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deploiement.outputs.page_url }}

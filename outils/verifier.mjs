@@ -27,10 +27,10 @@ const COLS = {
   plan_arcade: ["depart", "etape", "palier", "seuil", "creneau", "resultat_vers", "compo", "joueurs", "score_attendu", "proba_compo", "proba_palier", "conseil"],
 };
 // Colonnes v3 à v5 contrôlées seulement si présentes (collectes antérieures, ou stratège pas encore livré) : remarque si absentes
-// v4 : resume.arcade_* ; v5 : resume.europe_*, matchs.competition_match, plan_arcade.mode (absent des collectes v4 : vaut arcade)
+// v4 : resume.arcade_* ; v6 : resume.maj_football / maj_nba ; v5 : resume.europe_*, matchs.competition_match, plan_arcade.mode (absent des collectes v4 : vaut arcade)
 const COLS_V3 = {
   competitions: ["cout_inscription", "gains_esperes", "gain_net_espere", "autres_recompenses", "rentable", "recommandation", "alternative"],
-  resume: ["gw_debut_football", "gw_fin_football", "gw_debut_nba", "gw_fin_nba", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin"],
+  resume: ["gw_debut_football", "gw_fin_football", "gw_debut_nba", "gw_fin_nba", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin", "maj_football", "maj_nba"],
   matchs: ["competition_match"],
   plan_arcade: ["mode"],
 };

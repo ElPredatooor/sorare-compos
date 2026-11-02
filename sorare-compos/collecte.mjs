@@ -1,10 +1,22 @@
 // Collecte Sorare pour Elpredatooor : sections 1 a 6 de l'ancien core.mjs
 // (cartes, competitions, joueurs, matchs, cotes, ESPN, classements, calibration) et paliers de recompense.
 // Fonctionne dans Node 20+ (GitHub Actions) et dans un navigateur (fetch natif).
-// collecte({ apiKey, oddsKey, espn, history, now, log }) -> contexte lu par modele.mjs et compos.mjs
+// collecte({ apiKey, oddsKey, espn, history, now, log, sport }) -> contexte lu par modele.mjs et compos.mjs
+// sport (facultatif) : "FOOTBALL" ou "NBA" = collecte d'un seul sport (workflows manuels « Collecte NBA seule » /
+// « Collecte football seule ») ; absent = les deux sports (comportement habituel). Voir fusionneSport pour la fusion.
 
 const API = "https://api.sorare.com/graphql";
 const USER = "elpredatooor";
+// Delai maximal d'un appel reseau (collecte figee 3 h 13 le 26/10/2026 faute de delai) ; absent si AbortSignal.timeout manque
+const DELAI_MS = 20000;
+const delai = (ms = DELAI_MS) => (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(ms) : undefined);
+// GET JSON avec delai maximal et une reprise ; null en cas d'echec (ESPN)
+async function getJsonDelai(u, essais = 2) {
+  for (let k = 0; k < essais; k++) {
+    try { const r = await fetch(u, { signal: delai() }); return r.ok ? await r.json() : null; } catch { if (k === essais - 1) return null; }
+  }
+  return null;
+}
 const NBA_COMPS = [
   // In-Season en priorite 1 (decision de l'utilisateur du 24/10/2026) : min 4 cartes de la saison en cours
   { suffix: "nba_limited_in_season_champion", nom: "NBA In-Season Champion", rang: 0, compos: 1 },
@@ -25,7 +37,10 @@ export const mean = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length :
 export const sd = (a) => { if (a.length < 2) return null; const m = mean(a); return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1)); };
 export const day = (iso) => (iso ? iso.slice(0, 10) : "");
 
-export async function collecte({ apiKey, oddsKey = null, espn = true, history = { samples: [], calibration: [] }, now = new Date(), log = console.log }) {
+export async function collecte({ apiKey, oddsKey = null, espn = true, history = { samples: [], calibration: [] }, now = new Date(), log = console.log, sport = null }) {
+  if (sport && !["FOOTBALL", "NBA"].includes(sport)) throw new Error(`sport « ${sport} » inconnu (FOOTBALL ou NBA)`);
+  const dans = (s) => !sport || s === sport; // sport collecte (les deux si sport absent)
+  if (sport) log(`Collecte ${sport === "NBA" ? "NBA" : "football"} seule`);
   const headers = { "content-type": "application/json", "accept-language": "fr" };
   if (apiKey) headers.APIKEY = apiKey;
   let calls = 0;
@@ -34,7 +49,7 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     for (let k = 0; k < 6; k++) {
       try {
         calls++;
-        const r = await fetch(API, { method: "POST", headers, body: JSON.stringify({ query, variables }) });
+        const r = await fetch(API, { method: "POST", headers, body: JSON.stringify({ query, variables }), signal: delai() });
         const text = await r.text();
         let j; try { j = JSON.parse(text); } catch { j = { error: text.slice(0, 200) }; }
         if (j.data && !j.errors) return j.data;
@@ -121,7 +136,8 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
   const wanted = [
     ...fixtures.FOOTBALL.so5Leaderboards.filter((l) => /jupiler/.test(l.slug) && l.mainRarityType === "limited"),
     ...fixtures.NBA.so5Leaderboards.filter((l) => NBA_COMPS.some((n) => l.slug.endsWith("-" + n.suffix))),
-  ].sort((a, b) => a.slug.length - b.slug.length).filter((l) => { const k = sansUuid(l.slug); if (vus.has(k)) return false; vus.add(k); return true; });
+  ].filter((l) => dans(l.slug.startsWith("nba") ? "NBA" : "FOOTBALL"))
+    .sort((a, b) => a.slug.length - b.slug.length).filter((l) => { const k = sansUuid(l.slug); if (vus.has(k)) return false; vus.add(k); return true; });
   const comps = [];
   for (const l of wanted) {
     const d = await gq(`query($s:String!){ so5{ so5Leaderboard(slug:$s){ slug displayedTypedRules{ key descriptions{ title items{ title } } ... on So5EntryItemRule { entryItem{ ... on So5CardShardsEntryItem { quantity rarity } } } } } } }`, { s: l.slug });
@@ -146,7 +162,7 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
   // European Contenders (contrat v5, resume.europe_*) : leaderboard « …-special-weekly-european-contenders-division-1 »
   // de la gameweek en cours ou a venir. Cout : 0 a 3 appels de recherche + 1 appel de regles si trouve.
   let europe = null;
-  try { europe = await chercheEurope({ gq, fixtures, fixturesRecentes, now, log }); } catch (e) { log("European Contenders : " + e.message); }
+  if (dans("FOOTBALL")) try { europe = await chercheEurope({ gq, fixtures, fixturesRecentes, now, log }); } catch (e) { log("European Contenders : " + e.message); }
 
   // ---------- 3. Donnees joueurs ----------
   log("Joueurs…");
@@ -156,7 +172,8 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     ... on Player { position playingStatus activeSuspensions{ endDate } playerGameScores(last:10){ score anyGame{ date } anyPlayerGameStats{ ... on PlayerGameStats{ minsPlayed } } } so5Scores(last:10){ score decisiveScore{ totalScore } game{ date } } }
     ... on NBAPlayer { gainOnProjection(eventType:CLASSIC) playerGameScores(last:10){ score anyGame{ date } } } } }`;
   const info = new Map();
-  (await batched(players.map((p) => p.slug), apiKey ? 40 : 10, async (s) => (await gq(PQ, { s })).players)).forEach((p) => p && info.set(p.slug, p));
+  // Un seul sport : seuls ses joueurs sont lus (les autres gardent d = null et ne sont pas pertinents)
+  (await batched(players.filter((p) => dans(p.sport)).map((p) => p.slug), apiKey ? 40 : 10, async (s) => (await gq(PQ, { s })).players)).forEach((p) => p && info.set(p.slug, p));
   for (const p of players) p.d = info.get(p.slug) || null;
   // Poste football : celui des cartes (Card.anyPositions), pas Player.position. Verifie le 25/10/2026 : Guilherme Smith
   // (Union) a Player.position = Midfielder mais sa carte Limited 2026 est Forward ; 80 cartes 2026 du portefeuille sur
@@ -207,9 +224,9 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
   log(`Cotes de titularisation Sorare : ${avecCote}/${foot.length} joueurs football`);
 
   // ---------- 5. Cotes externes (facultatif) ----------
-  const odds = oddsKey ? await fetchOdds(oddsKey, log) : [];
-  const espnData = espn ? await fetchEspn(relevant.filter((p) => p.sport === "NBA"), log) : new Map();
-  const standings = espn ? await fetchStandings(log) : { find: () => null };
+  const odds = oddsKey ? await fetchOdds(oddsKey, log, sport) : [];
+  const espnData = espn && dans("NBA") ? await fetchEspn(relevant.filter((p) => p.sport === "NBA"), log) : new Map();
+  const standings = espn ? await fetchStandings(log, sport) : { find: () => null };
   const advRank = (name, sport) => {
     const t = standings.find(name, sport);
     return t ? { adv_attaque_rang: t.att, adv_defense_rang: t.def, adv_nb_equipes: t.n, adv_ligue: t.ligue, adv_attaque_val: t.attVal, adv_defense_val: t.defVal } : { adv_attaque_rang: null, adv_defense_rang: null, adv_nb_equipes: null, adv_ligue: "", adv_attaque_val: null, adv_defense_val: null };
@@ -232,8 +249,9 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     }
   }
   const recentAll = done.filter((s) => Date.parse(s.date) > now - 7 * 86400e3);
-  const calib = (history.calibration || []).filter((c) => c.date !== day(now.toISOString()) && c.sport);
-  for (const sp of ["FOOTBALL", "NBA"]) {
+  // Un seul sport : la ligne du jour de l'autre sport (collecte precedente du jour) est gardee
+  const calib = (history.calibration || []).filter((c) => c.sport && !(c.date === day(now.toISOString()) && dans(c.sport)));
+  for (const sp of ["FOOTBALL", "NBA"].filter(dans)) {
     const recent = recentAll.filter((s) => s.sport === sp);
     if (!recent.length) continue;
     calib.push({
@@ -245,7 +263,7 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     });
   }
 
-  return { gq, batched, fixturesRecentes, appels: () => calls, europe, estMatchEurope: (g) => estMatchEurope(europe, g), cards, players, byPlayer, currentSet, setName, fixtures, comps, relevant, isJPL, inSet, odds, espnData, standings, advRank, samples, w, calib };
+  return { sport, gq, batched, fixturesRecentes, appels: () => calls, europe, estMatchEurope: (g) => estMatchEurope(europe, g), cards, players, byPlayer, currentSet, setName, fixtures, comps, relevant, isJPL, inSet, odds, espnData, standings, advRank, samples, w, calib };
 }
 
 // ---------- Poste football d'apres les cartes (Card.anyPositions) ----------
@@ -332,11 +350,15 @@ export function cardLabel(c) { return [c.rarity === "super_rare" ? "Super Rare" 
 
 // ---------- Cotes externes : The Odds API (facultatif) ----------
 const ODDS_SPORTS = ["basketball_nba", "soccer_belgium_first_div", "soccer_epl", "soccer_spain_la_liga", "soccer_germany_bundesliga", "soccer_france_ligue_one"];
-async function fetchOdds(key, log) {
+async function fetchOdds(key, log, sport = null) {
   const out = [];
-  for (const s of ODDS_SPORTS) {
+  for (const s of ODDS_SPORTS.filter((x) => !sport || (x === "basketball_nba") === (sport === "NBA"))) {
     try {
-      const r = await fetch(`https://api.the-odds-api.com/v4/sports/${s}/odds?regions=eu&markets=h2h,totals&oddsFormat=decimal&apiKey=${encodeURIComponent(key)}`);
+      let r;
+      for (let k = 0; k < 2; k++) {
+        try { r = await fetch(`https://api.the-odds-api.com/v4/sports/${s}/odds?regions=eu&markets=h2h,totals&oddsFormat=decimal&apiKey=${encodeURIComponent(key)}`, { signal: delai() }); break; }
+        catch (e) { if (k === 1) throw e; }
+      }
       if (!r.ok) { log("cotes " + s + " : HTTP " + r.status); continue; }
       for (const ev of await r.json()) {
         const h = {}, tot = [];
@@ -418,10 +440,10 @@ function rewardLabel(cfgs) {
     }
   }).join(" + ");
 }
-export async function collectePaliers(gq, comps, log, fixturesRecentes = null) {
+export async function collectePaliers(gq, comps, log, fixturesRecentes = null, seulSport = null) {
   const out = [];
   const closed = {};
-  for (const sport of ["FOOTBALL", "NBA"]) {
+  for (const sport of ["FOOTBALL", "NBA"].filter((s) => !seulSport || s === seulSport)) {
     const nodes = fixturesRecentes ? await fixturesRecentes(sport) : (await gq(`query($sport:Sport!){ so5{ so5Fixtures(sport:$sport, first:8){ nodes{ slug aasmState } } } }`, { sport })).so5.so5Fixtures.nodes;
     closed[sport] = nodes.filter((f) => f.aasmState === "closed").map((f) => f.slug);
   }
@@ -466,6 +488,8 @@ const b64 = (s) => (typeof btoa === "function" ? btoa(s) : Buffer.from(s).toStri
 // ---------- Bilan de la derniere gameweek terminee (contrat v3, jeu bilan) ----------
 // Source des compos : la derniere collecte enregistree avant la date limite de la gameweek (resume.gw_* / limite_*).
 const SPORTS_BILAN = [["FOOTBALL", "Football", "football"], ["NBA", "NBA", "nba"]];
+// Date de collecte d'un sport : resume.maj_<sport> (contrat v6, collectes d'un seul sport fusionnees), sinon resume.maj
+const majSport = (r, k) => (r && ("maj_" + k) in r ? r["maj_" + k] : r?.maj);
 const resumeDe = (x) => (Array.isArray(x?.resume) ? x.resume[0] : x?.resume) || null;
 // liste : [{ dossier, resume }] -> collectes candidates : pour chaque sport et chaque gameweek dont la date limite est passee
 // (et la fin aussi, quand resume.gw_fin_* est connu), la derniere collecte faite avant la date limite. Aucun appel reseau.
@@ -474,7 +498,7 @@ export function candidatsBilan(liste, now = new Date()) {
   for (const x of liste) {
     const r = resumeDe(x); if (!r) continue;
     for (const [, , k] of SPORTS_BILAN) {
-      const gw = r["gw_" + k], lim = Date.parse(r["limite_" + k]), maj = Date.parse(r.maj), fin = Date.parse(r["gw_fin_" + k]);
+      const gw = r["gw_" + k], lim = Date.parse(r["limite_" + k]), maj = Date.parse(majSport(r, k)), fin = Date.parse(r["gw_fin_" + k]);
       if (!gw || !(maj < lim) || !(lim < t) || fin > t) continue;
       const cle = k + "|" + gw, cur = best.get(cle);
       if (!cur || maj > cur.maj) best.set(cle, { maj, x });
@@ -500,12 +524,12 @@ function meilleurPalier(liste, x) {
 }
 // precedentes : [{ dossier, compos, competitions, paliers, resume }] (ou un seul objet) ; paliers : ceux de la collecte en cours.
 // Cout : 0 appel en plus des paliers (so5Fixtures partage) ; + 1 appel par lot de 40 joueurs alignes qui ne sont plus dans le portefeuille.
-export async function collecteBilan({ gq, batched, fixturesRecentes, players }, precedentes, paliers = [], now = new Date(), log = console.log) {
+export async function collecteBilan({ gq, batched, fixturesRecentes, players, sport = null }, precedentes, paliers = [], now = new Date(), log = console.log) {
   const liste = !precedentes ? [] : Array.isArray(precedentes) ? precedentes : [precedentes];
   if (!liste.length) return [];
   const t = +now; const choix = [];
-  for (const [SP, nom, k] of SPORTS_BILAN) {
-    const cands = liste.map((x) => ({ x, r: resumeDe(x) })).filter(({ r }) => r && r["gw_" + k] && Date.parse(r.maj) < Date.parse(r["limite_" + k]) && Date.parse(r["limite_" + k]) < t);
+  for (const [SP, nom, k] of SPORTS_BILAN.filter(([SP]) => !sport || SP === sport)) {
+    const cands = liste.map((x) => ({ x, r: resumeDe(x) })).filter(({ r }) => r && r["gw_" + k] && Date.parse(majSport(r, k)) < Date.parse(r["limite_" + k]) && Date.parse(r["limite_" + k]) < t);
     if (!cands.length) continue;
     let fx = [];
     try { fx = await fixturesRecentes(SP); } catch (e) { log("bilan : gameweeks " + SP + " : " + e.message); }
@@ -513,7 +537,7 @@ export async function collecteBilan({ gq, batched, fixturesRecentes, players }, 
       const f = fx.find((y) => y.slug === c.r["gw_" + k]);
       c.debut = f?.startDate || c.r["gw_debut_" + k] || null; c.fin = f?.endDate || c.r["gw_fin_" + k] || null;
     }
-    const finies = cands.filter((c) => c.debut && c.fin && Date.parse(c.fin) < t).sort((a, b) => Date.parse(b.fin) - Date.parse(a.fin) || Date.parse(b.r.maj) - Date.parse(a.r.maj));
+    const finies = cands.filter((c) => c.debut && c.fin && Date.parse(c.fin) < t).sort((a, b) => Date.parse(b.fin) - Date.parse(a.fin) || Date.parse(majSport(b.r, k)) - Date.parse(majSport(a.r, k)));
     if (!finies.length) continue;
     const c = finies[0];
     choix.push({ SP, nom, c, gw: c.r["gw_" + k], lignes: (c.x.compos || []).filter((l) => l.sport === nom) });
@@ -573,7 +597,7 @@ export async function collecteBilan({ gq, batched, fixturesRecentes, players }, 
 const pname = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, "").replace(/[^a-z]/g, "");
 async function fetchEspn(nbaPlayers, log) {
   const out = new Map();
-  const getJson = async (u) => { try { const r = await fetch(u); return r.ok ? await r.json() : null; } catch { return null; } };
+  const getJson = getJsonDelai;
   const byName = new Map();
   for (let id = 1; id <= 30; id++) {
     const ro = await getJson(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${id}/roster`);
@@ -640,16 +664,17 @@ async function fetchEspn(nbaPlayers, log) {
 
 // ---------- Classements attaque / defense des adversaires (ESPN) ----------
 const FOOT_LEAGUES = { "bel.1": "Jupiler Pro League", "eng.1": "Premier League", "esp.1": "LaLiga", "ger.1": "Bundesliga", "fra.1": "Ligue 1", "ita.1": "Serie A", "por.1": "Liga Portugal", "ned.1": "Eredivisie", "tur.1": "Süper Lig", "sco.1": "Premiership", "eng.2": "Championship", "esp.2": "LaLiga 2", "ger.2": "2. Bundesliga", "uefa.champions": "Ligue des champions", "uefa.europa": "Ligue Europa", "uefa.europa.conf": "Conference League" };
-async function fetchStandings(log) {
-  const getJson = async (u) => { try { const r = await fetch(u); return r.ok ? await r.json() : null; } catch { return null; } };
+async function fetchStandings(log, sport = null) {
+  const getJson = getJsonDelai;
   const entries = (j) => (j?.children || (j ? [j] : [])).flatMap((c) => c.standings?.entries || []);
   const stat = (e, n) => e.stats?.find((x) => x.name === n)?.value;
   const teams = { NBA: [], FOOTBALL: [] };
   const rankIn = (list, key, desc) => { const sorted = list.slice().sort((a, b) => (desc ? b[key] - a[key] : a[key] - b[key])); sorted.forEach((t, i) => (t[key + "Rank"] = i + 1)); };
   // NBA : saison en cours, completee par la saison passee tant que peu de matchs ont ete joues
   const curYear = new Date().getUTCMonth() >= 8 ? new Date().getUTCFullYear() + 1 : new Date().getUTCFullYear();
-  const cur = entries(await getJson("https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings"));
-  const prev = entries(await getJson(`https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings?season=${curYear - 1}`));
+  // Un seul sport : seuls ses classements sont lus
+  const cur = sport === "FOOTBALL" ? [] : entries(await getJson("https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings"));
+  const prev = sport === "FOOTBALL" ? [] : entries(await getJson(`https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings?season=${curYear - 1}`));
   const prevBy = new Map(prev.map((e) => [e.team?.displayName, e]));
   const nba = cur.map((e) => {
     const g = (stat(e, "wins") || 0) + (stat(e, "losses") || 0);
@@ -660,7 +685,7 @@ async function fetchStandings(log) {
   }).filter((t) => t.name && t.att != null && t.def != null);
   rankIn(nba, "att", true); rankIn(nba, "def", false);
   teams.NBA = nba.map((t) => ({ name: t.name, ligue: "NBA", att: t.attRank, def: t.defRank, n: nba.length, attVal: Math.round(t.att * 10) / 10, defVal: Math.round(t.def * 10) / 10 }));
-  for (const [code, ligue] of Object.entries(FOOT_LEAGUES)) {
+  for (const [code, ligue] of sport === "NBA" ? [] : Object.entries(FOOT_LEAGUES)) {
     const list = entries(await getJson(`https://site.web.api.espn.com/apis/v2/sports/soccer/${code}/standings`)).map((e) => {
       const gp = stat(e, "gamesPlayed") || 0;
       return { name: e.team?.displayName, gp, att: gp ? (stat(e, "pointsFor") || 0) / gp : null, def: gp ? (stat(e, "pointsAgainst") || 0) / gp : null };
@@ -688,4 +713,51 @@ async function fetchStandings(log) {
       return hit || null;
     },
   };
+}
+
+// ---------- Collecte d'un seul sport : fusion avec la collecte precedente (contrat v6) ----------
+// sport : "FOOTBALL" ou "NBA" (sport collecte) ; nouveaux : { nom: lignes[] } de cette collecte ; anciens : idem, lus dans
+// data/latest (jeu absent = []). Chaque jeu garde les lignes de l'AUTRE sport telles quelles (collecte precedente) et prend
+// celles du sport collecte dans la nouvelle collecte ; l'ordre des blocs de la collecte precedente est conserve.
+// resume : champs gw_ / limite_ / arcade_ / europe_ / set / maj_ de l'autre sport repris de l'ancien resume. Aucun appel reseau.
+const SPORT_PAR_JEU = {
+  jours: (r) => (/NBA/.test(String(r.mode || "")) ? "NBA" : "FOOTBALL"),
+  plan_arcade: () => "FOOTBALL", // plans de piste football seulement (Set / European Contenders)
+};
+export const CHAMPS_RESUME_SPORT = {
+  FOOTBALL: ["maj_football", "set", "gw_football", "limite_football", "gw_debut_football", "gw_fin_football", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin"],
+  NBA: ["maj_nba", "gw_nba", "limite_nba", "gw_debut_nba", "gw_fin_nba"],
+};
+export function fusionneSport(sport, nouveaux, anciens = {}) {
+  if (!["FOOTBALL", "NBA"].includes(sport)) throw new Error(`fusionneSport : sport « ${sport} » inconnu`);
+  const norme = (x) => (String(x || "").toUpperCase() === "NBA" ? "NBA" : "FOOTBALL");
+  // changements : sport du joueur (jeux joueurs nouveau et ancien), sinon modes contient NBA (contrat)
+  const sportJoueur = new Map();
+  for (const r of [...(anciens.joueurs || []), ...(nouveaux.joueurs || [])]) if (r && r.joueur) sportJoueur.set(r.joueur, norme(r.sport));
+  const sportDe = (nom, r) => {
+    if (SPORT_PAR_JEU[nom]) return SPORT_PAR_JEU[nom](r);
+    if (nom === "changements") return sportJoueur.get(r.joueur) || (/NBA/.test(String(r.modes || "")) ? "NBA" : "FOOTBALL");
+    return norme(r.sport);
+  };
+  const out = {};
+  for (const nom of new Set([...Object.keys(nouveaux), ...Object.keys(anciens)])) {
+    const neuf = Array.isArray(nouveaux[nom]) ? nouveaux[nom] : [], vieux = Array.isArray(anciens[nom]) ? anciens[nom] : [];
+    if (nom === "resume") {
+      const n = neuf[0] || {}, v = vieux[0] || null, autre = sport === "NBA" ? "FOOTBALL" : "NBA";
+      const r = { ...n };
+      for (const k of CHAMPS_RESUME_SPORT[autre]) r[k] = v ? (k.startsWith("maj_") ? (k in v ? v[k] : v.maj ?? null) : v[k] ?? null) : (k.startsWith("maj_") ? null : n[k] ?? null);
+      out[nom] = neuf.length ? [r] : vieux;
+      continue;
+    }
+    if (!(nom in nouveaux)) { out[nom] = vieux; continue; } // jeu non produit par cette collecte : inchange
+    const duSport = neuf.filter((r) => sportDe(nom, r) === sport);
+    const lignes = []; let place = false;
+    for (const r of vieux) {
+      if (sportDe(nom, r) !== sport) lignes.push(r);
+      else if (!place) { lignes.push(...duSport); place = true; }
+    }
+    if (!place) lignes.push(...duSport);
+    out[nom] = lignes;
+  }
+  return out;
 }

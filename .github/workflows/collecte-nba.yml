@@ -1,0 +1,20 @@
+# Copié par outils/prepare-depot.sh vers .github/workflows/collecte-nba.yml du dépôt public.
+# Bouton manuel seulement (onglet Actions > « Collecte NBA seule » > Run workflow) : collecte NBA seulement, puis mise à jour
+# de data/ et du site GitHub Pages pour ce sport ; les lignes football de data/latest restent celles de la collecte précédente.
+# Tout le travail est fait par collecte.yml (workflow réutilisable, entrée sport) : mêmes tests, vérification, commit et
+# déploiement ; il ne tourne jamais en même temps que la collecte quotidienne ni que l'autre collecte manuelle (groupe « collecte »).
+name: Collecte NBA seule
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  collecte:
+    permissions:
+      contents: write   # commit des données dans data/
+      pages: write      # déploiement GitHub Pages
+      id-token: write   # exigé par actions/deploy-pages
+    uses: ./.github/workflows/collecte.yml
+    with:
+      sport: nba
+    secrets: inherit
