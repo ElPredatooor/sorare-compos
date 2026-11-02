@@ -1,0 +1,67 @@
+# Copié par outils/prepare-depot.sh vers .github/workflows/garde-nuit-nba.yml du dépôt public.
+# Garde de nuit Set NBA, MODE ESSAI, LECTURE SEULE : toutes les N minutes, lit les compos Set NBA posées (jeton SORARE_JWT),
+# repère les joueurs Out chez ESPN et note ce que la garde AURAIT remplacé (règle : sorare-compos/garde-nba.mjs).
+# Rien n'est modifié sur Sorare (aucune requête d'écriture dans le script), aucun commit, aucun déploiement.
+# Journal et résumé publics : des comptes seulement. Noms de joueurs : uniquement dans l'artifact (rapport.md, 7 jours).
+name: "Nuit NBA : garde (mode essai)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      duree_minutes:
+        description: "Durée totale de la garde (minutes)"
+        required: false
+        default: "355"
+      intervalle_minutes:
+        description: "Intervalle entre deux relevés (minutes)"
+        required: false
+        default: "5"
+  schedule:
+    # 22h30 UTC le 2 novembre = 23h30 à Bruxelles, nuit du 2 au 3/11/2026 (jusqu'à 05h25 avec 355 min).
+    # À retirer après cette nuit : sinon le cron se redéclenche chaque 2 novembre.
+    - cron: "30 22 2 11 *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: garde-nuit-nba
+  cancel-in-progress: false
+
+jobs:
+  garde:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Masquer le jeton dans les journaux
+        env:
+          SORARE_JWT: ${{ secrets.SORARE_JWT }}
+        run: |
+          if [ -n "$SORARE_JWT" ]; then echo "::add-mask::$SORARE_JWT"; echo "Jeton présent (masqué)."; else echo "Jeton SORARE_JWT absent : compos illisibles, ESPN seul."; fi
+
+      # Les données de la collecte quotidienne (data/latest) viennent avec le dépôt : ce sont les candidats.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Garde de nuit (mode essai, lecture seule)
+        env:
+          SORARE_API_KEY: ${{ secrets.SORARE_API_KEY }}
+          SORARE_JWT: ${{ secrets.SORARE_JWT }}
+          JWT_AUD: elpredatooor-nuit
+          DUREE_MINUTES: ${{ inputs.duree_minutes || '355' }}
+          INTERVALLE_MINUTES: ${{ inputs.intervalle_minutes || '5' }}
+          DONNEES: data/latest
+          SORTIE: garde-nuit-nba
+        run: node outils/garde-nuit-nba.mjs
+
+      - name: Joindre le compte rendu
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: garde-nuit-nba
+          path: garde-nuit-nba/
+          retention-days: 7
+          if-no-files-found: warn
