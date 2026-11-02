@@ -10,10 +10,11 @@
 import { POS, round, day, cardLabel } from "./collecte.mjs";
 import { jourDuMatch } from "./modele.mjs";
 
-export function calculeCompos({ comps, currentSet, setName, currentSetNBA, fixtures, advRank, europe, prioriteNba }, rows, prev, now = new Date()) {
+export function calculeCompos({ comps, currentSet, setName, currentSetNBA, fixtures, advRank, europe, prioriteNba, composNba }, rows, prev, now = new Date()) {
   // ---------- 8. Compositions ----------
   const used = new Set();
   const order = ordreCompetitions(comps, prioriteNba);
+  fixeComposNba(comps, composNba);
   // Option A : ordre de priorite NBA de sorare-compos/priorite-nba.json (contrat v8, choix de l'utilisateur du 02/11/2026 ;
   // defaut = In-Season Champion en priorite 1, decision du 24/10/2026)
   // NBA In-Season : seule In-Season Champion est jouee (In-Season Contender retiree de NBA_COMPS, utilisateur 25/10/2026) ;
@@ -438,7 +439,8 @@ export function affecteCompetitions(order, rows, used, sauter = null) {
   for (const c of order) {
     if (c.inSeason && !c.minInSeason) c.minInSeason = 4;
     // nombre de compos a proposer : regle propre a l'utilisateur (NBA) sinon le maximum autorise par Sorare
-    const maxTeams = c.nbaDef?.compos ?? (c.equipes > 0 ? c.equipes : 1);
+    // NBA : nombre choisi par l'utilisateur (priorite-nba.json, champ compos ; contrat v11, 02/11/2026), sinon NBA_COMPS
+    const maxTeams = COMPOS_NBA.get(c) ?? c.nbaDef?.compos ?? (c.equipes > 0 ? c.equipes : 1);
     const contraintes = [c.capPoints ? "somme des moyennes ≤ " + c.capPoints : "", c.capStars ? "somme des étoiles ≤ " + c.capStars : "", c.minInSeason ? "min " + c.minInSeason + " cartes In-Season" : "", c.maxParClub ? "max " + c.maxParClub + " par équipe" : "", c.capitaine ? "capitaine +" + c.capitaine + " %" : "", sansBonusCarte(c) ? "sans bonus de carte (salon)" : "", coutInscription(c) ? "inscription : " + coutInscription(c) + " essences Limited par compo" : ""].filter(Boolean).join(", ");
     const scores = []; let raison = ""; let elig0 = null;
     const saut = sauter ? sauter(c) : null;
@@ -478,7 +480,7 @@ export function affecteCompetitions(order, rows, used, sauter = null) {
     }
     compRows.push({ competition: c.nom, slug: c.slug, sport: c.sport === "NBA" ? "NBA" : "Football", date_limite: c.cutoff, joueurs_eligibles: elig0 ?? 0, contraintes,
       max_compos: maxTeams, nb_compos: scores.length, scores_compos: scores.join(" "), score_compo: scores.length ? scores[0] : null,
-      statut: scores.length === maxTeams ? (maxTeams > 1 ? `${maxTeams} compos proposées` : "Compo proposée") : scores.length ? `${scores.length} compo${scores.length > 1 ? "s" : ""} sur ${maxTeams} possible${maxTeams > 1 ? "s" : ""} : ${raison}` : raison,
+      statut: maxTeams === 0 ? ZERO_COMPO : scores.length === maxTeams ? (maxTeams > 1 ? `${maxTeams} compos proposées` : "Compo proposée") : scores.length ? `${scores.length} compo${scores.length > 1 ? "s" : ""} sur ${maxTeams} possible${maxTeams > 1 ? "s" : ""} : ${raison}` : raison,
       regles: c.regles, ...colonnesV3(coutInscription(c)), type: c.sport === "NBA" ? "NBA" : "JPL", rang: rank(c), cap_points: c.capPoints, cap_etoiles: c.capStars, min_in_season: c.minInSeason || null, max_par_club: c.maxParClub, capitaine_pct: c.capitaine || 0 });
   }
   return { lineups, compRows };
@@ -568,6 +570,22 @@ export function rank(c) { // ordre de priorite d'affectation des cartes
   if (c.sport === "FOOTBALL") return c.inSeason ? 0 : 1;
   // NBA : position 1, 2, 3... dans l'ordre effectif (contrat v8) ; repli sur NBA_COMPS.rang hors calculeCompos
   return RANG_NBA.get(c) ?? (c.nbaDef ? c.nbaDef.rang : 9);
+}
+
+// Nombre de compos par competition NBA Pro (contrat v11, choix de l'utilisateur du 02/11/2026 : « choisir combien de
+// compos NBA Rooms Champion aligner », valable pour toute competition NBA Pro). composNba = { nom NBA_COMPS : entier },
+// lu dans sorare-compos/priorite-nba.json (champ compos). Absent, invalide ou nom inconnu -> NBA_COMPS[].compos ; borne 0...10 ;
+// 0 = competition non jouee (statut ZERO_COMPO). Football : aucun effet.
+const COMPOS_NBA = new WeakMap();
+export const ZERO_COMPO = "0 compo demandée dans tes réglages";
+export function fixeComposNba(comps, composNba) {
+  if (!composNba || typeof composNba !== "object") return;
+  for (const c of comps) {
+    if (c.sport !== "NBA") continue;
+    const v = composNba[c.nbaDef?.nom ?? c.nom];
+    if (v == null || v === "" || !Number.isFinite(Number(v)) || Number(v) < 0) continue;
+    COMPOS_NBA.set(c, Math.min(10, Math.floor(Number(v))));
+  }
 }
 
 // competition NBA -> position dans l'ordre effectif (1 = premiere servie), fixee par ordreCompetitions()

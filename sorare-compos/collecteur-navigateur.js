@@ -69,14 +69,32 @@ const NBA_COMPS = [
 // ---------- Priorite des competitions NBA Pro (contrat v8) ----------
 // json : contenu de sorare-compos/priorite-nba.json ({ ordre: [noms] }), deja parse par le point d'entree Node, ou null
 // (fichier absent), ou { erreur } (JSON invalide : lirePrioriteNba des points d'entree).
-// Retourne les noms NBA_COMPS[].nom dans l'ordre voulu : noms inconnus ou en double ignores, competitions manquantes
-// ajoutees a la fin dans l'ordre par defaut. Absent ou illisible : ordre par defaut. Jamais d'erreur (message dans log).
-// Fonction pure (sans fs) : le collecteur navigateur n'a pas de fichier et garde l'ordre par defaut.
+// Retourne { ordre, compos } :
+// - ordre : noms NBA_COMPS[].nom dans l'ordre voulu ; noms inconnus ou en double ignores, competitions manquantes
+//   ajoutees a la fin dans l'ordre par defaut. Absent ou illisible : ordre par defaut.
+// - compos (contrat v11) : { nom: entier 0..10 } pour toutes les competitions NBA_COMPS ; champ json.compos facultatif,
+//   noms inconnus ignores, valeur absente / non entiere / negative -> defaut NBA_COMPS[].compos ; > 10 -> 10 ; 0 = non jouee.
+// Jamais d'erreur (message dans log). Fonction pure (sans fs) : le collecteur navigateur n'a pas de fichier (defauts).
 function normalisePrioriteNba(json, log = () => {}) {
   const defaut = NBA_COMPS.map((c) => c.nom);
-  if (json == null) { log("priorité NBA : fichier absent, ordre par défaut"); return defaut; }
-  const ordre = json && typeof json === "object" && !Array.isArray(json) ? json.ordre : Array.isArray(json) ? json : null;
-  if (!Array.isArray(ordre)) { log(`priorité NBA : fichier illisible (${json?.erreur || "champ ordre manquant"}), ordre par défaut`); return defaut; }
+  const composDefaut = Object.fromEntries(NBA_COMPS.map((c) => [c.nom, c.compos]));
+  if (json == null) { log("priorité NBA : fichier absent, ordre et nombre de compos par défaut"); return { ordre: defaut, compos: composDefaut }; }
+  const objet = json && typeof json === "object" && !Array.isArray(json);
+  const compos = { ...composDefaut };
+  const src = objet ? json.compos : null;
+  if (src != null && (typeof src !== "object" || Array.isArray(src))) log("priorité NBA : champ compos illisible, nombres par défaut");
+  else if (src) {
+    for (const [k, v] of Object.entries(src)) {
+      const nom = String(k).trim();
+      if (!defaut.includes(nom)) { log(`priorité NBA : compos, compétition inconnue ignorée « ${k} »`); continue; }
+      const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+      if (!Number.isInteger(n) || n < 0) { log(`priorité NBA : compos invalide pour ${nom} (${JSON.stringify(v)}), défaut ${composDefaut[nom]}`); continue; }
+      if (n > 10) log(`priorité NBA : compos ${nom} = ${n} ramené à 10`);
+      compos[nom] = Math.min(n, 10);
+    }
+  }
+  const ordre = objet ? json.ordre : Array.isArray(json) ? json : null;
+  if (!Array.isArray(ordre)) { log(`priorité NBA : fichier illisible (${json?.erreur || "champ ordre manquant"}), ordre par défaut`); return { ordre: defaut, compos }; }
   const res = [];
   for (const n of ordre) {
     const nom = typeof n === "string" ? n.trim() : n;
@@ -88,8 +106,8 @@ function normalisePrioriteNba(json, log = () => {}) {
   if (manquantes.length && res.length) log(`priorité NBA : absentes du fichier, placées à la fin : ${manquantes.join(", ")}`);
   if (!res.length) log("priorité NBA : aucune compétition valide, ordre par défaut");
   const fin = res.concat(manquantes);
-  log(`priorité NBA : ${fin.map((n, i) => `${i + 1}. ${n}`).join(" ; ")}`);
-  return fin;
+  log(`priorité NBA : ${fin.map((n, i) => `${i + 1}. ${n} (${compos[n]} compo${compos[n] > 1 ? "s" : ""})`).join(" ; ")}`);
+  return { ordre: fin, compos };
 }
 const POS = { Goalkeeper: "Gardien", Defender: "Défenseur", Midfielder: "Milieu", Forward: "Attaquant" };
 
@@ -1203,10 +1221,11 @@ const __m_compos = (() => {
 
 
 
-function calculeCompos({ comps, currentSet, setName, currentSetNBA, fixtures, advRank, europe, prioriteNba }, rows, prev, now = new Date()) {
+function calculeCompos({ comps, currentSet, setName, currentSetNBA, fixtures, advRank, europe, prioriteNba, composNba }, rows, prev, now = new Date()) {
   // ---------- 8. Compositions ----------
   const used = new Set();
   const order = ordreCompetitions(comps, prioriteNba);
+  fixeComposNba(comps, composNba);
   // Option A : ordre de priorite NBA de sorare-compos/priorite-nba.json (contrat v8, choix de l'utilisateur du 02/11/2026 ;
   // defaut = In-Season Champion en priorite 1, decision du 24/10/2026)
   // NBA In-Season : seule In-Season Champion est jouee (In-Season Contender retiree de NBA_COMPS, utilisateur 25/10/2026) ;
@@ -1631,7 +1650,8 @@ function affecteCompetitions(order, rows, used, sauter = null) {
   for (const c of order) {
     if (c.inSeason && !c.minInSeason) c.minInSeason = 4;
     // nombre de compos a proposer : regle propre a l'utilisateur (NBA) sinon le maximum autorise par Sorare
-    const maxTeams = c.nbaDef?.compos ?? (c.equipes > 0 ? c.equipes : 1);
+    // NBA : nombre choisi par l'utilisateur (priorite-nba.json, champ compos ; contrat v11, 02/11/2026), sinon NBA_COMPS
+    const maxTeams = COMPOS_NBA.get(c) ?? c.nbaDef?.compos ?? (c.equipes > 0 ? c.equipes : 1);
     const contraintes = [c.capPoints ? "somme des moyennes ≤ " + c.capPoints : "", c.capStars ? "somme des étoiles ≤ " + c.capStars : "", c.minInSeason ? "min " + c.minInSeason + " cartes In-Season" : "", c.maxParClub ? "max " + c.maxParClub + " par équipe" : "", c.capitaine ? "capitaine +" + c.capitaine + " %" : "", sansBonusCarte(c) ? "sans bonus de carte (salon)" : "", coutInscription(c) ? "inscription : " + coutInscription(c) + " essences Limited par compo" : ""].filter(Boolean).join(", ");
     const scores = []; let raison = ""; let elig0 = null;
     const saut = sauter ? sauter(c) : null;
@@ -1671,7 +1691,7 @@ function affecteCompetitions(order, rows, used, sauter = null) {
     }
     compRows.push({ competition: c.nom, slug: c.slug, sport: c.sport === "NBA" ? "NBA" : "Football", date_limite: c.cutoff, joueurs_eligibles: elig0 ?? 0, contraintes,
       max_compos: maxTeams, nb_compos: scores.length, scores_compos: scores.join(" "), score_compo: scores.length ? scores[0] : null,
-      statut: scores.length === maxTeams ? (maxTeams > 1 ? `${maxTeams} compos proposées` : "Compo proposée") : scores.length ? `${scores.length} compo${scores.length > 1 ? "s" : ""} sur ${maxTeams} possible${maxTeams > 1 ? "s" : ""} : ${raison}` : raison,
+      statut: maxTeams === 0 ? ZERO_COMPO : scores.length === maxTeams ? (maxTeams > 1 ? `${maxTeams} compos proposées` : "Compo proposée") : scores.length ? `${scores.length} compo${scores.length > 1 ? "s" : ""} sur ${maxTeams} possible${maxTeams > 1 ? "s" : ""} : ${raison}` : raison,
       regles: c.regles, ...colonnesV3(coutInscription(c)), type: c.sport === "NBA" ? "NBA" : "JPL", rang: rank(c), cap_points: c.capPoints, cap_etoiles: c.capStars, min_in_season: c.minInSeason || null, max_par_club: c.maxParClub, capitaine_pct: c.capitaine || 0 });
   }
   return { lineups, compRows };
@@ -1761,6 +1781,22 @@ function rank(c) { // ordre de priorite d'affectation des cartes
   if (c.sport === "FOOTBALL") return c.inSeason ? 0 : 1;
   // NBA : position 1, 2, 3... dans l'ordre effectif (contrat v8) ; repli sur NBA_COMPS.rang hors calculeCompos
   return RANG_NBA.get(c) ?? (c.nbaDef ? c.nbaDef.rang : 9);
+}
+
+// Nombre de compos par competition NBA Pro (contrat v11, choix de l'utilisateur du 02/11/2026 : « choisir combien de
+// compos NBA Rooms Champion aligner », valable pour toute competition NBA Pro). composNba = { nom NBA_COMPS : entier },
+// lu dans sorare-compos/priorite-nba.json (champ compos). Absent, invalide ou nom inconnu -> NBA_COMPS[].compos ; borne 0...10 ;
+// 0 = competition non jouee (statut ZERO_COMPO). Football : aucun effet.
+const COMPOS_NBA = new WeakMap();
+const ZERO_COMPO = "0 compo demandée dans tes réglages";
+function fixeComposNba(comps, composNba) {
+  if (!composNba || typeof composNba !== "object") return;
+  for (const c of comps) {
+    if (c.sport !== "NBA") continue;
+    const v = composNba[c.nbaDef?.nom ?? c.nom];
+    if (v == null || v === "" || !Number.isFinite(Number(v)) || Number(v) < 0) continue;
+    COMPOS_NBA.set(c, Math.min(10, Math.floor(Number(v))));
+  }
 }
 
 // competition NBA -> position dans l'ordre effectif (1 = premiere servie), fixee par ordreCompetitions()
@@ -2030,7 +2066,7 @@ function evalueLigne(cr, lus, tiers, bySlug) {
   return out;
 }
 
-return { calculeCompos, fenetreArcade, fenetreArcadeNba, fenetreEurope, ARCADE_SEUILS, ARCADE_DELAI, ARCADE_VIES, ARCADE_LARGEURS, ARCADE_RECOMPTE, EUROPE_SEUILS, EUROPE_CAPITAINE, EUROPE_RARETES, EUROPE_COMPETITIONS, EUROPE_LARGEURS, cleCompetition, puissanceSansRarete, PISTE_ARCADE, PISTE_EUROPE, ARCADE_NBA_SEUILS, ARCADE_NBA_ETOILES, ARCADE_NBA_PAR_EQUIPE, ARCADE_NBA_DELAI, ARCADE_NBA_LARGEURS, PISTE_ARCADE_NBA, planPiste, planArcade, planArcadeNba, planEurope, affecteCompetitions, coutInscription, sansBonusCarte, calculeChangements, raisonInSeasonPrises, rank, ordreCompetitions, optimise, missingReason, plafondEtoiles, assignFootball, pAbove, ecartTypeJoueur, loiCompo, gainCompo, evalueRentabilite };
+return { calculeCompos, fenetreArcade, fenetreArcadeNba, fenetreEurope, ARCADE_SEUILS, ARCADE_DELAI, ARCADE_VIES, ARCADE_LARGEURS, ARCADE_RECOMPTE, EUROPE_SEUILS, EUROPE_CAPITAINE, EUROPE_RARETES, EUROPE_COMPETITIONS, EUROPE_LARGEURS, cleCompetition, puissanceSansRarete, PISTE_ARCADE, PISTE_EUROPE, ARCADE_NBA_SEUILS, ARCADE_NBA_ETOILES, ARCADE_NBA_PAR_EQUIPE, ARCADE_NBA_DELAI, ARCADE_NBA_LARGEURS, PISTE_ARCADE_NBA, planPiste, planArcade, planArcadeNba, planEurope, affecteCompetitions, coutInscription, sansBonusCarte, calculeChangements, raisonInSeasonPrises, rank, ZERO_COMPO, fixeComposNba, ordreCompetitions, optimise, missingReason, plafondEtoiles, assignFootball, pAbove, ecartTypeJoueur, loiCompo, gainCompo, evalueRentabilite };
 })();
 
 // ===== core.mjs =====
@@ -2048,7 +2084,7 @@ const __m_core = (() => {
 // voir candidatsBilan dans collecte.mjs) ; sert au jeu bilan. Absent (navigateur) -> bilan vide.
 // prioriteNba (contrat v8) : contenu parse de sorare-compos/priorite-nba.json, lu par collect.mjs et collecte-locale.mjs ;
 // normalise par normalisePrioriteNba (collecte.mjs) puis passe a calculeCompos dans ctx.prioriteNba (tableau de noms
-// NBA_COMPS[].nom). Absent (navigateur) ou invalide -> ordre par defaut, message dans le journal. Football : aucun effet.
+// NBA_COMPS[].nom) et ctx.composNba (contrat v11 : { nom: nombre de compos 0..10 }). Absent (navigateur) ou invalide -> ordre par defaut, message dans le journal. Football : aucun effet.
 // missionsSet (contrat v9) : contenu parse de sorare-compos/missions-set.json (objectifs de collection du set, football et NBA),
 // lu par collect.mjs et collecte-locale.mjs ; absent (navigateur) ou invalide -> jeu missions vide, jamais d'echec.
 
@@ -2065,7 +2101,8 @@ async function collect({ apiKey, oddsKey = null, espn = true, prev = null, histo
   const ctx = await collecte({ apiKey, oddsKey, espn, history, now, log, sport });
   const { gq, comps, cards, players, setName, fixtures, odds, samples, w, calib } = ctx;
   const { rows, newSamples } = calculeJoueurs(ctx, now);
-  const { lineups, compRows, jours, changes, cartes, matchs, plan_arcade } = calculeCompos({ ...ctx, prioriteNba: normalisePrioriteNba(prioriteNba, log) }, rows, prev, now);
+  const prio = normalisePrioriteNba(prioriteNba, log);
+  const { lineups, compRows, jours, changes, cartes, matchs, plan_arcade } = calculeCompos({ ...ctx, prioriteNba: prio.ordre, composNba: prio.compos }, rows, prev, now);
 
   // ---------- 13. Paliers de recompense de la derniere gameweek terminee ----------
   let paliers = [];

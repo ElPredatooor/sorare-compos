@@ -8,7 +8,7 @@
 // voir candidatsBilan dans collecte.mjs) ; sert au jeu bilan. Absent (navigateur) -> bilan vide.
 // prioriteNba (contrat v8) : contenu parse de sorare-compos/priorite-nba.json, lu par collect.mjs et collecte-locale.mjs ;
 // normalise par normalisePrioriteNba (collecte.mjs) puis passe a calculeCompos dans ctx.prioriteNba (tableau de noms
-// NBA_COMPS[].nom). Absent (navigateur) ou invalide -> ordre par defaut, message dans le journal. Football : aucun effet.
+// NBA_COMPS[].nom) et ctx.composNba (contrat v11 : { nom: nombre de compos 0..10 }). Absent (navigateur) ou invalide -> ordre par defaut, message dans le journal. Football : aucun effet.
 // missionsSet (contrat v9) : contenu parse de sorare-compos/missions-set.json (objectifs de collection du set, football et NBA),
 // lu par collect.mjs et collecte-locale.mjs ; absent (navigateur) ou invalide -> jeu missions vide, jamais d'echec.
 
@@ -25,7 +25,8 @@ export async function collect({ apiKey, oddsKey = null, espn = true, prev = null
   const ctx = await collecte({ apiKey, oddsKey, espn, history, now, log, sport });
   const { gq, comps, cards, players, setName, fixtures, odds, samples, w, calib } = ctx;
   const { rows, newSamples } = calculeJoueurs(ctx, now);
-  const { lineups, compRows, jours, changes, cartes, matchs, plan_arcade } = calculeCompos({ ...ctx, prioriteNba: normalisePrioriteNba(prioriteNba, log) }, rows, prev, now);
+  const prio = normalisePrioriteNba(prioriteNba, log);
+  const { lineups, compRows, jours, changes, cartes, matchs, plan_arcade } = calculeCompos({ ...ctx, prioriteNba: prio.ordre, composNba: prio.compos }, rows, prev, now);
 
   // ---------- 13. Paliers de recompense de la derniere gameweek terminee ----------
   let paliers = [];

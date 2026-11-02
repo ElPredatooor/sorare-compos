@@ -60,14 +60,32 @@ const NBA_COMPS = [
 // ---------- Priorite des competitions NBA Pro (contrat v8) ----------
 // json : contenu de sorare-compos/priorite-nba.json ({ ordre: [noms] }), deja parse par le point d'entree Node, ou null
 // (fichier absent), ou { erreur } (JSON invalide : lirePrioriteNba des points d'entree).
-// Retourne les noms NBA_COMPS[].nom dans l'ordre voulu : noms inconnus ou en double ignores, competitions manquantes
-// ajoutees a la fin dans l'ordre par defaut. Absent ou illisible : ordre par defaut. Jamais d'erreur (message dans log).
-// Fonction pure (sans fs) : le collecteur navigateur n'a pas de fichier et garde l'ordre par defaut.
+// Retourne { ordre, compos } :
+// - ordre : noms NBA_COMPS[].nom dans l'ordre voulu ; noms inconnus ou en double ignores, competitions manquantes
+//   ajoutees a la fin dans l'ordre par defaut. Absent ou illisible : ordre par defaut.
+// - compos (contrat v11) : { nom: entier 0..10 } pour toutes les competitions NBA_COMPS ; champ json.compos facultatif,
+//   noms inconnus ignores, valeur absente / non entiere / negative -> defaut NBA_COMPS[].compos ; > 10 -> 10 ; 0 = non jouee.
+// Jamais d'erreur (message dans log). Fonction pure (sans fs) : le collecteur navigateur n'a pas de fichier (defauts).
 export function normalisePrioriteNba(json, log = () => {}) {
   const defaut = NBA_COMPS.map((c) => c.nom);
-  if (json == null) { log("priorité NBA : fichier absent, ordre par défaut"); return defaut; }
-  const ordre = json && typeof json === "object" && !Array.isArray(json) ? json.ordre : Array.isArray(json) ? json : null;
-  if (!Array.isArray(ordre)) { log(`priorité NBA : fichier illisible (${json?.erreur || "champ ordre manquant"}), ordre par défaut`); return defaut; }
+  const composDefaut = Object.fromEntries(NBA_COMPS.map((c) => [c.nom, c.compos]));
+  if (json == null) { log("priorité NBA : fichier absent, ordre et nombre de compos par défaut"); return { ordre: defaut, compos: composDefaut }; }
+  const objet = json && typeof json === "object" && !Array.isArray(json);
+  const compos = { ...composDefaut };
+  const src = objet ? json.compos : null;
+  if (src != null && (typeof src !== "object" || Array.isArray(src))) log("priorité NBA : champ compos illisible, nombres par défaut");
+  else if (src) {
+    for (const [k, v] of Object.entries(src)) {
+      const nom = String(k).trim();
+      if (!defaut.includes(nom)) { log(`priorité NBA : compos, compétition inconnue ignorée « ${k} »`); continue; }
+      const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+      if (!Number.isInteger(n) || n < 0) { log(`priorité NBA : compos invalide pour ${nom} (${JSON.stringify(v)}), défaut ${composDefaut[nom]}`); continue; }
+      if (n > 10) log(`priorité NBA : compos ${nom} = ${n} ramené à 10`);
+      compos[nom] = Math.min(n, 10);
+    }
+  }
+  const ordre = objet ? json.ordre : Array.isArray(json) ? json : null;
+  if (!Array.isArray(ordre)) { log(`priorité NBA : fichier illisible (${json?.erreur || "champ ordre manquant"}), ordre par défaut`); return { ordre: defaut, compos }; }
   const res = [];
   for (const n of ordre) {
     const nom = typeof n === "string" ? n.trim() : n;
@@ -79,8 +97,8 @@ export function normalisePrioriteNba(json, log = () => {}) {
   if (manquantes.length && res.length) log(`priorité NBA : absentes du fichier, placées à la fin : ${manquantes.join(", ")}`);
   if (!res.length) log("priorité NBA : aucune compétition valide, ordre par défaut");
   const fin = res.concat(manquantes);
-  log(`priorité NBA : ${fin.map((n, i) => `${i + 1}. ${n}`).join(" ; ")}`);
-  return fin;
+  log(`priorité NBA : ${fin.map((n, i) => `${i + 1}. ${n} (${compos[n]} compo${compos[n] > 1 ? "s" : ""})`).join(" ; ")}`);
+  return { ordre: fin, compos };
 }
 export const POS = { Goalkeeper: "Gardien", Defender: "Défenseur", Midfielder: "Milieu", Forward: "Attaquant" };
 

@@ -487,6 +487,30 @@ if (f.competitions.some((c) => c.recommandation)) {
   ok(ordreCompetitions(mk(), [RO]).map((c) => c.sport).join() === ordreCompetitions(mk()).map((c) => c.sport).join(), "ordreCompetitions : places football / NBA modifiées");
 }
 
+// Nombre de compos NBA Pro (contrat v11, choix de l'utilisateur du 02/11/2026) : ctx.composNba { nom : 0…10 } ;
+// Rooms à 3 -> 3 compos max, à 0 -> aucune (statut clair), absent -> défaut NBA_COMPS (2) ; football inchangé.
+{
+  const { calculeCompos, ZERO_COMPO } = await import(pathToFileURL(join(racine, "sorare-compos", "compos.mjs")).href);
+  const RO = "NBA Rooms Champion", CC = "NBA Classic Champion";
+  const r = (slug, etoiles, score) => ({ joueur: slug, slug, sport: "NBA", modes: "NBA", score_attendu: score, matchs_gw: 2, etoiles, proba_titulaire: 95, regularite: 30, _games: [], _cv: 0.3, _clubSlug: "c-" + slug,
+    _cards: [{ slug: slug + "-l0", rarity: "limited", inSeason: false, power: 1.05, skinBonus: 1, season: 2024 }] });
+  const rows = Array.from({ length: 20 }, (_, i) => r("j" + i, 2.5, 40 - i));
+  const mk = () => [{ nom: "Jupiler Champion", sport: "FOOTBALL", equipes: 1 },
+    { nom: RO, slug: "nba-x-nba_limited_arena_140", sport: "NBA", nbaDef: { nom: RO, rang: 4, compos: 2, essences: 150, salon: true }, capStars: 16, maxParClub: 4 },
+    { nom: CC, sport: "NBA", nbaDef: { nom: CC, rang: 2, compos: 1 }, capStars: 16, maxParClub: 4 }];
+  const run = (composNba) => calculeCompos({ comps: mk(), currentSet: "x", setName: "x", fixtures: { FOOTBALL: { cutOffDate: "x" }, NBA: {} }, advRank: () => ({}), prioriteNba: [RO, CC], composNba }, rows, null);
+  const ro = (o) => o.compRows.find((c) => c.competition === RO);
+  const foot = (o) => JSON.stringify(o.compRows.filter((c) => c.sport === "Football").map((c) => [c.competition, c.max_compos, c.nb_compos, c.statut]));
+  const o3 = run({ [RO]: 3 }), o0 = run({ [RO]: 0 }), od = run(undefined);
+  ok(ro(o3).max_compos === 3 && ro(o3).nb_compos === 3 && o3.lineups.filter((l) => l.competition === RO).length === 15, "composNba Rooms=3 : " + ro(o3).max_compos + "/" + ro(o3).nb_compos + " " + ro(o3).statut);
+  ok(ro(o0).max_compos === 0 && ro(o0).nb_compos === 0 && ro(o0).statut === ZERO_COMPO && !o0.lineups.some((l) => l.competition === RO), "composNba Rooms=0 : " + ro(o0).statut);
+  ok(ro(od).max_compos === 2 && ro(od).nb_compos === 2, "composNba absent : Rooms devrait garder 2 compos, trouvé " + ro(od).max_compos);
+  for (const bad of [{ [RO]: -1 }, { [RO]: "x" }, { "NBA Inconnue": 5 }, "n'importe quoi", null]) ok(ro(run(bad)).max_compos === 2, "composNba invalide " + JSON.stringify(bad) + " : défaut 2 attendu");
+  ok(ro(run({ [RO]: 99 })).max_compos === 10, "composNba : borne 10 non appliquée");
+  ok(foot(o3) === foot(od) && foot(o0) === foot(od), "composNba : compos football modifiées");
+  const ids = o3.lineups.map((l) => l.carte_id); ok(new Set(ids).size === ids.length, "composNba : une carte utilisée deux fois");
+}
+
 // Jeu jours (25/10/2026) : en NBA, jour = soirée américaine (UTC − 5, comme matchs.jour) ; football inchangé (date UTC)
 {
   const { calculeCompos } = await import(pathToFileURL(join(racine, "sorare-compos", "compos.mjs")).href);
@@ -768,6 +792,22 @@ for (const r of f.joueurs) {
   ok(m("NBA", "shiny-four").progression === 3 && m("NBA", "shiny-four").progression_calculee === null && m("NBA", "shiny-four").criteres === "", "missions : objectif sans critère NBA");
   ok(Array.isArray(vide) && vide.length === 0, "missions : fichier invalide doit donner un jeu vide");
   if (process.argv.includes("--missions")) console.table(mm.map(({ joueurs_manquants, ...x }) => x));
+}
+
+// Nombre de compos NBA Pro (contrat v11) : normalisePrioriteNba renvoie { ordre, compos } ; compos borné 0..10,
+// noms inconnus et valeurs invalides ignorés (défaut NBA_COMPS : Rooms 2, Classic 3, In-Season 1).
+{
+  const { normalisePrioriteNba } = await import(pathToFileURL(join(racine, "sorare-compos", "collecte.mjs")).href);
+  const D = { "NBA In-Season Champion": 1, "NBA Classic Champion": 3, "NBA Classic Contender": 3, "NBA Rooms Champion": 2 };
+  const eq = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+  for (const j of [null, { erreur: "x" }, { ordre: [] }, { ordre: [], compos: "x" }, { ordre: [], compos: [3] }]) {
+    const p = normalisePrioriteNba(j); ok(Array.isArray(p.ordre) && p.ordre.length === 4 && eq(p.compos, D), "composNba " + JSON.stringify(j) + " : défauts attendus, trouvé " + JSON.stringify(p));
+  }
+  const p = normalisePrioriteNba({ ordre: ["NBA Rooms Champion"], compos: { "NBA Rooms Champion": 3, "NBA Classic Champion": 0, "NBA Classic Contender": -1, "NBA In-Season Champion": 12, "Inconnue": 4 } });
+  ok(p.ordre[0] === "NBA Rooms Champion" && p.ordre.length === 4, "composNba : ordre inattendu " + p.ordre);
+  ok(eq(p.compos, { "NBA In-Season Champion": 10, "NBA Classic Champion": 0, "NBA Classic Contender": 3, "NBA Rooms Champion": 3 }), "composNba : bornes / défauts mal appliqués " + JSON.stringify(p.compos));
+  const fichier = JSON.parse(await readFile(join(racine, "sorare-compos", "priorite-nba.json"), "utf8"));
+  ok(eq(normalisePrioriteNba(fichier).compos, D), "composNba : priorite-nba.json devrait donner les valeurs actuelles (Rooms 2)");
 }
 
 const i = process.argv.indexOf("--sortie");
