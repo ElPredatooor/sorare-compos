@@ -45,7 +45,8 @@ const club = (n) => ({ name: n, slug: n.toLowerCase().replace(/\W+/g, "-"), dome
 const players = new Map();
 for (const [s, eq, tier, l10] of [...NBA, ...NBA_SET]) players.set(s, { sport: "NBA", slug: s, gameplayTier: tier, activeClub: { name: eq, slug: eq.toLowerCase().replace(/\W+/g, "-"), domesticLeague: null }, l5: l10 + 2, l15: l10 - 1, l10, gain: (h(s) % 9) - 3 });
 for (const [s, pos, c] of JPL) players.set(s, { sport: "FOOTBALL", slug: s, position: pos, activeClub: { ...club(c), domesticLeague: { name: "First Division A" } }, l5: 45 + (h(s) % 20), l15: 40 + (h(s) % 15) });
-for (const [s, pos] of SET) players.set(s, { sport: "FOOTBALL", slug: s, position: pos, activeClub: { ...club("Club " + s), domesticLeague: { name: "Bundesliga" } }, l5: 50 + (h(s) % 15), l15: 48 + (h(s) % 12) });
+// v9 (missions) : ligue avec slug et nationalite (Raya espagnol, les autres allemands)
+for (const [s, pos] of SET) players.set(s, { sport: "FOOTBALL", slug: s, position: pos, country: { code: s === "raya" ? "es" : "de" }, activeClub: { ...club("Club " + s), domesticLeague: { name: "Bundesliga", slug: "bundesliga-de" } }, l5: 50 + (h(s) % 15), l15: 48 + (h(s) % 12) });
 
 const cards = [];
 for (const [s, , , , ins] of NBA) cards.push({ slug: s + "-limited-1", rarityTyped: "limited", sport: "NBA", seasonYear: ins ? 2026 : 2024, inSeasonEligible: ins, power: (1.03 + (h(s) % 8) / 100).toFixed(2), cardSet: null, skinEdition: null, powerBreakdown: {}, anyPlayer: { slug: s, displayName: s } });
@@ -81,7 +82,7 @@ const rules = (slug) => {
 const scores = (p) => Array.from({ length: 10 }, (_, i) => ({ score: Math.max(0, (p.l15 || 30) + ((h(p.slug + i) % 21) - 10)), anyGame: { date: iso(NOW.getTime() - (10 - i) * 2 * J) }, anyPlayerGameStats: p.sport === "NBA" ? null : { minsPlayed: 80 } }));
 const playerNode = (s) => { const p = players.get(s); if (!p) return null; return {
   slug: s, gameplayTier: p.gameplayTier || null, activeClub: p.activeClub, l5: p.l5, l15: p.l15, l10: p.l10 ?? null, activeInjuries: s === "dean-wade" ? [{ status: "out", kind: "knee", expectedEndDate: iso(NOW.getTime() + 9 * J) }] : [],
-  position: p.position || null, playingStatus: p.sport === "NBA" ? null : (s === "nielsen" ? "SUBSTITUTE" : "STARTER"), activeSuspensions: [],
+  position: p.position || null, country: p.sport === "NBA" ? undefined : p.country || null, playingStatus: p.sport === "NBA" ? null : (s === "nielsen" ? "SUBSTITUTE" : "STARTER"), activeSuspensions: [],
   playerGameScores: scores(p), so5Scores: p.sport === "NBA" ? null : scores(p).map((g) => ({ score: g.score, decisiveScore: { totalScore: 40 }, game: { date: g.anyGame.date } })), gainOnProjection: p.gain ?? null }; };
 const futureGames = (s) => { const p = players.get(s); const n = p.sport === "NBA" ? 2 + (h(s) % 3) : 1;
   return Array.from({ length: n }, (_, i) => { const t = NOW.getTime() + 12 * H + i * (p.sport === "NBA" ? 26 * H : 3 * J); const opp = { slug: "adv-" + (h(s + i) % 9), name: "Adversaire " + (h(s + i) % 9) };
@@ -107,12 +108,21 @@ async function fetchSimule(url, opts = {}) {
   if (!String(url).includes("api.sorare.com")) throw new Error("appel réseau inattendu : " + url);
   const { query, variables: v = {} } = JSON.parse(opts.body);
   let data;
-  if (query.includes("user(slug")) data = { user: { cards: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: cards } } };
+  if (query.includes("setBoard(")) { // v10 : pistes Arcade (football palier 4 en cours, NBA palier 2 compos posees)
+    const st = (lv, cur, s) => Array.from({ length: 6 }, (_, i) => ({ level: i, target: 100 + i, state: i < cur ? "CLAIMED" : i === cur ? s : "LOCKED", remainingLineupsCount: i === cur ? (s === "LIVE" ? 3 : 0) : 4, pendingLineupsCount: i === cur ? (s === "LIVE" ? 1 : 4) : 0, lockedLineupsCount: i === cur && s === "LIVE" ? 1 : 0 }));
+    data = { user: { foot: { steps: st(0, 3, "LIVE") }, nba: { steps: st(0, 1, "LINEUP_SET") } } };
+  }
+  else if (query.includes("user(slug")) data = { user: { cards: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: cards } } };
   else if (query.includes("so5Fixture(type:UPCOMING")) data = { so5: { so5Fixture: fixture(v.sport), live: v.sport === "NBA" ? LIVE_NBA : null } };
   else if (query.includes("displayedTypedRules")) data = { so5: { so5Leaderboard: { slug: v.s, displayedTypedRules: rules(v.s) } } };
   else if (query.includes("players(slugs")) data = { players: v.s.map(playerNode) };
   else if (query.includes("anyFutureGames")) data = { anyPlayer: { slug: v.slug, anyFutureGames: { nodes: futureGames(v.slug) } } };
-  else if (query.includes("so5Fixtures(")) data = { so5: { so5Fixtures: { nodes: [{ slug: "x-ouverte", aasmState: "opened" }, { slug: CLOSED[v.sport], aasmState: "closed" }] } } };
+  else if (query.includes("team(slug")) { // v9 : effectif d'un club (missions, joueurs manquants) ; club inconnu -> NOT_FOUND
+    if (v.s === "club-inconnu") { const e = { errors: [{ message: "Not found", extensions: { code: "NOT_FOUND" } }] }; return { ok: true, status: 200, text: async () => JSON.stringify(e), json: async () => e }; }
+    const proprio = v.s.replace(/^club-/, "");
+    data = { team: { slug: v.s, name: "Club " + proprio, anyActivePlayers: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [{ slug: proprio, displayName: proprio, country: { code: "de" }, position: "Forward" }, { slug: "recrue-" + proprio, displayName: "Recrue " + proprio, country: { code: "de" }, position: "Defender" }] } } };
+  }
+  else if (query.includes("so5Fixtures(")) data = { so5: { so5Fixtures: { nodes: [{ slug: "x-ouverte", aasmState: "opened" }, { slug: CLOSED[v.sport], aasmState: "closed", startDate: iso(NOW.getTime() - 6 * J), endDate: iso(NOW.getTime() - 2 * J) }] } } };
   else if (query.includes("so5Fixture(slug")) data = { so5: { so5Fixture: { so5Leaderboards: closedBoards(v.s) } } };
   else if (query.includes("rewardsConfig")) data = { so5: { so5Leaderboard: { rewardsConfig: { ranking: rewards(v.s) } } } };
   else if (query.includes("so5Rankings")) {
@@ -712,6 +722,52 @@ if (f.competitions.some((c) => c.recommandation)) {
   ok(candidatsBilan([arch], NOW).length === 1, "bilan : archive fusionnée (football collecté avant la limite) non retenue");
   ok(candidatsBilan([{ dossier: "d", resume: [{ ...arch.resume[0], maj_football: lim(10) }] }], NOW).length === 0, "bilan : archive collectée après les limites retenue à tort");
   ok(candidatsBilan([{ dossier: "d", resume: [{ ...arch.resume[0], maj: lim(40), maj_football: undefined, maj_nba: undefined }].map(({ maj_football, maj_nba, ...x }) => x) }], NOW).length === 1, "bilan : archive sans maj_<sport> (avant le contrat v6) : resume.maj doit servir");
+}
+
+// ---------- Pistes Arcade (contrat v10) ----------
+{ const r = f.resume[0]; const { etatPiste } = await import(pathToFileURL(join(racine, "sorare-compos", "collecte.mjs")).href);
+  ok(r.arcade_palier === 4 && r.arcade_etat === "LIVE" && r.arcade_vies === 4 && r.arcade_compos_posees === 1 && r.arcade_compos_verrouillees === 1 && r.arcade_lu_le === NOW.toISOString(), "resume v10 : piste football " + JSON.stringify(r));
+  ok(r.arcade_nba_palier === 2 && r.arcade_nba_etat === "LINEUP_SET" && r.arcade_nba_vies === 4 && r.arcade_nba_compos_posees === 4, "resume v10 : piste NBA");
+  ok(etatPiste(null).palier === null && etatPiste({ steps: [{ level: 0, state: "CLAIMED" }] }).palier === null, "etatPiste : piste vide ou terminée doit donner null"); }
+// ---------- Missions de collection (contrat v9) et score de la dernière gameweek ----------
+ok(Array.isArray(f.missions) && f.missions.length === 0, "missions : jeu non vide sans missions-set.json");
+for (const r of f.joueurs) {
+  ok(r.gw_derniere === CLOSED[r.sport], `score_derniere_gw : gw_derniere « ${r.gw_derniere} » pour ${r.slug}`);
+  const p = players.get(r.slug), t0 = NOW.getTime() - 6 * J - H, t1 = NOW.getTime() - 2 * J;
+  const att = scores(p).filter((g) => Date.parse(g.anyGame.date) >= t0 && Date.parse(g.anyGame.date) <= t1).map((g) => g.score);
+  ok(r.score_derniere_gw === (att.length ? Math.max(...att) : null), `score_derniere_gw : ${r.slug} ${r.score_derniere_gw} au lieu de ${Math.max(...att)}`);
+}
+{
+  const cfg = { maj: "2026-11-02", football: { set: "divination", objectifs: [
+    { id: "joueurs", objectif: "Joueurs", sorare: { progression: 6, cible: 10, lu_le: "2026-11-02" }, recompense: { type: "Pack Bronze", quantite: 1 }, criteres: {}, calcul: true },
+    { id: "de-nat", groupe: "Ligue : Bundesliga", objectif: "Joueurs allemands de Bundesliga", sorare: { progression: 5, cible: 5 }, recompense: { type: "Gems", quantite: 5 }, criteres: { ligue: "bundesliga-de", nationalite: "de" }, calcul: true },
+    { id: "holo", objectif: "Cartes Holo", sorare: { progression: 1, cible: 3 }, recompense: { type: "Essence", quantite: 1500 }, criteres: { skin: "HOLO" } },
+    { id: "gk", objectif: "Gardiens", sorare: { progression: 1, cible: 2 }, criteres: { poste: "Goalkeeper" }, calcul: true },
+    { id: "big", objectif: "Big 2", sorare: { progression: 1, cible: 5, lu_le: "2026-11-01" }, recompense: { type: "Pack Silver", quantite: 1 }, criteres: { clubs: ["club-schick", "club-chabot"] }, manquants: true },
+    { id: "big", objectif: "doublon ignoré" },
+    { id: "inconnu", objectif: "Club inconnu", sorare: { progression: 0, cible: 1 }, criteres: { clubs: ["club-inconnu"] }, manquants: true } ] },
+    nba: { objectifs: [ { id: "joueurs", objectif: "Joueurs", sorare: { progression: 7, cible: 9 }, recompense: { type: "Pack", quantite: 1 }, criteres: {}, calcul: true },
+      { id: "shiny-four", objectif: "Shiny Four Suits", sorare: { progression: 3, cible: 4, lu_le: "2026-11-02" }, recompense: { type: "Essence", quantite: 2500 } } ] } };
+  globalThis.setTimeout = (fn) => vraiTimeout(fn, 0);
+  appels = 0;
+  const mm = (await collect({ ...opts(), missionsSet: cfg })).files.missions;
+  const appelsMissions = appels - appelsModules; appels = 0;
+  const vide = (await collect({ ...opts(), missionsSet: { erreur: "JSON invalide" } })).files.missions;
+  globalThis.setTimeout = vraiTimeout;
+  const m = (sp, id) => mm.find((x) => x.sport === sp && x.id === id) || {};
+  ok(mm.length === 8, "missions : " + mm.length + " lignes au lieu de 8 (doublon d'id non ignoré ?)");
+  ok(m("Football", "joueurs").progression === 7 && m("Football", "joueurs").source_progression === "collecte" && m("Football", "joueurs").manquantes === 3 && m("Football", "joueurs").ecart === 1, "missions : objectif Joueurs football mal compté " + JSON.stringify(m("Football", "joueurs")));
+  ok(m("Football", "de-nat").progression === 5 && m("Football", "de-nat").atteint === "oui" && m("Football", "de-nat").recompense === "5 Gems", "missions : nationalité / ligue mal comptées " + JSON.stringify(m("Football", "de-nat")));
+  ok(m("Football", "holo").progression === 1 && m("Football", "holo").source_progression === "sorare" && m("Football", "holo").progression_calculee === 1 && m("Football", "holo").recompense === "1 500 Essence", "missions : skin HOLO / source sorare " + JSON.stringify(m("Football", "holo")));
+  ok(m("Football", "gk").progression_calculee === 1, "missions : poste Goalkeeper mal compté");
+  const big = m("Football", "big");
+  ok(big.progression === 1 && big.progression_calculee === 2 && big.nb_joueurs_manquants === 2 && big.joueurs_manquants === "Recrue chabot (Club chabot) ; Recrue schick (Club schick)" && big.lu_le === "2026-11-01", "missions : joueurs manquants des clubs " + JSON.stringify(big));
+  ok(m("Football", "inconnu").joueurs_manquants === null && m("Football", "inconnu").nb_joueurs_manquants === null, "missions : club inconnu devrait donner joueurs_manquants null");
+  ok(appelsMissions === 3, "missions : " + appelsMissions + " appels pour 3 clubs (attendu 3 : un par club, sans reprise sur NOT_FOUND)");
+  ok(m("NBA", "joueurs").progression === 8 && m("NBA", "joueurs").set === "divination", "missions : Joueurs NBA mal comptés " + JSON.stringify(m("NBA", "joueurs")));
+  ok(m("NBA", "shiny-four").progression === 3 && m("NBA", "shiny-four").progression_calculee === null && m("NBA", "shiny-four").criteres === "", "missions : objectif sans critère NBA");
+  ok(Array.isArray(vide) && vide.length === 0, "missions : fichier invalide doit donner un jeu vide");
+  if (process.argv.includes("--missions")) console.table(mm.map(({ joueurs_manquants, ...x }) => x));
 }
 
 const i = process.argv.indexOf("--sortie");

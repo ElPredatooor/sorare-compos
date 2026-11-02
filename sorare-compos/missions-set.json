@@ -1,0 +1,511 @@
+{
+ "_doc": "Objectifs de collection du set Common en cours (contrat v9, jeu missions ; docs/contrat-donnees.md, section « Fichier missions-set.json »). Rempli par l'orchestrateur depuis sorare.com (/fr/football/series/missions/collect et /fr/nba/series/missions/collect). sorare = palier en cours lu sur la page (progression, cible, date). criteres (facultatif) = critères que la collecte sait recalculer sur toutes les Common du set : ligue (slug domesticLeague), nationalite (code pays, football), clubs (slugs), poste (poste de la carte, football), skin (SHINY, HOLO…), joueurs (slugs) ; {} = tous les joueurs du set. calcul: true = la progression affichée vient du recalcul (critères sûrs), sinon de la page (le recalcul sert de contrôle, colonne ecart). manquants: true = liste des joueurs manquants des clubs (1 appel par club). set absent = set Common en cours du sport.",
+ "maj": "2026-11-02",
+ "note": "Lu le 02/11/2026 vers 20h (docs/rapports/objectifs-divination-2026-11-02.md). Clubs des Big N repris du set HyperGlitch (27/10), à confirmer dans le détail de l'objectif : calcul false tant que l'écart n'est pas nul. Nationalités : calcul false (écart −1 à −3 attendu). English League Players : championnat supposé = Premier League. NBA : nationalité, poste (Pivots) et conférences non lus par la collecte : progression Sorare seulement.",
+ "football": {
+  "set": "divination",
+  "objectifs": [
+   {
+    "id": "es-nat",
+    "groupe": "Ligue : LaLiga EA Sports",
+    "objectif": "Joueurs espagnols de LaLiga",
+    "sorare": {
+     "progression": 80,
+     "cible": 96,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack Bronze",
+     "quantite": 1
+    },
+    "criteres": {
+     "ligue": "laliga-es",
+     "nationalite": "es"
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "de-nat",
+    "groupe": "Ligue : Bundesliga",
+    "objectif": "Joueurs allemands de Bundesliga",
+    "sorare": {
+     "progression": 46,
+     "cible": 54,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Gems",
+     "quantite": 5
+    },
+    "criteres": {
+     "ligue": "bundesliga-de",
+     "nationalite": "de"
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "en-nat",
+    "groupe": "Ligue : English League Players",
+    "objectif": "Joueurs anglais de English League Players",
+    "sorare": {
+     "progression": 39,
+     "cible": 47,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack Bronze",
+     "quantite": 1
+    },
+    "criteres": {
+     "ligue": "premier-league-gb-eng",
+     "nationalite": "gb-eng"
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "en-big",
+    "groupe": "Ligue : English League Players",
+    "objectif": "Big 5 English League Players",
+    "sorare": {
+     "progression": 37,
+     "cible": 38,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack Bronze",
+     "quantite": 1
+    },
+    "criteres": {
+     "clubs": [
+      "manchester-united-manchester",
+      "manchester-city-manchester",
+      "chelsea-london",
+      "liverpool-liverpool",
+      "arsenal-london"
+     ]
+    },
+    "calcul": false,
+    "manquants": true
+   },
+   {
+    "id": "fr-nat",
+    "groupe": "Ligue : Ligue 1",
+    "objectif": "Joueurs français de Ligue 1",
+    "sorare": {
+     "progression": 45,
+     "cible": 54,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack Bronze",
+     "quantite": 1
+    },
+    "criteres": {
+     "ligue": "ligue-1-fr",
+     "nationalite": "fr"
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "es-big",
+    "groupe": "Ligue : LaLiga EA Sports",
+    "objectif": "Big 3 LaLiga",
+    "sorare": {
+     "progression": 27,
+     "cible": 36,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack Silver",
+     "quantite": 1
+    },
+    "criteres": {
+     "clubs": [
+      "real-madrid-madrid",
+      "barcelona-barcelona",
+      "atletico-madrid-madrid"
+     ]
+    },
+    "calcul": false,
+    "manquants": true
+   },
+   {
+    "id": "de-big",
+    "groupe": "Ligue : Bundesliga",
+    "objectif": "Big 4 de Bundesliga",
+    "sorare": {
+     "progression": 19,
+     "cible": 23,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Gems",
+     "quantite": 5
+    },
+    "criteres": {
+     "clubs": [
+      "bayern-munchen-munchen",
+      "borussia-dortmund-dortmund",
+      "rb-leipzig-leipzig",
+      "bayer-leverkusen-leverkusen"
+     ]
+    },
+    "calcul": false,
+    "manquants": true
+   },
+   {
+    "id": "fr-big",
+    "groupe": "Ligue : Ligue 1",
+    "objectif": "Big 4 de Ligue 1",
+    "sorare": {
+     "progression": 16,
+     "cible": 19,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 1500
+    },
+    "criteres": {
+     "clubs": [
+      "psg-paris",
+      "monaco-monaco",
+      "olympique-lyonnais-lyon",
+      "olympique-marseille-marseille"
+     ]
+    },
+    "calcul": false,
+    "manquants": true
+   },
+   {
+    "id": "joueurs",
+    "groupe": "Général",
+    "objectif": "Joueurs",
+    "sorare": {
+     "progression": 520,
+     "cible": 568,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack Bronze",
+     "quantite": 1
+    },
+    "criteres": {},
+    "calcul": true,
+    "manquants": false
+   },
+   {
+    "id": "gardiens",
+    "groupe": "Général",
+    "objectif": "Gardiens de but",
+    "sorare": {
+     "progression": 58,
+     "cible": 61,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack Bronze",
+     "quantite": 1
+    },
+    "criteres": {
+     "poste": "Goalkeeper"
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "shiny",
+    "groupe": "Général",
+    "objectif": "Cartes Shiny",
+    "sorare": {
+     "progression": 69,
+     "cible": 110,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 1250
+    },
+    "criteres": {
+     "skin": "SHINY"
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "shiny-four-suits",
+    "groupe": "Général",
+    "objectif": "Shiny Four Suits",
+    "sorare": {
+     "progression": 3,
+     "cible": 6,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 3000
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "holo",
+    "groupe": "Général",
+    "objectif": "Cartes Holo",
+    "sorare": {
+     "progression": 13,
+     "cible": 15,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 750
+    },
+    "criteres": {
+     "skin": "HOLO"
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "holo-eclipse",
+    "groupe": "Général",
+    "objectif": "Holo Eclipse",
+    "sorare": {
+     "progression": 2,
+     "cible": 4,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 3000
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "legendaires",
+    "groupe": "Général",
+    "objectif": "Cartes Légendaires",
+    "sorare": {
+     "progression": 1,
+     "cible": 2,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Gems",
+     "quantite": 5
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "collections",
+    "groupe": "Général",
+    "objectif": "Compléter des collections",
+    "sorare": {
+     "progression": 0,
+     "cible": 1,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 2500
+    },
+    "calcul": false,
+    "manquants": false
+   }
+  ]
+ },
+ "nba": {
+  "objectifs": [
+   {
+    "id": "joueurs",
+    "groupe": "Général",
+    "objectif": "Joueurs",
+    "sorare": {
+     "progression": 281,
+     "cible": 329,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack",
+     "quantite": 1
+    },
+    "criteres": {},
+    "calcul": true,
+    "manquants": false
+   },
+   {
+    "id": "us",
+    "groupe": "Général",
+    "objectif": "Joueurs US",
+    "sorare": {
+     "progression": 212,
+     "cible": 251,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack",
+     "quantite": 1
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "pivots",
+    "groupe": "Général",
+    "objectif": "Pivots",
+    "sorare": {
+     "progression": 56,
+     "cible": 65,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack",
+     "quantite": 1
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "top4-est",
+    "groupe": "Général",
+    "objectif": "Top 4 de la Conférence Est",
+    "sorare": {
+     "progression": 38,
+     "cible": 60,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Gems",
+     "quantite": 25
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "top4-ouest",
+    "groupe": "Général",
+    "objectif": "Top 4 de la Conférence Ouest",
+    "sorare": {
+     "progression": 29,
+     "cible": 38,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Pack",
+     "quantite": 1
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "shiny",
+    "groupe": "Général",
+    "objectif": "Cartes Shiny",
+    "sorare": {
+     "progression": 33,
+     "cible": 35,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 1750
+    },
+    "criteres": {
+     "skin": "SHINY"
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "shiny-four-suits",
+    "groupe": "Général",
+    "objectif": "Shiny Four Suits",
+    "sorare": {
+     "progression": 3,
+     "cible": 4,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 2500
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "collections",
+    "groupe": "Général",
+    "objectif": "Compléter des collections",
+    "sorare": {
+     "progression": 0,
+     "cible": 1,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 2500
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "legendaires",
+    "groupe": "Général",
+    "objectif": "Cartes Légendaires",
+    "sorare": {
+     "progression": 0,
+     "cible": 1,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 2500
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "holo",
+    "groupe": "Général",
+    "objectif": "Cartes Holo",
+    "sorare": {
+     "progression": 5,
+     "cible": 18,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 1000
+    },
+    "criteres": {
+     "skin": "HOLO"
+    },
+    "calcul": false,
+    "manquants": false
+   },
+   {
+    "id": "holo-eclipse",
+    "groupe": "Général",
+    "objectif": "Holo Eclipse",
+    "sorare": {
+     "progression": 0,
+     "cible": 1,
+     "lu_le": "2026-11-02"
+    },
+    "recompense": {
+     "type": "Essence",
+     "quantite": 1500
+    },
+    "calcul": false,
+    "manquants": false
+   }
+  ]
+ }
+}

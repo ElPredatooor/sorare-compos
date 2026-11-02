@@ -107,7 +107,8 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
         let j; try { j = JSON.parse(text); } catch { j = { error: text.slice(0, 200) }; }
         if (j.data && !j.errors) return j.data;
         last = j.error || (j.errors && j.errors.map((e) => e.message).join(" | ")) || `HTTP ${r.status}`;
-        if (/complexity|doesn't exist|not supported|Field|Argument/i.test(last)) throw new Error("GQL:" + last);
+        // v9 : « not found » (slug absent, ex. club inconnu de missions-set.json) echoue aussi tout de suite, sans 6 reprises
+        if (/complexity|doesn't exist|not supported|Field|Argument|not found/i.test(last)) throw new Error("GQL:" + last);
       } catch (e) {
         if (String(e.message || e).startsWith("GQL:")) throw e;
         last = String(e.message || e);
@@ -214,6 +215,15 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     });
   }
 
+  // Pistes Set / Arcade de l'utilisateur (contrat v10, resume.arcade_palier… / arcade_nba_palier…) : setBoard est public avec
+  // la cle (verifie le 02/11/2026 : football palier 4 LIVE, NBA palier 2 LINEUP_SET ; myLineups reste prive). 1 appel, alias par sport.
+  let pistes = {};
+  try {
+    const st = "steps{ level target state ... on CareerStep{ remainingLineupsCount pendingLineupsCount lockedLineupsCount } }";
+    const d = await gq(`{ user(slug:"${USER}"){ foot: setBoard(mode:CAREER, sport:FOOTBALL){ ${st} } nba: setBoard(mode:CAREER, sport:NBA){ ${st} } } }`);
+    pistes = { FOOTBALL: etatPiste(d.user?.foot, now), NBA: etatPiste(d.user?.nba, now) };
+  } catch (e) { log("pistes Arcade : " + e.message); }
+
   // European Contenders (contrat v5, resume.europe_*) : leaderboard « …-special-weekly-european-contenders-division-1 »
   // de la gameweek en cours ou a venir. Cout : 0 a 3 appels de recherche + 1 appel de regles si trouve.
   let europe = null;
@@ -221,11 +231,12 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
 
   // ---------- 3. Donnees joueurs ----------
   log("Joueurs…");
-  const PQ = `query($s:[String!]!){ players(slugs:$s){ slug gameplayTier activeClub{ name slug domesticLeague{ name } }
+  const PQ = `query($s:[String!]!){ players(slugs:$s){ slug gameplayTier activeClub{ name slug domesticLeague{ name slug } }
     l5: averageScore(type:LAST_FIVE_SO5_AVERAGE_SCORE) l15: averageScore(type:LAST_FIFTEEN_SO5_AVERAGE_SCORE) l10: averageScore(type:LAST_TEN_PLAYED_SO5_AVERAGE_SCORE)
     activeInjuries{ status kind expectedEndDate }
-    ... on Player { position playingStatus activeSuspensions{ endDate } playerGameScores(last:10){ score anyGame{ date } anyPlayerGameStats{ ... on PlayerGameStats{ minsPlayed } } } so5Scores(last:10){ score decisiveScore{ totalScore } game{ date } } }
+    ... on Player { position country{ code } playingStatus activeSuspensions{ endDate } playerGameScores(last:10){ score anyGame{ date } anyPlayerGameStats{ ... on PlayerGameStats{ minsPlayed } } } so5Scores(last:10){ score decisiveScore{ totalScore } game{ date } } }
     ... on NBAPlayer { gainOnProjection(eventType:CLASSIC) playerGameScores(last:10){ score anyGame{ date } } } } }`;
+  // v9 : country{ code } et domesticLeague{ slug } servent aux missions de collection (collecteMissions), 0 appel de plus
   const info = new Map();
   // Un seul sport : seuls ses joueurs sont lus (les autres gardent d = null et ne sont pas pertinents)
   (await batched(players.filter((p) => dans(p.sport)).map((p) => p.slug), apiKey ? 40 : 10, async (s) => (await gq(PQ, { s })).players)).forEach((p) => p && info.set(p.slug, p));
@@ -333,7 +344,18 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     });
   }
 
-  return { sport, gq, batched, fixturesRecentes, appels: () => calls, europe, estMatchEurope: (g) => estMatchEurope(europe, g), cards, players, byPlayer, currentSet, setName, currentSetNBA, setNameNBA, setPoolNBA, fixtures, comps, relevant, isJPL, inSet, odds, espnData, standings, advRank, samples, w, calib };
+  return { pistes, sport, gq, batched, fixturesRecentes, appels: () => calls, europe, estMatchEurope: (g) => estMatchEurope(europe, g), cards, players, byPlayer, currentSet, setName, currentSetNBA, setNameNBA, setPoolNBA, fixtures, comps, relevant, isJPL, inSet, odds, espnData, standings, advRank, samples, w, calib };
+}
+
+// Etat d'une piste Set (contrat v10) : palier en cours = premier palier non CLAIMED ; vies = compos possibles + posees.
+export function etatPiste(board, now = new Date()) {
+  const vide = { palier: null, etat: null, vies: null, posees: null, verrouillees: null, lu_le: null };
+  const steps = Array.isArray(board?.steps) ? [...board.steps].sort((a, b) => a.level - b.level) : [];
+  const s = steps.find((x) => x.state !== "CLAIMED");
+  if (!s) return vide;
+  const n = (x) => (Number.isFinite(Number(x)) ? Number(x) : null);
+  const rest = n(s.remainingLineupsCount), pend = n(s.pendingLineupsCount);
+  return { palier: steps.indexOf(s) + 1, etat: s.state || null, vies: rest == null || pend == null ? null : rest + pend, posees: pend, verrouillees: n(s.lockedLineupsCount), lu_le: now.toISOString() };
 }
 
 // ---------- Set NBA : lot de joueurs a Common seulement (contrat v7) ----------
@@ -679,6 +701,149 @@ export async function collecteBilan({ gq, batched, fixturesRecentes, players, sp
   return out;
 }
 
+// ---------- Score de la derniere gameweek terminee (contrat v9, joueurs.score_derniere_gw / gw_derniere) ----------
+// Derniere gameweek terminee d'un sport : so5Fixtures (appel partage avec paliers et bilan, mis en cache), fin passee la plus recente.
+export function derniereGwFinie(fx, now = new Date()) {
+  return (fx || []).filter((f) => f && f.slug && f.startDate && f.endDate && Date.parse(f.endDate) < +now)
+    .sort((a, b) => Date.parse(b.endDate) - Date.parse(a.endDate))[0] || null;
+}
+// Meme calcul que le bilan (scoreFenetre) mais null si le joueur n'a aucun match dans la fenetre (0 = match sans points).
+export function scoreGw(d, sport, debut, fin) {
+  if (!d) return null;
+  const t0 = Date.parse(debut) - 3600e3, t1 = Date.parse(fin);
+  const src = sport === "NBA" ? (d.playerGameScores || []).map((g) => ({ s: g.score, t: g.anyGame?.date }))
+    : (d.so5Scores ? d.so5Scores.map((g) => ({ s: g.score, t: g.game?.date })) : (d.playerGameScores || []).map((g) => ({ s: g.score, t: g.anyGame?.date })));
+  const dans = src.filter((g) => g.s != null && Date.parse(g.t) >= t0 && Date.parse(g.t) <= t1).map((g) => Number(g.s));
+  return dans.length ? round(Math.max(...dans)) : null;
+}
+// ctx : contexte de collecte() ; -> Map slug -> { score, gw }. Cout : 0 appel (so5Fixtures deja lu par paliers / bilan, sinon 1 par sport).
+export async function scoresDerniereGw({ fixturesRecentes, players, sport = null }, now = new Date(), log = () => {}) {
+  const out = new Map();
+  for (const SP of ["FOOTBALL", "NBA"].filter((s) => !sport || s === sport)) {
+    let gw = null;
+    try { gw = derniereGwFinie(await fixturesRecentes(SP), now); } catch (e) { log("score de la dernière gameweek " + SP + " : " + e.message); }
+    if (!gw) continue;
+    let n = 0;
+    for (const p of players.filter((x) => x.sport === SP && x.d)) { const s = scoreGw(p.d, SP, gw.startDate, gw.endDate); out.set(p.slug, { score: s, gw: gw.slug }); if (s != null) n++; }
+    log(`Dernière gameweek ${SP === "NBA" ? "NBA" : "football"} terminée : ${gw.slug} (${n} joueurs avec un score)`);
+  }
+  return out;
+}
+
+// ---------- Missions de collection du Set (contrat v9, jeu missions) ----------
+// Fichier sorare-compos/missions-set.json : { maj, note, football: { set, objectifs: [...] }, nba: { set, objectifs: [...] } }.
+// Absent, vide ou illisible -> [] (jeu vide), jamais d'echec. Les definitions ne sont pas lisibles avec la cle API seule
+// (verifie le 02/11/2026 : Board.myCollectionTasks -> « You should log in »).
+export const MISSIONS_MAX_APPELS = 40;
+const SECTIONS_MISSIONS = [["FOOTBALL", "Football", "football"], ["NBA", "NBA", "nba"]];
+export function normaliseMissions(json, log = () => {}) {
+  if (!json) { log("Missions : pas de fichier missions-set.json, jeu missions vide"); return null; }
+  if (json.erreur) { log("Missions : " + json.erreur + ", jeu missions vide"); return null; }
+  const out = {};
+  for (const [, , k] of SECTIONS_MISSIONS) {
+    const sec = json[k];
+    const liste = Array.isArray(sec?.objectifs) ? sec.objectifs : [];
+    const vus = new Set();
+    out[k] = { set: typeof sec?.set === "string" && sec.set ? sec.set : null, objectifs: liste.filter((o) => {
+      if (!o || typeof o !== "object" || !o.id || vus.has(o.id)) { log(`Missions ${k} : objectif ignoré (id absent ou en double : ${o?.id ?? "?"})`); return false; }
+      vus.add(o.id); return true;
+    }) };
+  }
+  return out;
+}
+// Une carte compte pour l'objectif si tous les criteres renseignes correspondent (meme regle que outils/collections/criteres.mjs).
+// joueur = p.d (country{code}, activeClub{slug, domesticLeague{slug}}) ; carte = noeud brut (anyPositions, skinEdition, anyPlayer).
+export function compteMission(cr, d, carte) {
+  const cl = d?.activeClub;
+  if (cr.ligue && cl?.domesticLeague?.slug !== cr.ligue) return false;
+  if (cr.nationalite && d?.country?.code !== cr.nationalite) return false;
+  if (Array.isArray(cr.clubs) && cr.clubs.length && !cr.clubs.includes(cl?.slug)) return false;
+  // Poste de la carte (Card.anyPositions) ; a defaut celui du joueur (Player.position), comme posteCartes
+  const postes = Array.isArray(carte.anyPositions) && carte.anyPositions.length ? carte.anyPositions : [d?.positionJoueur ?? d?.position].filter(Boolean);
+  if (cr.poste && !postes.includes(cr.poste)) return false;
+  if (cr.skin && String(carte.skinEdition?.skin || "").toUpperCase() !== String(cr.skin).toUpperCase()) return false;
+  if (Array.isArray(cr.joueurs) && cr.joueurs.length && !cr.joueurs.includes(carte.anyPlayer?.slug)) return false;
+  return true;
+}
+const texteCriteres = (cr) => !cr ? "" : [cr.ligue && "ligue " + cr.ligue, cr.nationalite && "nationalité " + cr.nationalite,
+  Array.isArray(cr.clubs) && cr.clubs.length && "clubs " + cr.clubs.join(", "), cr.poste && "poste " + cr.poste, cr.skin && "skin " + cr.skin,
+  Array.isArray(cr.joueurs) && cr.joueurs.length && cr.joueurs.length + " joueurs désignés"].filter(Boolean).join(" ; ") || (Object.keys(cr).length ? "" : "tous les joueurs du set");
+const entier = (x) => (x == null || x === "" || !Number.isFinite(Number(x)) ? null : Math.round(Number(x)));
+// ctx : contexte de collecte() (gq, cards, byPlayer, currentSet, currentSetNBA, sport) ; cfg : normaliseMissions(...).
+// Cout : 0 appel pour la progression ; 1 appel par club / equipe des objectifs « manquants » (+1 par page de 50), au plus MISSIONS_MAX_APPELS.
+export async function collecteMissions({ gq, cards, byPlayer, currentSet, currentSetNBA, sport = null }, cfg, log = () => {}, maxAppels = MISSIONS_MAX_APPELS) {
+  if (!cfg) return [];
+  const lignes = []; let appels = 0;
+  const effectifs = new Map(); // slug club -> { name, players } | null
+  const TQ = `query($s:String!,$a:String){ team(slug:$s){ slug name anyActivePlayers(first:50, after:$a){ pageInfo{ hasNextPage endCursor } nodes{ slug displayName ... on Player{ country{ code } position } } } } }`;
+  async function effectif(slug) {
+    if (effectifs.has(slug)) return effectifs.get(slug);
+    let res = null;
+    try {
+      const nodes = []; let after = null, name = slug;
+      for (;;) {
+        if (appels >= maxAppels) throw new Error(`plafond de ${maxAppels} appels atteint`);
+        appels++;
+        const d = await gq(TQ, { s: slug, a: after });
+        name = d.team?.name || name; const c = d.team?.anyActivePlayers;
+        if (!c) break;
+        nodes.push(...(c.nodes || []));
+        if (!c.pageInfo?.hasNextPage) break; after = c.pageInfo.endCursor;
+      }
+      res = { name, players: nodes };
+    } catch (e) { log(`Missions : effectif de ${slug} illisible (${e.message})`); }
+    effectifs.set(slug, res);
+    return res;
+  }
+  for (const [SP, nom, k] of SECTIONS_MISSIONS.filter(([SP]) => !sport || SP === sport)) {
+    const sec = cfg[k]; if (!sec || !sec.objectifs.length) continue;
+    const set = sec.set || (SP === "NBA" ? currentSetNBA : currentSet) || null;
+    const communes = (cards || []).filter((c) => c.sport === SP && c.rarityTyped === "common" && set && c.cardSet?.slug === set);
+    const possedes = new Set(communes.map((c) => c.anyPlayer?.slug));
+    const lus = communes.filter((c) => byPlayer.get(c.anyPlayer?.slug)?.d).length;
+    if (communes.length && lus < communes.length) log(`Missions ${nom} : ${communes.length - lus} Common sans données joueur (critères de club, ligue ou nationalité non vérifiables)`);
+    for (const o of sec.objectifs) {
+      const cr = o.criteres && typeof o.criteres === "object" ? o.criteres : null;
+      let calc = null;
+      if (cr && set) { const s = new Set(); for (const c of communes) { const d = byPlayer.get(c.anyPlayer?.slug)?.d || null; if (compteMission(cr, d, c)) s.add(c.anyPlayer.slug); } calc = s.size; }
+      const pS = entier(o.sorare?.progression), cible = entier(o.sorare?.cible ?? o.cible);
+      const source = o.calcul === true && calc != null ? "collecte" : "sorare";
+      const prog = source === "collecte" ? calc : pS;
+      let manq = null, nbManq = null;
+      if (o.manquants === true && cr && Array.isArray(cr.clubs) && cr.clubs.length) {
+        const liste = [];
+        let complet = true;
+        for (const club of cr.clubs) {
+          const e = await effectif(club); if (!e) { complet = false; continue; }
+          for (const j of e.players) {
+            if (possedes.has(j.slug)) continue;
+            if (cr.nationalite && j.country?.code !== cr.nationalite) continue;
+            if (cr.poste && j.position !== cr.poste) continue;
+            if (Array.isArray(cr.joueurs) && cr.joueurs.length && !cr.joueurs.includes(j.slug)) continue;
+            liste.push({ club: e.name, nom: j.displayName || j.slug });
+          }
+        }
+        if (complet) {
+          liste.sort((a, b) => a.club.localeCompare(b.club) || a.nom.localeCompare(b.nom));
+          manq = liste.map((x) => `${x.nom} (${x.club})`).join(" ; "); nbManq = liste.length;
+        }
+      }
+      const r = o.recompense || {};
+      const qte = entier(r.quantite), typ = r.type ? String(r.type) : null;
+      lignes.push({ sport: nom, set, id: String(o.id), groupe: o.groupe ?? null, objectif: o.objectif ?? o.nom ?? String(o.id),
+        progression: prog, cible, manquantes: prog != null && cible != null ? Math.max(0, cible - prog) : null,
+        pct: prog != null && cible ? round((prog / cible) * 100) : null, atteint: prog != null && cible != null ? (prog >= cible ? "oui" : "non") : null,
+        source_progression: source, lu_le: o.sorare?.lu_le ?? null, progression_sorare: pS, progression_calculee: calc,
+        ecart: calc != null && pS != null ? calc - pS : null, criteres: texteCriteres(cr),
+        recompense: typ ? [qte != null ? qte.toLocaleString("fr-FR").replace(/\u202f/g, " ") : null, typ].filter(Boolean).join(" ") : (typeof o.recompense === "string" ? o.recompense : null),
+        recompense_type: typ, recompense_quantite: qte, joueurs_manquants: manq, nb_joueurs_manquants: nbManq });
+    }
+    log(`Missions ${nom} (${set || "set inconnu"}) : ${sec.objectifs.length} objectifs, ${possedes.size} joueurs à Common du set`);
+  }
+  if (appels) log(`Missions : ${appels} appels pour les joueurs manquants`);
+  return lignes;
+}
+
 // ---------- ESPN (NBA) : blessures detaillees et minutes ----------
 const pname = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, "").replace(/[^a-z]/g, "");
 async function fetchEspn(nbaPlayers, log) {
@@ -811,8 +976,8 @@ const SPORT_PAR_JEU = {
   plan_arcade: (r) => (r.mode === "arcade_nba" ? "NBA" : "FOOTBALL"), // v7 : arcade_nba = piste Set NBA ; arcade / europe = football
 };
 export const CHAMPS_RESUME_SPORT = {
-  FOOTBALL: ["maj_football", "set", "gw_football", "limite_football", "gw_debut_football", "gw_fin_football", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin"],
-  NBA: ["maj_nba", "gw_nba", "limite_nba", "gw_debut_nba", "gw_fin_nba", "set_nba", "arcade_nba_debut", "arcade_nba_fin"],
+  FOOTBALL: ["maj_football", "set", "gw_football", "limite_football", "gw_debut_football", "gw_fin_football", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin", "arcade_palier", "arcade_etat", "arcade_vies", "arcade_compos_posees", "arcade_compos_verrouillees", "arcade_lu_le"],
+  NBA: ["maj_nba", "gw_nba", "limite_nba", "gw_debut_nba", "gw_fin_nba", "set_nba", "arcade_nba_debut", "arcade_nba_fin", "arcade_nba_palier", "arcade_nba_etat", "arcade_nba_vies", "arcade_nba_compos_posees", "arcade_nba_compos_verrouillees", "arcade_nba_lu_le"],
 };
 export function fusionneSport(sport, nouveaux, anciens = {}) {
   if (!["FOOTBALL", "NBA"].includes(sport)) throw new Error(`fusionneSport : sport « ${sport} » inconnu`);

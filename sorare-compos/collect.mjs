@@ -19,6 +19,9 @@ const sport = SPORTS[sportBrut];
 // Absent -> null ; JSON invalide -> { erreur } ; dans les deux cas collect() garde l'ordre par defaut et le journalise.
 const prioriteNba = await readFile(fileURLToPath(new URL("./priorite-nba.json", import.meta.url)), "utf8")
   .then((t) => { try { return JSON.parse(t); } catch (e) { return { erreur: "JSON invalide : " + e.message }; } }, () => null);
+// Missions de collection du Set (contrat v9) : meme lecture ; absent ou invalide -> jeu missions vide
+const missionsSet = await readFile(fileURLToPath(new URL("./missions-set.json", import.meta.url)), "utf8")
+  .then((t) => { try { return JSON.parse(t); } catch (e) { return { erreur: "missions-set.json : JSON invalide : " + e.message }; } }, () => null);
 const prev = await readJson("data/latest/joueurs.json", null);
 const history = await readJson("data/history.json", { samples: [], calibration: [] });
 // Bilan : archives faites avant la date limite d'une gameweek passee (les archives sans resume.json, d'avant le contrat v3, sont ignorees)
@@ -27,7 +30,7 @@ const jours = (await readdir("data/archive").catch(() => [])).filter((d) => /^\d
 const resumes = await Promise.all(jours.map(async (d) => ({ dossier: `data/archive/${d}`, resume: await readJson(`data/archive/${d}/resume.json`, null) })));
 const compsPrecedentes = await Promise.all(candidatsBilan(resumes, now).map(async (x) => ({ ...x,
   compos: await readJson(`${x.dossier}/compos.json`, []), competitions: await readJson(`${x.dossier}/competitions.json`, []), paliers: await readJson(`${x.dossier}/paliers.json`, []) })));
-const { files: collecte, history: h } = await collect({ apiKey, oddsKey, prev, history, compsPrecedentes, now, log: (m) => console.log(m), sport, prioriteNba });
+const { files: collecte, history: h } = await collect({ apiKey, oddsKey, prev, history, compsPrecedentes, now, log: (m) => console.log(m), sport, prioriteNba, missionsSet });
 let files = collecte;
 if (sport) {
   // Fusion : chaque jeu de data/latest garde les lignes de l'autre sport ; jeu absent = seulement le sport collecte

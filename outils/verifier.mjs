@@ -1,4 +1,4 @@
-// Vérification des jeux de données Sorare : contrat (docs/contrat-donnees.md v7) et règles des compos.
+// Vérification des jeux de données Sorare : contrat (docs/contrat-donnees.md v9) et règles des compos.
 // Usage : node outils/verifier.mjs <dossier>   (le dossier contient joueurs.json|csv, compos.json|csv, ...)
 // Code de sortie : 0 = OK ou remarques seulement, 1 = au moins une erreur bloquante.
 import { readFile, access } from "node:fs/promises";
@@ -25,20 +25,22 @@ const COLS = {
   matchs: ["sport", "slug", "joueur", "date", "jour", "adversaire", "proj", "proba", "b2b", "adv_attaque_rang", "adv_defense_rang", "adv_nb_equipes", "proba_victoire", "total"],
   bilan: ["sport", "gw", "competition", "numero", "score_prevu", "score_reel", "ecart", "palier_vise", "palier_atteint", "joueurs", "source_compos"],
   plan_arcade: ["depart", "etape", "palier", "seuil", "creneau", "resultat_vers", "compo", "joueurs", "score_attendu", "proba_compo", "proba_palier", "conseil"],
+  missions: ["sport", "set", "id", "groupe", "objectif", "progression", "cible", "manquantes", "pct", "atteint", "source_progression", "lu_le", "progression_sorare", "progression_calculee", "ecart", "criteres", "recompense", "recompense_type", "recompense_quantite", "joueurs_manquants", "nb_joueurs_manquants"], // v9
 };
 // Colonnes v3 à v5 contrôlées seulement si présentes (collectes antérieures, ou stratège pas encore livré) : remarque si absentes
 // v7 : changements.sport / slug ; v4 : resume.arcade_* ; v6 : resume.maj_football / maj_nba ; v7 : resume.set_nba / arcade_nba_* ; v5 : resume.europe_*, matchs.competition_match, plan_arcade.mode (absent des collectes v4 : vaut arcade)
 const COLS_V3 = {
   competitions: ["cout_inscription", "gains_esperes", "gain_net_espere", "autres_recompenses", "rentable", "recommandation", "alternative"],
-  resume: ["gw_debut_football", "gw_fin_football", "gw_debut_nba", "gw_fin_nba", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin", "maj_football", "maj_nba", "set_nba", "arcade_nba_debut", "arcade_nba_fin"],
+  resume: ["gw_debut_football", "gw_fin_football", "gw_debut_nba", "gw_fin_nba", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin", "maj_football", "maj_nba", "set_nba", "arcade_nba_debut", "arcade_nba_fin", "arcade_palier", "arcade_etat", "arcade_vies", "arcade_compos_posees", "arcade_compos_verrouillees", "arcade_lu_le", "arcade_nba_palier", "arcade_nba_etat", "arcade_nba_vies", "arcade_nba_compos_posees", "arcade_nba_compos_verrouillees", "arcade_nba_lu_le"], // v10 : pistes Arcade
   matchs: ["competition_match"],
   plan_arcade: ["mode"],
   changements: ["sport", "slug"], // v7
+  joueurs: ["score_derniere_gw", "gw_derniere"], // v9
 };
 // v5 : compétitions European Contenders (« UEFA Europa League » = « Europa League », « UEFA Conference League » = « Europa Conference League »)
 const cleCompetition = (nom) => { const n = String(nom || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\buefa\b/g, "").replace(/\s+/g, " ").trim(); return /conference/.test(n) ? "conference-league" : /europa league/.test(n) ? "europa-league" : n; };
 const COMPETITIONS_EUROPE = new Set(["conference-league", "europa-league"]);
-const FACULTATIFS = new Set(["bilan", "plan_arcade"]); // jeu v3 : absent des collectes antérieures -> remarque
+const FACULTATIFS = new Set(["bilan", "plan_arcade", "missions"]); // missions : v9 // jeu v3 : absent des collectes antérieures -> remarque
 const NBA_ONLY = ["etoiles", "plancher_etoiles", "gain_etoiles", "gain_sorare", "back_to_back", "espn_statut", "espn_info", "espn_retour", "minutes_5", "minutes_tendance", "l10", "matchs_probables", "coequipiers_absents", "minutes_liberees"];
 const FOOT_ONLY = ["statut", "suspension", "part_decisive", "clean_sheet", "grade_sorare", "bonus_skin", "competition_match", "proba_victoire_adv", "source_titulaire"];
 const FLOOR = { 5: 50, 4.5: 45, 4: 40, 3.5: 35, 3: 30, 2.5: 25, 2: 20, 1.5: 15, 1: 0 };
@@ -296,6 +298,36 @@ for (const b of data.bilan || []) {
   if (empty(b.source_compos)) err(sport, `bilan : ${b.competition} compo ${b.numero} : source_compos vide`);
   if (String(b.joueurs || "").split(" ; ").filter(Boolean).length !== 5) warn(sport, `bilan : ${b.competition} compo ${b.numero} : ${String(b.joueurs || "").split(" ; ").filter(Boolean).length} joueurs dans le détail (attendu 5)`);
 }
+
+// ---------- missions (v9) ----------
+{
+  const cles = new Set();
+  for (const m of data.missions || []) {
+    const sport = sportOf(m.sport), ou = `missions ${m.sport} « ${m.objectif ?? m.id} »`;
+    if (!["Football", "NBA"].includes(m.sport)) err("F+N", `missions : sport « ${m.sport} » invalide (attendu Football ou NBA)`);
+    if (empty(m.id)) err(sport, `${ou} : id vide`);
+    const k = m.sport + "|" + m.id; if (cles.has(k)) err(sport, `${ou} : id ${m.id} en double`); cles.add(k);
+    if (!["collecte", "sorare"].includes(m.source_progression)) err(sport, `${ou} : source_progression « ${m.source_progression} » inconnue`);
+    const attendu = m.source_progression === "collecte" ? m.progression_calculee : m.progression_sorare;
+    if (num(m.progression) !== num(attendu)) err(sport, `${ou} : progression ${m.progression} ≠ ${m.source_progression === "collecte" ? "progression_calculee" : "progression_sorare"} ${attendu}`);
+    if (!empty(m.progression) && !empty(m.cible)) {
+      if (num(m.manquantes) !== Math.max(0, num(m.cible) - num(m.progression))) err(sport, `${ou} : manquantes ${m.manquantes} ≠ max(0, cible − progression)`);
+      if ((m.atteint === "oui") !== (num(m.progression) >= num(m.cible))) err(sport, `${ou} : atteint « ${m.atteint} » incohérent`);
+    }
+    if (!empty(m.progression_calculee) && !empty(m.progression_sorare) && num(m.ecart) !== num(m.progression_calculee) - num(m.progression_sorare)) err(sport, `${ou} : ecart ${m.ecart} ≠ calculée − Sorare`);
+    if (!empty(m.ecart) && Math.abs(num(m.ecart)) > 3) warn(sport, `${ou} : écart de ${m.ecart} entre le calcul et la page Sorare (lue le ${m.lu_le}) : critères à revoir ou cartes gagnées depuis`);
+    const nb = String(m.joueurs_manquants ?? "").split(" ; ").filter(Boolean).length;
+    if (!empty(m.nb_joueurs_manquants) && nb !== num(m.nb_joueurs_manquants)) err(sport, `${ou} : nb_joueurs_manquants ${m.nb_joueurs_manquants} ≠ ${nb} noms`);
+    if (empty(m.lu_le) && m.source_progression === "sorare") warn(sport, `${ou} : progression Sorare sans date de lecture`);
+  }
+}
+// resume v10 : pistes Arcade
+for (const pre of ["arcade_", "arcade_nba_"]) { const r = (data.resume || [])[0] || {}, sp = pre === "arcade_" ? "FOOTBALL" : "NBA";
+  if (!empty(r[pre + "palier"]) && !(num(r[pre + "palier"]) >= 1 && num(r[pre + "palier"]) <= 6)) err(sp, `resume : ${pre}palier ${r[pre + "palier"]} hors 1-6`);
+  if (!empty(r[pre + "vies"]) && !(num(r[pre + "vies"]) >= 0 && num(r[pre + "vies"]) <= 4)) err(sp, `resume : ${pre}vies ${r[pre + "vies"]} hors 0-4`);
+  if (!empty(r[pre + "compos_verrouillees"]) && num(r[pre + "compos_verrouillees"]) > num(r[pre + "compos_posees"])) warn(sp, `resume : plus de compos verrouillées que posées (${pre})`); }
+// joueurs v9 : gw_derniere du bon sport
+for (const r of joueurs) if (!empty(r.gw_derniere) && !String(r.gw_derniere).startsWith(r.sport === "NBA" ? "nba" : "football")) err(sportOf(r.sport), `joueurs : ${r.joueur} : gw_derniere « ${r.gw_derniere} » d'un autre sport`);
 
 // ---------- plan_arcade (v4, mode v5, arcade_nba v7) ----------
 // arcade_nba (v7) : lignes NBA, 5 joueurs « Nom (équipe, heure, N★) score » sans poste, seuils 150/180/210/240/280/300,

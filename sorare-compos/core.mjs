@@ -9,12 +9,19 @@
 // prioriteNba (contrat v8) : contenu parse de sorare-compos/priorite-nba.json, lu par collect.mjs et collecte-locale.mjs ;
 // normalise par normalisePrioriteNba (collecte.mjs) puis passe a calculeCompos dans ctx.prioriteNba (tableau de noms
 // NBA_COMPS[].nom). Absent (navigateur) ou invalide -> ordre par defaut, message dans le journal. Football : aucun effet.
+// missionsSet (contrat v9) : contenu parse de sorare-compos/missions-set.json (objectifs de collection du set, football et NBA),
+// lu par collect.mjs et collecte-locale.mjs ; absent (navigateur) ou invalide -> jeu missions vide, jamais d'echec.
 
-import { collecte, collectePaliers, collecteBilan, normalisePrioriteNba } from "./collecte.mjs";
+import { collecte, collectePaliers, collecteBilan, normalisePrioriteNba, scoresDerniereGw, normaliseMissions, collecteMissions } from "./collecte.mjs";
 import { calculeJoueurs } from "./modele.mjs";
 import { calculeCompos, evalueRentabilite } from "./compos.mjs";
 
-export async function collect({ apiKey, oddsKey = null, espn = true, prev = null, history = { samples: [], calibration: [] }, compsPrecedentes = null, now = new Date(), log = console.log, sport = null, prioriteNba = null }) {
+// resume v10 : etat des pistes Arcade (ctx.pistes, etatPiste dans collecte.mjs) ; null si illisible
+const champsPistes = (p = {}) => Object.fromEntries([["FOOTBALL", "arcade_"], ["NBA", "arcade_nba_"]].flatMap(([sp, pre]) => {
+  const e = p[sp] || {};
+  return [["palier", e.palier], ["etat", e.etat], ["vies", e.vies], ["compos_posees", e.posees], ["compos_verrouillees", e.verrouillees], ["lu_le", e.lu_le]].map(([k, v]) => [pre + k, v ?? null]);
+}));
+export async function collect({ apiKey, oddsKey = null, espn = true, prev = null, history = { samples: [], calibration: [] }, compsPrecedentes = null, now = new Date(), log = console.log, sport = null, prioriteNba = null, missionsSet = null }) {
   const ctx = await collecte({ apiKey, oddsKey, espn, history, now, log, sport });
   const { gq, comps, cards, players, setName, fixtures, odds, samples, w, calib } = ctx;
   const { rows, newSamples } = calculeJoueurs(ctx, now);
@@ -29,6 +36,12 @@ export async function collect({ apiKey, oddsKey = null, espn = true, prev = null
   let bilan = [];
   try { bilan = await collecteBilan(ctx, compsPrecedentes, paliers, now, log); } catch (e) { log("bilan : " + e.message); }
 
+  // ---------- 15. Missions de collection du Set (contrat v9) et score de la derniere gameweek terminee ----------
+  let missions = [];
+  try { missions = await collecteMissions(ctx, normaliseMissions(missionsSet, log), log); } catch (e) { log("missions : " + e.message); }
+  let derniere = new Map();
+  try { derniere = await scoresDerniereGw(ctx, now, log); } catch (e) { log("score de la dernière gameweek : " + e.message); }
+
   // ---------- Sorties ----------
   // resume v7 : set_nba (set Common NBA en cours, ctx.setNameNBA), arcade_nba_debut / arcade_nba_fin (fixtures.LIVE_NBA,
   // gameweek NBA en cours, a defaut la gameweek a venir) ; set reste le set football.
@@ -37,14 +50,15 @@ export async function collect({ apiKey, oddsKey = null, espn = true, prev = null
   const clean = rows.map(({ _cards, _games, _isJPL, _inSet, _cv, _tier, _clubSlug, _l15, _pos, ...r }) => {
     for (const k of r.sport === "NBA" ? FOOT_ONLY : NBA_ONLY) r[k] = null;
     if (r.sport === "NBA") r.poste = "";
+    const g = derniere.get(r.slug); r.score_derniere_gw = g ? g.score : null; r.gw_derniere = g ? g.gw : null; // v9
     return r;
   });
   const allSamples = samples.concat(newSamples.filter((n) => !samples.some((s) => s.slug === n.slug && s.date === n.date)));
   log(`${ctx.appels()} appels API`);
   return {
     files: {
-      joueurs: clean, compos: lineups, competitions: compRows, jours, changements: changes, calibration: calib, cartes, matchs, plan_arcade, paliers, bilan,
-      resume: [{ maj: now.toISOString(), maj_football: !sport || sport === "FOOTBALL" ? now.toISOString() : null, maj_nba: !sport || sport === "NBA" ? now.toISOString() : null, cartes: cards.length, joueurs: players.length, set: setName, gw_football: fixtures.FOOTBALL.slug, gw_nba: fixtures.NBA.slug, limite_football: fixtures.FOOTBALL.cutOffDate, limite_nba: fixtures.NBA.cutOffDate, gw_debut_football: fixtures.FOOTBALL.startDate || null, gw_fin_football: fixtures.FOOTBALL.endDate || null, gw_debut_nba: fixtures.NBA.startDate || null, gw_fin_nba: fixtures.NBA.endDate || null, arcade_debut: fixtures.LIVE_FOOTBALL?.startDate ?? fixtures.FOOTBALL.startDate ?? null, arcade_fin: fixtures.LIVE_FOOTBALL?.endDate ?? fixtures.FOOTBALL.endDate ?? null, set_nba: ctx.setNameNBA || "", arcade_nba_debut: fixtures.LIVE_NBA?.startDate ?? fixtures.NBA.startDate ?? null, arcade_nba_fin: fixtures.LIVE_NBA?.endDate ?? fixtures.NBA.endDate ?? null, europe_slug: ctx.europe?.slug ?? null, europe_debut: ctx.europe?.debut ?? null, europe_fin: ctx.europe?.fin ?? null, poids_sorare: w, cotes_externes: odds.length > 0 ? "oui" : "non", appels_api: ctx.appels() }],
+      joueurs: clean, compos: lineups, competitions: compRows, jours, changements: changes, calibration: calib, cartes, matchs, plan_arcade, paliers, bilan, missions,
+      resume: [{ maj: now.toISOString(), maj_football: !sport || sport === "FOOTBALL" ? now.toISOString() : null, maj_nba: !sport || sport === "NBA" ? now.toISOString() : null, cartes: cards.length, joueurs: players.length, set: setName, gw_football: fixtures.FOOTBALL.slug, gw_nba: fixtures.NBA.slug, limite_football: fixtures.FOOTBALL.cutOffDate, limite_nba: fixtures.NBA.cutOffDate, gw_debut_football: fixtures.FOOTBALL.startDate || null, gw_fin_football: fixtures.FOOTBALL.endDate || null, gw_debut_nba: fixtures.NBA.startDate || null, gw_fin_nba: fixtures.NBA.endDate || null, arcade_debut: fixtures.LIVE_FOOTBALL?.startDate ?? fixtures.FOOTBALL.startDate ?? null, arcade_fin: fixtures.LIVE_FOOTBALL?.endDate ?? fixtures.FOOTBALL.endDate ?? null, set_nba: ctx.setNameNBA || "", arcade_nba_debut: fixtures.LIVE_NBA?.startDate ?? fixtures.NBA.startDate ?? null, arcade_nba_fin: fixtures.LIVE_NBA?.endDate ?? fixtures.NBA.endDate ?? null, europe_slug: ctx.europe?.slug ?? null, europe_debut: ctx.europe?.debut ?? null, europe_fin: ctx.europe?.fin ?? null, ...champsPistes(ctx.pistes), poids_sorare: w, cotes_externes: odds.length > 0 ? "oui" : "non", appels_api: ctx.appels() }],
     },
     history: { samples: allSamples, calibration: calib.slice(-90) },
   };

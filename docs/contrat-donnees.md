@@ -1,11 +1,11 @@
 # Contrat de données : collecte → modèle → dashboard
 
-Version 8 (02/11/2026, orchestrateur : priorité des compétitions NBA) ; version 7 (02/11/2026, orchestrateur) ; version 6 (02/11/2026, agent `donnees`) ; version 5 (25/10/2026, orchestrateur) ; version 4 (25/10/2026, orchestrateur) ; version 3 (25/10/2026, orchestrateur) ; version 2 (25/10/2026, agent `donnees`) ; version 1 (24/10/2026) relevée dans `core.mjs` et `dashboard/index.html` (v7).
+Version 10 (02/11/2026, agent `donnees` : état des pistes Arcade football et NBA) ; version 9 (02/11/2026, agent `donnees` : missions de collection du Set, score de la dernière gameweek) ; version 8 (02/11/2026, orchestrateur : priorité des compétitions NBA) ; version 7 (02/11/2026, orchestrateur) ; version 6 (02/11/2026, agent `donnees`) ; version 5 (25/10/2026, orchestrateur) ; version 4 (25/10/2026, orchestrateur) ; version 3 (25/10/2026, orchestrateur) ; version 2 (25/10/2026, agent `donnees`) ; version 1 (24/10/2026) relevée dans `core.mjs` et `dashboard/index.html` (v7).
 Ce fichier fait foi. Toute colonne ajoutée, renommée ou supprimée est d'abord écrite ici,
 avec la version et le nom de l'agent, puis implémentée. `outils/verifier.mjs` contrôle ce contrat.
 
 ## Conventions
-- Sept jeux : `joueurs`, `compos`, `competitions`, `jours`, `changements`, `calibration`, `resume`.
+- Sept jeux : `joueurs`, `compos`, `competitions`, `jours`, `changements`, `calibration`, `resume` (plus `matchs`, `cartes`, `paliers`, `bilan`, `plan_arcade` et, depuis la v9, `missions`).
   Stockés en JSON (`data/latest/<nom>.json`, GitHub) ou en CSV (assets du dashboard, `historique-dashboard/vN/donnees/`).
 - Un jeu vide est un CSV avec seulement la ligne d'en-tête.
 - Dates : ISO 8601 en UTC (`2026-10-25T18:00:00Z`) ; `match` est tronqué à 16 caractères (`2026-10-25T18:00`) ; `jour` = `AAAA-MM-JJ`.
@@ -67,6 +67,8 @@ Légende du tableau : **F** football seulement, **N** NBA seulement, **F+N** les
 | matchs_probables | entier | N | Matchs de la GW avec une probabilité de jouer ≥ 50 % |
 | coequipiers_absents | texte | N | Coéquipiers Out (ESPN) et leurs minutes habituelles (« rôle élargi ») |
 | minutes_liberees | nombre | N | Somme des minutes de ces coéquipiers |
+| score_derniere_gw | nombre | F+N | v9. Score réel du joueur lors de la dernière gameweek terminée de son sport (`gw_derniere`), même calcul que le jeu `bilan` : football = score So5 du match (le meilleur s'il y en a deux), NBA = meilleur match de la gameweek ; score brut, sans bonus de carte. `0` = match joué ou feuille de match sans points (DNP compris) ; `null` = aucun match du joueur dans la fenêtre, ou scores illisibles. 0 appel de plus (scores déjà lus en section 3, gameweeks de `so5Fixtures` partagées avec paliers et bilan). Seulement pour les joueurs du jeu `joueurs` (joueurs pertinents de la gameweek à venir) |
+| gw_derniere | texte | F+N | v9. Slug de cette gameweek (`football-…` / `nba-…`) ; `null` si aucune gameweek terminée n'est connue |
 
 ## matchs (calendrier : une ligne par joueur et par match ; clé : `slug` + `date`)
 v5 : lignes football aussi pour les joueurs Limited (et plus) dont le match de Ligue Europa / Conference League tombe dans la période `europe_*` ; nouvelle colonne `competition_match` (F : nom de la compétition du match ; vide en NBA).
@@ -190,6 +192,57 @@ Vide (CSV d'en-tête) si aucun joueur du Set ne joue avant la fin de la période
 
 **Piste Set NBA (`arcade_nba`, v7 ; utilisateur 02/11/2026 + aide Sorare « What is Sorare Set (NBA)? »)** : 6 paliers aux seuils **150, 180, 210, 240, 280, 300** (180 à 300 lus sur la piste de l'utilisateur, 150 donné par lui) ; 4 vies (4 compos par palier en même temps), un succès fait monter, 4 échecs ramènent au palier 1, récompense redonnée à chaque passage ; compo de **5 joueurs NBA sans poste** ; **une carte par compo** et une carte jouée ne resert plus (l'utilisateur aligne 3 cartes Dončić distinctes dans 3 compos) ; **plafond : somme des étoiles des 5 joueurs ≤ 16** et **au plus 4 joueurs d'une même équipe**, comme l'In-Season Champion NBA (étoiles = `joueurs.etoiles`, par demi-points ; correction de l'utilisateur du 02/11/2026 : pas de MVP, pas de plafond L10) ; pas de capitaine ; valeur d'une carte = score attendu × puissance × skin, comme l'Arcade football ; bonus de collection (jusqu'à 5 %) ignoré. Résultat : 3 h après le dernier entre-deux du lot (`ARCADE_NBA_DELAI`, valeur par défaut à faire confirmer par l'utilisateur). Période : gameweek NBA en cours (`resume.arcade_nba_debut` / `arcade_nba_fin`). Vide pour ce mode si aucune carte Common NBA ne joue dans la période.
 
+## missions (v9 ; objectifs de collection du set Common en cours ; une ligne par objectif ; clé : `sport` + `id`)
+Demande de l'utilisateur du 02/11/2026. Les définitions des objectifs ne sont pas dans l'API avec la clé seule (vérifié le 02/11 :
+`Board.myCollectionTasks`, `CurrentUser.setCollectionsTaskTracks` → « You should log in ») : elles viennent du fichier de réglage
+`sorare-compos/missions-set.json` (section « Fichier missions-set.json »), rempli par l'orchestrateur depuis sorare.com
+(`/fr/football/series/missions/collect`, `/fr/nba/series/missions/collect`). Fichier absent, vide ou illisible : jeu vide (en-tête seul), message dans le journal, jamais d'échec.
+| Colonne | Type | Sport | Contenu |
+|---|---|---|---|
+| sport | `Football`/`NBA` | F+N | Sport de l'objectif (section `football` / `nba` du fichier) |
+| set | texte | F+N | Slug du set (`divination`) : celui du fichier, à défaut le set Common en cours du sport |
+| id | texte | F+N | Identifiant de l'objectif (fichier), unique dans le sport |
+| groupe | texte | F+N | Groupe affiché par Sorare (« Ligue : Bundesliga », « Général ») |
+| objectif | texte | F+N | Intitulé Sorare |
+| progression | entier | F+N | Progression retenue : `progression_calculee` si `source_progression` = `collecte`, sinon `progression_sorare` |
+| cible | entier | F+N | Cible du palier en cours (lue sur Sorare) |
+| manquantes | entier | F+N | max(0, cible − progression) : joueurs (ou cartes) encore à obtenir pour ce palier |
+| pct | nombre (%) | F+N | progression / cible × 100, arrondi à 0,1 |
+| atteint | `oui`/`non` | F+N | progression ≥ cible |
+| source_progression | `collecte`/`sorare` | F+N | `collecte` = recalculée par la collecte sur toutes les Common du set de l'utilisateur (critères sûrs, `calcul: true`) ; `sorare` = valeur lue sur la page à la date `lu_le`, non recalculée (Big N, Shiny Four Suits, Holo Eclipse, compléter des collections…) |
+| lu_le | `AAAA-MM-JJ` | F+N | Date de lecture de `progression_sorare` sur sorare.com |
+| progression_sorare | entier | F+N | x lu sur la page (fichier) |
+| progression_calculee | entier | F+N | Joueurs distincts ayant au moins une Common du set qui remplit tous les critères ; `null` si l'objectif n'a pas de critère. Calculée même quand `calcul` vaut false (contrôle) |
+| ecart | entier | F+N | progression_calculee − progression_sorare (`null` si l'un manque). Attendu : 0 sur les clubs et les postes, −1 à −3 sur les nationalités (double nationalité, retour HyperGlitch du 27/10) ; il grandit aussi quand l'utilisateur gagne des cartes après `lu_le` |
+| criteres | texte | F+N | Critères lisibles (« ligue laliga-es ; nationalité es »), vide si aucun |
+| recompense | texte | F+N | Récompense du palier en cours (« 1 Pack Bronze », « 5 Gems », « 1 500 Essence ») |
+| recompense_type | texte | F+N | `Pack Bronze`, `Pack Silver`, `Pack`, `Gems` ou `Essence` |
+| recompense_quantite | entier | F+N | Quantité |
+| joueurs_manquants | texte | F+N | Objectifs à critère `clubs` avec `manquants: true` : joueurs actifs de ces clubs / équipes qui remplissent tous les critères et dont l'utilisateur n'a aucune Common du set, « Nom (club) » séparés par « ; », triés par club puis nom. `null` si non calculé. Approximation : un joueur sans carte Common dans le set y figure aussi |
+| nb_joueurs_manquants | entier | F+N | Nombre de joueurs de `joueurs_manquants` ; `null` si non calculé |
+Coût : 0 appel pour la progression (cartes de la section 1, clubs, ligues et nationalités lus dans la requête joueurs de la section 3,
+qui lit tous les joueurs du portefeuille) ; joueurs manquants : 1 appel par club ou équipe cité par un objectif `manquants: true`
+(`team(slug){ anyActivePlayers(first:50) }`, + 1 par page de 50), plafonné à 40 appels par collecte (au-delà : `null` et message).
+Collecte d'un seul sport : seules les lignes du sport collecté sont recalculées (fusion par la colonne `sport`).
+
+### Fichier missions-set.json (v9)
+```
+{ "maj": "AAAA-MM-JJ", "note": "…",
+  "football": { "set": "divination", "objectifs": [
+    { "id": "es-nat", "groupe": "Ligue : LaLiga EA Sports", "objectif": "Joueurs espagnols de LaLiga",
+      "sorare": { "progression": 80, "cible": 96, "lu_le": "2026-11-02" },
+      "recompense": { "type": "Pack Bronze", "quantite": 1 },
+      "criteres": { "ligue": "laliga-es", "nationalite": "es" }, "calcul": false, "manquants": false, "vise": true } ] },
+  "nba": { "set": "divination", "objectifs": [ … ] } }
+```
+- `criteres` (facultatif ; une carte compte si TOUS les critères renseignés correspondent, comme `outils/collections/criteres.mjs`) :
+  `ligue` (slug `domesticLeague` du club actuel, football), `nationalite` (code pays Sorare, football), `clubs` (slugs des clubs actuels ou équipes NBA),
+  `poste` (`Goalkeeper`/`Defender`/`Midfielder`/`Forward`, poste de la carte, football), `skin` (`SHINY`/`HOLO`… de la carte), `joueurs` (liste de slugs).
+  `criteres` = {} (vide) avec `calcul: true` = tous les joueurs du set (objectif « Joueurs »). Absent = aucun recalcul possible.
+- `calcul` (défaut false) : true seulement quand les critères sont sûrs (écart nul attendu) ; la progression vient alors de la collecte.
+- `manquants` (défaut false) : liste des joueurs manquants (critère `clubs` requis ; coût ci-dessus). `vise` : facultatif, non produit.
+- Unité : la collecte compte des **joueurs distincts** ; un objectif qui compte des cartes (Shiny, Holo…) garde `calcul: false`.
+
 ## jours (top 5 par mode et par jour ; clé : `mode` + `jour` + `rang`)
 mode (`NBA`, `Jupiler` ou `Set <nom du set>`), jour, rang (1 à 5), joueur, poste (vide en NBA), adversaire, match,
 score_attendu, adv_attaque_rang, adv_defense_rang, adv_nb_equipes.
@@ -204,6 +257,7 @@ v7 : ajoute `sport` (`FOOTBALL`/`NBA`, celui de `joueurs.sport`) et `slug` ; `mo
 date, sport (`FOOTBALL`/`NBA`), matchs, erreur_modele, erreur_sorare, erreur_forme, poids_sorare (0 à 1).
 
 ## resume (une seule ligne)
+v10 : état de la piste Set (Arcade « Hot Streaks ») de l'utilisateur, lu avec la clé API (`user(slug){ setBoard(mode: CAREER, sport){ steps{ level target state ... on CareerStep{ remainingLineupsCount pendingLineupsCount lockedLineupsCount } } } }`, public ; 1 appel pour les deux sports, alias `foot` / `nba`). Football (F) : `arcade_palier` (palier en cours = le prochain à réussir, 1 à 6 : premier palier dont l'état n'est pas `CLAIMED`), `arcade_etat` (état Sorare de ce palier : `PLAYABLE`, `LINEUP_SET`, `LIVE`, `CLAIMABLE`, `FAILED`…), `arcade_vies` (vies non perdues sur ce palier = compos encore possibles + compos posées en attente, 0 à 4), `arcade_compos_posees` (compos posées en attente de résultat), `arcade_compos_verrouillees` (parmi elles, verrouillées : un match a commencé), `arcade_lu_le` (date ISO de la lecture). NBA (N) : mêmes champs préfixés `arcade_nba_` (`arcade_nba_palier`, `arcade_nba_etat`, `arcade_nba_vies`, `arcade_nba_compos_posees`, `arcade_nba_compos_verrouillees`, `arcade_nba_lu_le`). Erreur, piste absente ou tous les paliers `CLAIMED` : valeurs `null`, jamais d'échec. Le dashboard peut s'en servir comme palier de départ par défaut du plan Arcade (`plan_arcade.depart`) ; l'utilisateur garde la main. Collecte d'un seul sport : champs de l'autre sport repris de la collecte précédente.
 v7 : ajoute `set_nba` (nom du set Common NBA en cours, ex. « Divination » ; vide si aucune carte Common NBA), `arcade_nba_debut`, `arcade_nba_fin` (fenêtre de la gameweek NBA en cours, `so5Fixture(type: LIVE, sport: NBA)`, à défaut la gameweek à venir) : champs NBA pour la fusion d'un seul sport. `set` reste le set football. Set en cours d'un sport = le `cardSet` des Common de ce sport le plus récent (à défaut le plus fréquent) : les Common d'un ancien set (HyperGlitch, 194 cartes encore en galerie au 02/11) ne comptent plus.
 v6 : ajoute `maj_football` (F) et `maj_nba` (N) : date ISO de la collecte dont viennent les lignes de ce sport. Collecte complète : les deux = `maj`. Collecte d'un seul sport (workflows manuels « Collecte NBA seule » / « Collecte football seule », `SPORT=nba|football`) : `maj` et `maj_<sport collecté>` = maintenant ; `maj_<autre sport>` et les champs de l'autre sport (football : `set`, `gw_football`, `limite_football`, `gw_debut_football`, `gw_fin_football`, `arcade_*`, `europe_*` ; NBA : `gw_nba`, `limite_nba`, `gw_debut_nba`, `gw_fin_nba`) sont repris de la collecte précédente (`maj_<autre>` vide s'il n'y en avait pas). Le bilan choisit ses archives d'après `maj_<sport>` (à défaut `maj`).
 v5 : ajoute `europe_slug`, `europe_debut`, `europe_fin` (période de la compétition European Contenders en cours ou à venir ; vides si aucune).
@@ -233,6 +287,7 @@ Fichier `sorare-compos/priorite-nba.json` (projet local, recopié dans le dépô
 
 ## Évolutions proposées (à valider par l'utilisateur)
 - (fait en v3 : `compos.carte_id` remplace la proposition `carte_slug` ; le club se lit dans `joueurs` via `slug`.)
+- `cartes.deja_jouee` (Common déjà alignée dans la piste Arcade en cours, football et NBA) : **pas lisible avec la clé API** (vérifié le 02/11/2026 : `user.setBoard` est public, mais `steps.myLineups` et `myCollectionTasks` répondent « You should log in »). Possible seulement avec le jeton JWT (secret GitHub `SORARE_JWT`, expire le 02/12/2026 ; `setBoard(…).steps{ myLineups{ … } }`) : à décider par l'utilisateur.
 - `joueurs.dernier_club` (champ Sorare `lastClub`) pour les joueurs NBA libres : à valider.
 
 ## Journal du contrat
@@ -240,6 +295,8 @@ Fichier `sorare-compos/priorite-nba.json` (projet local, recopié dans le dépô
 |---|---|---|---|
 | 1 | 24/10/2026 | orchestrateur | Relevé initial depuis la v7 |
 | 2 | 25/10/2026 | donnees | `joueurs.source_titulaire` (F) ; jeu `matchs` décrit, avec `proba_victoire` et `total` par match (N) |
+| 10 | 02/11/2026 | donnees | `resume` : état des pistes Arcade, football `arcade_palier`, `arcade_etat`, `arcade_vies`, `arcade_compos_posees`, `arcade_compos_verrouillees`, `arcade_lu_le` (F) et NBA `arcade_nba_palier`, `arcade_nba_etat`, `arcade_nba_vies`, `arcade_nba_compos_posees`, `arcade_nba_compos_verrouillees`, `arcade_nba_lu_le` (N) ; fusion d'un seul sport |
+| 9 | 02/11/2026 | donnees | Nouveau jeu `missions` (F+N, objectifs de collection du set, fichier `sorare-compos/missions-set.json`) ; `joueurs.score_derniere_gw` et `joueurs.gw_derniere` (F+N) ; `cartes.deja_jouee` non faisable avec la clé (évolutions proposées) |
 | 8 | 02/11/2026 | orchestrateur | Priorité des compétitions NBA : fichier `sorare-compos/priorite-nba.json`, `competitions.rang` NBA = position dans ce fichier ; réglage de la page `NBA.ordre` |
 | 7 | 02/11/2026 | orchestrateur | Séparation Pro / Set : `joueurs.modes` redéfini (NBA / JPL seulement avec une carte Limited+, SET seulement avec une Common du set en cours) ; `changements.sport` et `slug` ; `jours` modes non exclusifs. Set Divination football et NBA : `plan_arcade.mode` = `arcade_nba` (lignes NBA) ; `resume.set_nba`, `arcade_nba_debut`, `arcade_nba_fin` ; `cartes.set_courant` NBA ; fusion d'un seul sport selon `mode` |
 | 6 | 02/11/2026 | donnees | `resume.maj_football` (F) / `resume.maj_nba` (N) ; collectes d'un seul sport fusionnées avec la précédente (section « Collecte d'un seul sport ») |

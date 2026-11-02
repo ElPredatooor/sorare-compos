@@ -6,7 +6,7 @@
 // - Page : sorare-compos/dashboard/index.html (lue telle quelle, jamais modifiée).
 // - Données : jeux <nom>.json (sinon <nom>.csv) du dossier passé en argument, copiés dans dist/data/.
 //   Un jeu vide ([]) devient un CSV d'en-tête (colonnes de docs/contrat-donnees.md, version 3).
-//   Le jeu bilan, absent tant qu'aucune gameweek proposée n'est terminée, est créé en CSV d'en-tête.
+//   Le jeu bilan, absent tant qu'aucune gameweek proposée n'est terminée, est créé en CSV d'en-tête (missions aussi, contrat v9).
 //   Les fichiers hors contrat (history.json, log.json…) ne sont pas publiés.
 // Node 20+, aucune dépendance.
 import fs from 'node:fs';
@@ -18,21 +18,23 @@ const ROOT = path.resolve(HERE, '..');
 
 // Colonnes du contrat de données (docs/contrat-donnees.md, version 3), dans l'ordre du contrat
 const COLUMNS = {
-  joueurs: ['joueur', 'slug', 'sport', 'modes', 'club', 'poste', 'etoiles', 'plancher_etoiles', 'gain_etoiles', 'gain_sorare', 'back_to_back', 'espn_statut', 'espn_info', 'espn_retour', 'minutes_5', 'minutes_tendance', 'statut', 'blessure', 'suspension', 'l5', 'l15', 'l10', 'forme10', 'minutes_moy', 'part_decisive', 'regularite', 'matchs_gw', 'adversaire', 'match', 'adv_attaque_rang', 'adv_defense_rang', 'adv_nb_equipes', 'adv_ligue', 'adv_attaque_val', 'adv_defense_val', 'competition_match', 'proba_victoire', 'proba_victoire_adv', 'clean_sheet', 'total_match', 'proba_titulaire', 'source_titulaire', 'grade_sorare', 'proj_sorare', 'proj_forme', 'score_attendu', 'carte', 'carte_label', 'bonus', 'bonus_skin', 'score_final', 'nb_cartes', 'proj_match', 'matchs_probables', 'coequipiers_absents', 'minutes_liberees'],
+  joueurs: ['joueur', 'slug', 'sport', 'modes', 'club', 'poste', 'etoiles', 'plancher_etoiles', 'gain_etoiles', 'gain_sorare', 'back_to_back', 'espn_statut', 'espn_info', 'espn_retour', 'minutes_5', 'minutes_tendance', 'statut', 'blessure', 'suspension', 'l5', 'l15', 'l10', 'forme10', 'minutes_moy', 'part_decisive', 'regularite', 'matchs_gw', 'adversaire', 'match', 'adv_attaque_rang', 'adv_defense_rang', 'adv_nb_equipes', 'adv_ligue', 'adv_attaque_val', 'adv_defense_val', 'competition_match', 'proba_victoire', 'proba_victoire_adv', 'clean_sheet', 'total_match', 'proba_titulaire', 'source_titulaire', 'grade_sorare', 'proj_sorare', 'proj_forme', 'score_attendu', 'carte', 'carte_label', 'bonus', 'bonus_skin', 'score_final', 'nb_cartes', 'proj_match', 'matchs_probables', 'coequipiers_absents', 'minutes_liberees', 'score_derniere_gw', 'gw_derniere'],
   matchs: ['sport', 'slug', 'joueur', 'date', 'jour', 'adversaire', 'proj', 'proba', 'b2b', 'adv_attaque_rang', 'adv_defense_rang', 'adv_nb_equipes', 'proba_victoire', 'total', 'competition_match'],
   compos: ['competition', 'sport', 'numero', 'slot', 'joueur', 'carte', 'capitaine', 'score_attendu', 'score_final', 'gain_etoiles', 'etoiles', 'bonus', 'moyenne_cap', 'adversaire', 'match', 'adv_attaque_rang', 'adv_defense_rang', 'adv_nb_equipes', 'slug', 'carte_id'],
   competitions: ['competition', 'slug', 'sport', 'date_limite', 'joueurs_eligibles', 'contraintes', 'max_compos', 'nb_compos', 'scores_compos', 'score_compo', 'statut', 'regles', 'type', 'rang', 'cap_points', 'cap_etoiles', 'min_in_season', 'max_par_club', 'capitaine_pct', 'cout_inscription', 'gains_esperes', 'gain_net_espere', 'autres_recompenses', 'rentable', 'recommandation', 'alternative'],
   bilan: ['sport', 'gw', 'competition', 'numero', 'score_prevu', 'score_reel', 'ecart', 'palier_vise', 'palier_atteint', 'joueurs', 'source_compos'],
   plan_arcade: ['mode', 'depart', 'etape', 'palier', 'seuil', 'creneau', 'resultat_vers', 'compo', 'joueurs', 'score_attendu', 'proba_compo', 'proba_palier', 'conseil'],
   cartes: ['sport', 'slug', 'joueur', 'carte_id', 'label', 'rarete', 'saison', 'puissance', 'skin', 'in_season', 'set_courant'],
+  missions: ['sport', 'set', 'id', 'groupe', 'objectif', 'progression', 'cible', 'manquantes', 'pct', 'atteint', 'source_progression', 'lu_le', 'progression_sorare', 'progression_calculee', 'ecart', 'criteres', 'recompense', 'recompense_type', 'recompense_quantite', 'joueurs_manquants', 'nb_joueurs_manquants'], // v9
   paliers: ['sport', 'competition', 'gw_reference', 'type', 'rang', 'score', 'recompense', 'participants'],
   jours: ['mode', 'jour', 'rang', 'joueur', 'poste', 'adversaire', 'match', 'score_attendu', 'adv_attaque_rang', 'adv_defense_rang', 'adv_nb_equipes'],
   changements: ['joueur', 'modes', 'type', 'detail'],
   calibration: ['date', 'sport', 'matchs', 'erreur_modele', 'erreur_sorare', 'erreur_forme', 'poids_sorare'],
-  resume: ['maj', 'cartes', 'joueurs', 'set', 'gw_football', 'gw_nba', 'limite_football', 'limite_nba', 'poids_sorare', 'cotes_externes', 'appels_api', 'gw_debut_football', 'gw_fin_football', 'gw_debut_nba', 'gw_fin_nba', 'arcade_debut', 'arcade_fin', 'europe_slug', 'europe_debut', 'europe_fin'],
+  resume: ['maj', 'cartes', 'joueurs', 'set', 'gw_football', 'gw_nba', 'limite_football', 'limite_nba', 'poids_sorare', 'cotes_externes', 'appels_api', 'gw_debut_football', 'gw_fin_football', 'gw_debut_nba', 'gw_fin_nba', 'arcade_debut', 'arcade_fin', 'europe_slug', 'europe_debut', 'europe_fin', 'arcade_palier', 'arcade_etat', 'arcade_vies', 'arcade_compos_posees', 'arcade_compos_verrouillees', 'arcade_lu_le', 'arcade_nba_palier', 'arcade_nba_etat', 'arcade_nba_vies', 'arcade_nba_compos_posees', 'arcade_nba_compos_verrouillees', 'arcade_nba_lu_le'], // v10 (pistes Arcade)
 };
 // Jeux créés vides (CSV d'en-tête) quand ils manquent dans la collecte
-const EMPTY_IF_MISSING = new Set(['bilan']);
+// v9 : missions absent des collectes d'avant le 02/11/2026 (ou sans missions-set.json) -> en-tête seul
+const EMPTY_IF_MISSING = new Set(['bilan', 'missions']);
 
 function args(argv) {
   const o = { data: null, page: path.join(ROOT, 'sorare-compos/dashboard/index.html'), out: path.join(HERE, 'dist') };
