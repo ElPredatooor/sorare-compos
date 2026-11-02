@@ -17,6 +17,34 @@ async function getJsonDelai(u, essais = 2) {
   }
   return null;
 }
+// Sets Common termines : leurs cartes restent en galerie mais ne jouent plus dans le mode Set (contrat v7).
+// A completer a chaque changement de set (glitch = HyperGlitch, remplace par Divination le 30/10/2026).
+export const SETS_TERMINES = ["glitch"];
+// Set Common en cours d'un sport (contrat v7, resume.set / set_nba). Verifie le 02/11/2026 : CardSet.startDate / endDate
+// existent (divination : startDate 2026-10-30T10:15:00Z, endDate null). Regle : parmi les Common du sport, hors SETS_TERMINES
+// et hors sets dont endDate est passee, le set commence (startDate <= now) le plus recent ; sans startDate (collectes
+// simulees, champ absent) : le plus frequent. cards : noeuds bruts de l'API (rarityTyped, sport, cardSet). -> { slug, name }
+export function setEnCours(cards, sport, now = new Date()) {
+  const t = +now;
+  const sets = new Map();
+  for (const c of cards) {
+    const s = c.cardSet;
+    if (c.rarityTyped !== "common" || c.sport !== sport || !s?.slug || SETS_TERMINES.includes(s.slug)) continue;
+    if (s.endDate && Date.parse(s.endDate) < t) continue;
+    if (!sets.has(s.slug)) sets.set(s.slug, { slug: s.slug, name: s.name || s.slug, debut: s.startDate ? Date.parse(s.startDate) : NaN, n: 0 });
+    sets.get(s.slug).n++;
+  }
+  const liste = [...sets.values()];
+  const dates = liste.filter((s) => !Number.isNaN(s.debut));
+  const commences = dates.filter((s) => s.debut <= t);
+  const choix = (commences.length ? commences : dates).sort((a, b) => b.debut - a.debut || b.n - a.n)[0] || liste.sort((a, b) => b.n - a.n)[0];
+  return choix ? { slug: choix.slug, name: choix.name } : { slug: null, name: "" };
+}
+// Set NBA (contrat v7) : joueurs NBA qui n'ont que des Common (pas deja lus pour les competitions Pro). Chacun coute
+// 1 appel anyFutureGames + 1 journal ESPN : on n'en garde qu'un lot borne. La piste NBA plafonne la somme des L10 des
+// 4 joueurs hors MVP (<= 120) : un joueur a faible L10 et bonne forme vaut autant qu'une star. Lot = les meilleurs en
+// forme toutes L10 confondues (candidats MVP) + les meilleurs en forme dans chaque tranche de L10 (candidats sous plafond).
+export const SET_NBA_POOL = { mvp: 25, parTranche: 24, tranches: [15, 25, 35, 50] }; // au plus 25 + 4 x 24 = 121 joueurs
 const NBA_COMPS = [
   // In-Season en priorite 1 (decision de l'utilisateur du 24/10/2026) : min 4 cartes de la saison en cours
   { suffix: "nba_limited_in_season_champion", nom: "NBA In-Season Champion", rang: 0, compos: 1 },
@@ -81,13 +109,15 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
   for (;;) {
     let d;
     try {
-      d = await gq(`query($a:String){ user(slug:"${USER}"){ cards(first:${page}, after:$a){ pageInfo{ hasNextPage endCursor } nodes { slug rarityTyped sport seasonYear inSeasonEligible anyPositions power cardSet{ slug name } skinEdition{ skin bonus } powerBreakdown{ collectionBasisPoints xpBasisPoints seasonBasisPoints scarcityBasisPoints specialEditionCardsBasisPoints activeClubsBasisPoints nationalityBasisPoints positionsBasisPoints } anyPlayer{ slug displayName } } } } }`, { a: after });
+      d = await gq(`query($a:String){ user(slug:"${USER}"){ cards(first:${page}, after:$a){ pageInfo{ hasNextPage endCursor } nodes { slug rarityTyped sport seasonYear inSeasonEligible anyPositions power cardSet{ slug name startDate endDate } skinEdition{ skin bonus } powerBreakdown{ collectionBasisPoints xpBasisPoints seasonBasisPoints scarcityBasisPoints specialEditionCardsBasisPoints activeClubsBasisPoints nationalityBasisPoints positionsBasisPoints } anyPlayer{ slug displayName } } } } }`, { a: after });
     } catch (e) { if (/complexity/i.test(e.message) && page > 10) { page = Math.floor(page / 2); continue; } throw e; }
     const c = d.user.cards; cards.push(...c.nodes);
     if (!c.pageInfo.hasNextPage) break; after = c.pageInfo.endCursor;
   }
-  const currentSet = mostCommon(cards.filter((c) => c.rarityTyped === "common" && c.sport === "FOOTBALL" && c.cardSet).map((c) => c.cardSet.slug));
-  const setName = (cards.find((c) => c.cardSet && c.cardSet.slug === currentSet) || {}).cardSet?.name || currentSet || "";
+  // Set Common en cours par sport (contrat v7) : football -> currentSet / setName, NBA -> currentSetNBA / setNameNBA.
+  // CardSet.startDate / endDate sont demandes dans la requete des cartes (0 appel de plus).
+  const { slug: currentSet, name: setName } = setEnCours(cards, "FOOTBALL", now);
+  const { slug: currentSetNBA, name: setNameNBA } = setEnCours(cards, "NBA", now);
   const byPlayer = new Map();
   for (const c of cards) {
     const s = c.anyPlayer.slug;
@@ -101,7 +131,7 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     });
   }
   const players = [...byPlayer.values()];
-  log(`${cards.length} cartes, ${players.length} joueurs, set courant ${setName}`);
+  log(`${cards.length} cartes, ${players.length} joueurs, set courant football ${setName || "aucun"}, NBA ${setNameNBA || "aucun"}`);
 
   // Gameweeks recentes d'un sport (1 appel par sport, mis en cache) : partage par European Contenders, les paliers et le bilan
   const recentes = new Map();
@@ -117,16 +147,16 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
   // le mode Set / Arcade se joue dessus (contrat v4, resume.arcade_debut / arcade_fin). Verifie le 25/10/2026 :
   // LIVE = football-23-27-oct-2026 (aasmState started), UPCOMING = football-27-30-oct-2026. Sans gameweek en cours
   // (live null), fixtures.LIVE_FOOTBALL reprend la fenetre de la gameweek a venir.
+  // NBA (contrat v7, Set NBA, resume.arcade_nba_*) : meme alias « live » -> fixtures.LIVE_NBA, 0 appel de plus. Verifie le
+  // 02/11/2026 : live NBA = null entre deux gameweeks (UPCOMING = nba-3-6-nov-2026) -> repli sur la gameweek a venir.
   for (const sport of ["FOOTBALL", "NBA"]) {
-    const live = sport === "FOOTBALL" ? " live: so5Fixture(type:LIVE sport:$sport){ slug aasmState startDate endDate so5Leaderboards{ slug } }" : "";
+    const live = ` live: so5Fixture(type:LIVE sport:$sport){ slug aasmState startDate endDate${sport === "FOOTBALL" ? " so5Leaderboards{ slug }" : ""} }`;
     const d = await gq(`query($sport:Sport!){ so5{ so5Fixture(type:UPCOMING sport:$sport){ slug cutOffDate startDate endDate gameWeek so5Leaderboards{ slug displayName mainRarityType teamsCap format{ title } } }${live} } }`, { sport });
     fixtures[sport] = d.so5.so5Fixture;
-    if (sport === "FOOTBALL") {
-      const l = d.so5.live, u = d.so5.so5Fixture;
-      fixtures.LIVE_FOOTBALL = l?.slug ? { slug: l.slug, startDate: l.startDate || null, endDate: l.endDate || null, enCours: true }
-        : { slug: u.slug, startDate: u.startDate || null, endDate: u.endDate || null, enCours: false };
-      fixtures.LIVE_FOOTBALL.so5Leaderboards = l?.slug ? l.so5Leaderboards || null : null;
-    }
+    const l = d.so5.live, u = d.so5.so5Fixture, cle = "LIVE_" + sport;
+    fixtures[cle] = l?.slug ? { slug: l.slug, startDate: l.startDate || null, endDate: l.endDate || null, enCours: true }
+      : { slug: u.slug, startDate: u.startDate || null, endDate: u.endDate || null, enCours: false };
+    if (sport === "FOOTBALL") fixtures.LIVE_FOOTBALL.so5Leaderboards = l?.slug ? l.so5Leaderboards || null : null;
   }
   // Salons (Cap 260 « ..._jupiler_arena_limited ») : l'API liste le salon de base puis chaque salon de 10
   // « ..._arena_limited-<uuid> » (21 salons la gameweek du 23-27/10/2026). Une seule entree par slug sans uuid, la plus
@@ -190,14 +220,23 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
   }
 
   const isJPL = (p) => p.d?.activeClub?.domesticLeague?.name === "First Division A";
-  const inSet = (p) => p.sport === "FOOTBALL" && p.cards.some((c) => c.rarity === "common" && c.set === currentSet);
+  // Joueur du Set (contrat v7) : une Common du set en cours de SON sport (football : currentSet, NBA : currentSetNBA)
+  const inSet = (p) => { const s = p.sport === "NBA" ? currentSetNBA : currentSet; return !!s && p.cards.some((c) => c.rarity === "common" && c.set === s); };
   // Set : les 40 meilleurs (L15) par poste parmi les joueurs qui jouent, pour limiter les appels API
   const setPool = new Set();
   for (const pos of ["Goalkeeper", "Defender", "Midfielder", "Forward"]) {
     players.filter((p) => p.d && !isJPL(p) && inSet(p) && p.d.position === pos && ["STARTER", "REGULAR", "SUPER_SUBSTITUTE"].includes(p.d.playingStatus))
       .sort((a, b) => (b.d.l15 || 0) - (a.d.l15 || 0)).slice(0, 40).forEach((p) => setPool.add(p.slug));
   }
-  const relevant = players.filter((p) => p.d && (p.sport === "NBA" || isJPL(p) || setPool.has(p.slug)));
+  // Set NBA : joueurs NBA qui n'ont que des Common (les autres sont deja lus pour les competitions Pro). Lot borne
+  // (SET_NBA_POOL, <= 121 joueurs, 1 appel de matchs chacun) ; exclus : sans equipe, blesses jusqu'a la fin de la
+  // gameweek NBA en cours (jour de retour inclus), sans score recent. Ceux sans match dans la gameweek sont retires apres
+  // la section 4.
+  const finSetNBA = fixtures.LIVE_NBA?.endDate ? Date.parse(fixtures.LIVE_NBA.endDate) : null;
+  const communSeul = (p) => p.cards.every((c) => c.rarity === "common");
+  const setPoolNBA = poolSetNBA(players.filter((p) => p.d && p.sport === "NBA" && communSeul(p) && inSet(p)), finSetNBA);
+  const relevant = players.filter((p) => p.d && ((p.sport === "NBA" && (!communSeul(p) || setPoolNBA.has(p.slug))) || isJPL(p) || setPool.has(p.slug)));
+  if (dans("NBA") && currentSetNBA) log(`Set NBA ${setNameNBA} : ${setPoolNBA.size} joueurs NBA à Common seulement retenus`);
   // European Contenders (v5) : joueurs football avec une carte Limited ou plus rare, hors Jupiler et hors Set retenu ;
   // leurs matchs futurs sont lus en section 4 (1 appel anyFutureGames par joueur ; 1 joueur au 25/10/2026, Justin Reynolds).
   // Seulement s'il existe une competition European Contenders en cours ou a venir.
@@ -214,6 +253,12 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     try { const d = await gq(FQ, { slug: p.slug }); p.games = d.anyPlayer.anyFutureGames.nodes; }
     catch (e) { p.games = []; log("matchs " + p.slug + " : " + e.message); }
     await sleep(apiKey ? 250 : 1500);
+  }
+  // Set NBA : un joueur a Common seulement sans match d'ici la fin de la gameweek NBA en cours ne sert a rien (ni ESPN)
+  if (finSetNBA != null) {
+    const sansMatch = relevant.filter((p) => setPoolNBA.has(p.slug) && !(p.games || []).some((g) => { const t = Date.parse(g.date); return t >= +now - 3 * 3600e3 && t <= finSetNBA; }));
+    for (const p of sansMatch) relevant.splice(relevant.indexOf(p), 1);
+    if (sansMatch.length) log(`Set NBA : ${sansMatch.length} joueurs à Common seulement retirés (aucun match dans la gameweek)`);
   }
   // Cotes de titularisation Sorare (footballPlayingStatusOdds) : verifie le 25/10/2026, le champ existe mais vaut null
   // pour tous les matchs, meme a quelques heures du coup d'envoi, avec une cle API seule (currentUser = null) ; les
@@ -263,7 +308,23 @@ export async function collecte({ apiKey, oddsKey = null, espn = true, history = 
     });
   }
 
-  return { sport, gq, batched, fixturesRecentes, appels: () => calls, europe, estMatchEurope: (g) => estMatchEurope(europe, g), cards, players, byPlayer, currentSet, setName, fixtures, comps, relevant, isJPL, inSet, odds, espnData, standings, advRank, samples, w, calib };
+  return { sport, gq, batched, fixturesRecentes, appels: () => calls, europe, estMatchEurope: (g) => estMatchEurope(europe, g), cards, players, byPlayer, currentSet, setName, currentSetNBA, setNameNBA, setPoolNBA, fixtures, comps, relevant, isJPL, inSet, odds, espnData, standings, advRank, samples, w, calib };
+}
+
+// ---------- Set NBA : lot de joueurs a Common seulement (contrat v7) ----------
+// candidats : joueurs NBA (p.d lu) a Common du set en cours seulement ; fin : fin de la gameweek NBA en cours (ms) ou null.
+// Forme = 0,6 L5 + 0,4 L15 (L10 a defaut). Retourne l'ensemble des slugs retenus (SET_NBA_POOL).
+export function poolSetNBA(candidats, fin = null, cfg = SET_NBA_POOL) {
+  const forme = (d) => (d.l5 != null || d.l15 != null ? 0.6 * (d.l5 || 0) + 0.4 * (d.l15 ?? d.l5 ?? 0) : d.l10 || 0);
+  const blesse = (d) => fin != null && (d.activeInjuries || []).some((i) => i.expectedEndDate && day(i.expectedEndDate) >= day(new Date(fin).toISOString()));
+  const ok = candidats.filter((p) => p.d.activeClub && !blesse(p.d) && forme(p.d) > 0).sort((a, b) => forme(b.d) - forme(a.d));
+  const out = new Set(ok.slice(0, cfg.mvp).map((p) => p.slug));
+  let bas = 0;
+  for (const haut of cfg.tranches) {
+    ok.filter((p) => (p.d.l10 || 0) >= bas && (p.d.l10 || 0) < haut).slice(0, cfg.parTranche).forEach((p) => out.add(p.slug));
+    bas = haut;
+  }
+  return out;
 }
 
 // ---------- Poste football d'apres les cartes (Card.anyPositions) ----------
@@ -719,24 +780,25 @@ async function fetchStandings(log, sport = null) {
 // sport : "FOOTBALL" ou "NBA" (sport collecte) ; nouveaux : { nom: lignes[] } de cette collecte ; anciens : idem, lus dans
 // data/latest (jeu absent = []). Chaque jeu garde les lignes de l'AUTRE sport telles quelles (collecte precedente) et prend
 // celles du sport collecte dans la nouvelle collecte ; l'ordre des blocs de la collecte precedente est conserve.
-// resume : champs gw_ / limite_ / arcade_ / europe_ / set / maj_ de l'autre sport repris de l'ancien resume. Aucun appel reseau.
+// resume : champs gw_ / limite_ / arcade_ / europe_ / set / maj_ (v7 : set_nba, arcade_nba_*) de l'autre sport repris de l'ancien resume. Aucun appel reseau.
 const SPORT_PAR_JEU = {
   jours: (r) => (/NBA/.test(String(r.mode || "")) ? "NBA" : "FOOTBALL"),
-  plan_arcade: () => "FOOTBALL", // plans de piste football seulement (Set / European Contenders)
+  plan_arcade: (r) => (r.mode === "arcade_nba" ? "NBA" : "FOOTBALL"), // v7 : arcade_nba = piste Set NBA ; arcade / europe = football
 };
 export const CHAMPS_RESUME_SPORT = {
   FOOTBALL: ["maj_football", "set", "gw_football", "limite_football", "gw_debut_football", "gw_fin_football", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin"],
-  NBA: ["maj_nba", "gw_nba", "limite_nba", "gw_debut_nba", "gw_fin_nba"],
+  NBA: ["maj_nba", "gw_nba", "limite_nba", "gw_debut_nba", "gw_fin_nba", "set_nba", "arcade_nba_debut", "arcade_nba_fin"],
 };
 export function fusionneSport(sport, nouveaux, anciens = {}) {
   if (!["FOOTBALL", "NBA"].includes(sport)) throw new Error(`fusionneSport : sport « ${sport} » inconnu`);
   const norme = (x) => (String(x || "").toUpperCase() === "NBA" ? "NBA" : "FOOTBALL");
-  // changements : sport du joueur (jeux joueurs nouveau et ancien), sinon modes contient NBA (contrat)
+  // changements : colonne sport (v7), sinon sport du joueur (jeux joueurs nouveau et ancien), sinon modes contient NBA
   const sportJoueur = new Map();
   for (const r of [...(anciens.joueurs || []), ...(nouveaux.joueurs || [])]) if (r && r.joueur) sportJoueur.set(r.joueur, norme(r.sport));
   const sportDe = (nom, r) => {
     if (SPORT_PAR_JEU[nom]) return SPORT_PAR_JEU[nom](r);
-    if (nom === "changements") return sportJoueur.get(r.joueur) || (/NBA/.test(String(r.modes || "")) ? "NBA" : "FOOTBALL");
+    // contrat v7 : colonne sport des changements si presente (un joueur NBA a Common seulement n'a plus « NBA » dans modes)
+    if (nom === "changements") return r.sport ? norme(r.sport) : sportJoueur.get(r.joueur) || (/NBA/.test(String(r.modes || "")) ? "NBA" : "FOOTBALL");
     return norme(r.sport);
   };
   const out = {};

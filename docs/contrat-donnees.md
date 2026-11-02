@@ -22,7 +22,7 @@ Légende du tableau : **F** football seulement, **N** NBA seulement, **F+N** les
 | joueur | texte | F+N | Nom affiché |
 | slug | texte | F+N | Identifiant Sorare (unique) |
 | sport | `FOOTBALL`/`NBA` | F+N | |
-| modes | texte | F+N | Codes séparés par une espace : `NBA`, `JPL`, `SET` |
+| modes | texte | F+N | Codes séparés par une espace : `NBA`, `JPL`, `SET`. v7 (02/11/2026, séparation Pro / Set) : `NBA` = le joueur a au moins une carte NBA **Limited ou plus rare** (vue Pro NBA) ; `JPL` = joueur d'un club de Jupiler Pro League **avec au moins une carte Limited ou plus rare** ; `SET` = au moins une Common **du set en cours de son sport**. Un joueur qui n'a que des Common n'a donc ni `NBA` ni `JPL` ; un joueur sans Common du set en cours n'a pas `SET` ; un joueur qui n'a que des Common d'un ancien set a `modes` vide et n'est dans aucune vue. Le sport se lit dans `sport`, jamais dans `modes` |
 | club | texte | F+N | Club actuel |
 | poste | texte | F | Gardien, Défenseur, Milieu, Attaquant ; vide en NBA. Depuis le 25/10/2026 (v5) : poste de la carte (`Card.anyPositions`) de la saison la plus récente, `Player.position` seulement en repli (le poste du joueur peut dater d'une ancienne saison : ex. Guilherme Smith, milieu chez le joueur, attaquant sur sa carte 2026) |
 | etoiles | nombre | N | 1 à 5 par demi-points |
@@ -154,7 +154,7 @@ Vide (CSV d'en-tête) tant qu'aucune gameweek proposée n'est terminée.
 | rarete | texte | limited, rare, common… |
 | saison | entier | |
 | puissance, skin | nombre | Bonus de carte (×) et de skin (×) |
-| in_season, set_courant | booléen | |
+| in_season, set_courant | booléen | v7 : `set_courant` vaut aussi pour les cartes Common NBA du set NBA en cours (`resume.set_nba`) |
 
 ## paliers (scores réels des récompenses lors de la dernière gameweek terminée ; clé : `competition` + `rang`)
 | Colonne | Type | Contenu |
@@ -168,37 +168,43 @@ Vide (CSV d'en-tête) tant qu'aucune gameweek proposée n'est terminée.
 
 Formats du jeu `bilan` : `palier_vise` / `palier_atteint` = « top N : récompense », « Ne du salon : récompense » ou « aucun palier » ; `joueurs` = « Nom (C) prévu→réel » séparés par « ; » (virgule décimale).
 
-## plan_arcade (v4 ; plans de piste football ; clé : `mode` + `depart` + `etape` + `compo`)
+## plan_arcade (v4 ; plans de piste football et NBA ; clé : `mode` + `depart` + `etape` + `compo`)
+v7 (02/11/2026, set Divination) : `mode` = `arcade_nba` pour la piste Set NBA (cartes Common NBA du set NBA en cours ; règles plus bas). Les lignes `arcade_nba` sont des lignes **NBA** (fusion d'une collecte d'un seul sport, dashboard : vue NBA uniquement) ; `arcade` et `europe` restent football.
 v5 : colonne `mode` = `arcade` (Set, cartes Common, seuils 260/300/360/400/440/480, sans capitaine) ou `europe` (Pro « European Contenders », cartes Limited et plus, matchs de Ligue Europa et Conference League, seuils 350/390/410/450/470/500, capitaine +50 % additif). Mêmes règles de piste : 4 compos par palier, un succès fait monter, 4 échecs ramènent au palier 1, récompense redonnée à chaque passage, 1h50 après le dernier coup d'envoi. Lignes sans `mode` = `arcade` (collectes v4). En mode `europe`, si aucune compo n'est possible, une seule ligne d'information : `etape` = 0, `compo` = 0, `joueurs` vide, raison dans `conseil` (ex. « aucun attaquant parmi tes cartes Limited… »).
 Plans calculés pour chaque palier de départ possible (l'utilisateur indique le sien dans la page ; la progression n'est pas lisible dans l'API).
 | Colonne | Type | Contenu |
 |---|---|---|
-| mode | `arcade`/`europe` | v5. Piste concernée |
+| mode | `arcade`/`europe`/`arcade_nba` | v5 (v7 : `arcade_nba`). Piste concernée |
 | depart | entier 1-6 | Palier où se trouve l'utilisateur au moment du plan |
 | etape | entier ≥ 1 | Ordre de la tentative dans le plan |
 | palier, seuil | entier, nombre | Palier visé et son seuil (260, 300, 360, 400, 440, 480) |
 | creneau | date | Premier coup d'envoi des joueurs du lot |
 | resultat_vers | date | Dernier coup d'envoi du lot + 1h50 (marge choisie par l'utilisateur) : heure à partir de laquelle l'étape suivante peut être jouée |
 | compo | entier 1-4 | Compo du lot (4 vies = 4 compos en même temps) |
-| joueurs | texte | « Poste Nom (club, heure) score » séparés par « ; » |
+| joueurs | texte | « Poste Nom (club, heure) score » séparés par « ; ». `arcade_nba` : « Nom (équipe, heure, N★) score », N = étoiles du joueur (`joueurs.etoiles`), sans poste |
 | score_attendu | nombre | Score attendu de la compo |
 | proba_compo | nombre (%) | Chance que cette compo dépasse le seuil |
 | proba_palier | nombre (%) | Chance qu'au moins une compo du lot dépasse le seuil (même valeur sur les lignes du lot) |
 | conseil | texte | Phrase courte (« Jouer 4 compos dès 15h00 : rien à perdre au palier 1 », « Attendre le créneau de 18h30 : 61 % au lieu de 38 % ») |
 Vide (CSV d'en-tête) si aucun joueur du Set ne joue avant la fin de la période Arcade.
 
+**Piste Set NBA (`arcade_nba`, v7 ; utilisateur 02/11/2026 + aide Sorare « What is Sorare Set (NBA)? »)** : 6 paliers aux seuils **150, 180, 210, 240, 280, 300** (180 à 300 lus sur la piste de l'utilisateur, 150 donné par lui) ; 4 vies (4 compos par palier en même temps), un succès fait monter, 4 échecs ramènent au palier 1, récompense redonnée à chaque passage ; compo de **5 joueurs NBA sans poste** ; **une carte par compo** et une carte jouée ne resert plus (l'utilisateur aligne 3 cartes Dončić distinctes dans 3 compos) ; **plafond : somme des étoiles des 5 joueurs ≤ 16** et **au plus 4 joueurs d'une même équipe**, comme l'In-Season Champion NBA (étoiles = `joueurs.etoiles`, par demi-points ; correction de l'utilisateur du 02/11/2026 : pas de MVP, pas de plafond L10) ; pas de capitaine ; valeur d'une carte = score attendu × puissance × skin, comme l'Arcade football ; bonus de collection (jusqu'à 5 %) ignoré. Résultat : 3 h après le dernier entre-deux du lot (`ARCADE_NBA_DELAI`, valeur par défaut à faire confirmer par l'utilisateur). Période : gameweek NBA en cours (`resume.arcade_nba_debut` / `arcade_nba_fin`). Vide pour ce mode si aucune carte Common NBA ne joue dans la période.
+
 ## jours (top 5 par mode et par jour ; clé : `mode` + `jour` + `rang`)
 mode (`NBA`, `Jupiler` ou `Set <nom du set>`), jour, rang (1 à 5), joueur, poste (vide en NBA), adversaire, match,
 score_attendu, adv_attaque_rang, adv_defense_rang, adv_nb_equipes.
+v7 : `NBA` et `Jupiler` = joueurs aux `modes` contenant `NBA` / `JPL` (Pro) ; `Set <nom>` = football, `modes` contenant `SET`. Modes non exclusifs : un joueur football mixte peut figurer dans `Jupiler` et dans `Set <nom>`. Pas de mode Set NBA dans `jours`.
 
 ## changements (clé : `joueur` + `type`)
 joueur, modes, type (`Nouvelle blessure`, `Retour de blessure`, `Suspension`, `Statut modifié`,
 `Projection en hausse`, `Projection en baisse`), detail. Le sport se déduit de `modes` (contient `NBA` → NBA).
+v7 : ajoute `sport` (`FOOTBALL`/`NBA`, celui de `joueurs.sport`) et `slug` ; `modes` suit la définition v7 de `joueurs.modes`. Vue Pro = `modes` contient `NBA` ou `JPL` ; vue Set = `modes` contient `SET`. Un changement d'un joueur aux `modes` vides n'est pas produit.
 
 ## calibration (une ligne par date et sport)
 date, sport (`FOOTBALL`/`NBA`), matchs, erreur_modele, erreur_sorare, erreur_forme, poids_sorare (0 à 1).
 
 ## resume (une seule ligne)
+v7 : ajoute `set_nba` (nom du set Common NBA en cours, ex. « Divination » ; vide si aucune carte Common NBA), `arcade_nba_debut`, `arcade_nba_fin` (fenêtre de la gameweek NBA en cours, `so5Fixture(type: LIVE, sport: NBA)`, à défaut la gameweek à venir) : champs NBA pour la fusion d'un seul sport. `set` reste le set football. Set en cours d'un sport = le `cardSet` des Common de ce sport le plus récent (à défaut le plus fréquent) : les Common d'un ancien set (HyperGlitch, 194 cartes encore en galerie au 02/11) ne comptent plus.
 v6 : ajoute `maj_football` (F) et `maj_nba` (N) : date ISO de la collecte dont viennent les lignes de ce sport. Collecte complète : les deux = `maj`. Collecte d'un seul sport (workflows manuels « Collecte NBA seule » / « Collecte football seule », `SPORT=nba|football`) : `maj` et `maj_<sport collecté>` = maintenant ; `maj_<autre sport>` et les champs de l'autre sport (football : `set`, `gw_football`, `limite_football`, `gw_debut_football`, `gw_fin_football`, `arcade_*`, `europe_*` ; NBA : `gw_nba`, `limite_nba`, `gw_debut_nba`, `gw_fin_nba`) sont repris de la collecte précédente (`maj_<autre>` vide s'il n'y en avait pas). Le bilan choisit ses archives d'après `maj_<sport>` (à défaut `maj`).
 v5 : ajoute `europe_slug`, `europe_debut`, `europe_fin` (période de la compétition European Contenders en cours ou à venir ; vides si aucune).
 v4 : ajoute `arcade_debut`, `arcade_fin` (fenêtre de la gameweek football en cours, `so5Fixture(type: LIVE)`, pendant laquelle se joue l'Arcade / Set).
@@ -207,7 +213,7 @@ v3 : ajoute `gw_debut_football`, `gw_fin_football`, `gw_debut_nba`, `gw_fin_nba`
 maj, cartes, joueurs, set, gw_football, gw_nba, limite_football, limite_nba, poids_sorare, cotes_externes (`oui`/`non`), appels_api.
 
 ## Collecte d'un seul sport (v6)
-Tous les jeux de `data/latest/` et l'archive du jour (`data/archive/<date>/`) sont alors **fusionnés** : lignes du sport collecté = nouvelle collecte ; lignes de l'autre sport = collecte précédente, telles quelles (jeu sans ligne de l'autre sport : seulement le sport collecté). Sport d'une ligne : colonne `sport` ; `jours` : `mode` contient `NBA` ; `changements` : sport du joueur (à défaut `modes` contient `NBA`) ; `plan_arcade` : football. Colonnes et formats inchangés ; `resume` : voir v6 ci-dessus. `history.json` garde les échantillons et la calibration de l'autre sport.
+Tous les jeux de `data/latest/` et l'archive du jour (`data/archive/<date>/`) sont alors **fusionnés** : lignes du sport collecté = nouvelle collecte ; lignes de l'autre sport = collecte précédente, telles quelles (jeu sans ligne de l'autre sport : seulement le sport collecté). Sport d'une ligne : colonne `sport` ; `jours` : `mode` contient `NBA` ; `changements` : sport du joueur (à défaut `modes` contient `NBA`) ; `plan_arcade` : `mode` = `arcade_nba` → NBA, sinon football (v7). Colonnes et formats inchangés ; `resume` : voir v6 ci-dessus. `history.json` garde les échantillons et la calibration de l'autre sport.
 
 ## Calculs du dashboard (ne pas fournir, calculés par la page)
 - `nb_changements` : {sport, n} depuis `changements`.
@@ -226,6 +232,7 @@ Tous les jeux de `data/latest/` et l'archive du jour (`data/archive/<date>/`) so
 |---|---|---|---|
 | 1 | 24/10/2026 | orchestrateur | Relevé initial depuis la v7 |
 | 2 | 25/10/2026 | donnees | `joueurs.source_titulaire` (F) ; jeu `matchs` décrit, avec `proba_victoire` et `total` par match (N) |
+| 7 | 02/11/2026 | orchestrateur | Séparation Pro / Set : `joueurs.modes` redéfini (NBA / JPL seulement avec une carte Limited+, SET seulement avec une Common du set en cours) ; `changements.sport` et `slug` ; `jours` modes non exclusifs. Set Divination football et NBA : `plan_arcade.mode` = `arcade_nba` (lignes NBA) ; `resume.set_nba`, `arcade_nba_debut`, `arcade_nba_fin` ; `cartes.set_courant` NBA ; fusion d'un seul sport selon `mode` |
 | 6 | 02/11/2026 | donnees | `resume.maj_football` (F) / `resume.maj_nba` (N) ; collectes d'un seul sport fusionnées avec la précédente (section « Collecte d'un seul sport ») |
 | 5 | 25/10/2026 | orchestrateur | `plan_arcade.mode` (arcade / europe) ; `resume.europe_*` ; `matchs` football Pro européen + `competition_match` |
 | 4 | 25/10/2026 | orchestrateur | `matchs` étendu au football (Set) ; `resume.arcade_debut` / `arcade_fin` ; nouveau jeu `plan_arcade` |

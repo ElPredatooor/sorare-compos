@@ -216,9 +216,9 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 
 <section class="sx-kpis" id="kpis" aria-label="Indicateurs clés de la gameweek">
 <div class="sx-kpi" id="k-time"><div class="sx-lbl" id="k-time-l">Temps restant</div><div class="sx-kpi-v" id="k-time-v" data-source="resume plan_arcade">—</div><div class="sx-kpi-x" id="k-time-x"></div></div>
-<div class="sx-kpi" id="k-compos" data-hide-in="FOOTBALL-SET"><div class="sx-lbl">Compos à inscrire</div><div class="sx-kpi-v" id="k-compos-v" data-source="kpi_mode competitions" data-field="compos">—</div><div class="sx-kpi-x" id="k-compos-x"></div></div>
-<div class="sx-kpi" id="k-gain" data-hide-in="FOOTBALL-SET"><div class="sx-lbl">Gain net espéré</div><div class="sx-kpi-v" id="k-gain-v" data-source="kpi_mode competitions paliers" data-field="gain_net">—</div><div class="sx-kpi-x" id="k-gain-x"></div></div>
-<div class="sx-kpi" id="k-risk" data-hide-in="FOOTBALL-SET"><div class="sx-lbl">Joueurs à risque dans les compos</div><div class="sx-kpi-v" id="k-risk-v" data-source="compos joueurs matchs">—</div><div class="sx-kpi-x" id="k-risk-x"></div></div>
+<div class="sx-kpi" id="k-compos" data-hide-in="FOOTBALL-SET NBA-SET"><div class="sx-lbl">Compos à inscrire</div><div class="sx-kpi-v" id="k-compos-v" data-source="kpi_mode competitions" data-field="compos">—</div><div class="sx-kpi-x" id="k-compos-x"></div></div>
+<div class="sx-kpi" id="k-gain" data-hide-in="FOOTBALL-SET NBA-SET"><div class="sx-lbl">Gain net espéré</div><div class="sx-kpi-v" id="k-gain-v" data-source="kpi_mode competitions paliers" data-field="gain_net">—</div><div class="sx-kpi-x" id="k-gain-x"></div></div>
+<div class="sx-kpi" id="k-risk" data-hide-in="FOOTBALL-SET NBA-SET"><div class="sx-lbl">Joueurs à risque dans les compos</div><div class="sx-kpi-v" id="k-risk-v" data-source="compos joueurs matchs">—</div><div class="sx-kpi-x" id="k-risk-x"></div></div>
 <div class="sx-kpi" id="k-fresh"><div class="sx-lbl">Fraîcheur des données</div><div class="sx-kpi-v" id="k-fresh-v" data-source="resume" data-row="0" data-field="maj">—</div><div class="sx-kpi-x" id="k-fresh-x"></div></div>
 </section>
 
@@ -233,7 +233,7 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 
 <!-- DECIDER (compos) -->
 <section class="sx-page" id="p-compos" role="tabpanel" aria-labelledby="t-compos">
-<details class="sx-card" id="reglages" data-hide-in="FOOTBALL-SET">
+<details class="sx-card" id="reglages" data-hide-in="FOOTBALL-SET NBA-SET">
 <summary><h2>Régler les compos</h2> <span class="sx-lbl">profil, incertains, minimums, joueurs à exclure ou à forcer</span></summary>
 <p class="sx-note" id="rg-note">Change les réglages ci-dessous, cherche un joueur à exclure ou à forcer dans une compo précise, ou garde et exclus un joueur directement dans une compo : toutes les compos du sport sont recalculées aussitôt, dans l’ordre de priorité des compétitions. Si une compo est impossible avec un joueur forcé, elle reste vide avec la raison et n’est pas comptée ; retire le forçage (puce ×) pour qu’elle soit calculée. Réglages mémorisés dans ce navigateur.</p>
 <div class="sx-tools">
@@ -262,7 +262,7 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 </div>
 
 <div class="sx-card" id="arcade" data-sport-only="FOOTBALL" data-mode-only="SET" data-source="plan_arcade resume" hidden>
-<h2>Plan de piste Arcade</h2>
+<h2 id="arc-titre" data-source="resume" data-field="set">Plan de piste Arcade</h2>
 <p class="sx-note" id="arc-note">Étape par étape : quand jouer, combien de compos engager, avec quels joueurs, et que faire en cas d’échec. Heures de Bruxelles.</p>
 <ol class="sx-piste" id="arc-piste" aria-label="Piste des paliers"></ol>
 <p class="sx-reason" id="arc-empty" role="status" hidden></p>
@@ -280,6 +280,32 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 </details>
 </div>
 
+<div class="sx-card" id="arn-reglages" data-sport-only="NBA" data-mode-only="SET" hidden>
+<h2>Régler les compos</h2>
+<p class="sx-note">Palier, vies et stratégie de la piste Set NBA ; exclus ou force un joueur avec la recherche ci-dessous, ou avec Garder et Exclure sur chaque joueur du plan : il est aussitôt recalculé dans la page (5 joueurs, 16 étoiles au plus, 4 par équipe au plus). Une compo impossible avec un joueur forcé reste vide, avec la raison. Réglages mémorisés dans ce navigateur.</p>
+<div id="arn-tools" data-source="plan_arcade matchs cartes joueurs"></div>
+<div class="sx-pick" id="arn-pick" data-source="joueurs cartes matchs plan_arcade"></div>
+</div>
+
+<div class="sx-card" id="arcnba" data-sport-only="NBA" data-mode-only="SET" data-source="plan_arcade resume" hidden>
+<h2 id="arn-titre" data-source="resume" data-field="set_nba">Plan de piste Set NBA</h2>
+<p class="sx-note">Cartes Common NBA du set en cours. Étape par étape : quand jouer, combien de compos engager, avec quels joueurs, et que faire en cas d’échec. Heures de Bruxelles.</p>
+<p class="sx-lbl" id="arn-periode" data-source="resume" hidden></p>
+<ol class="sx-piste" id="arn-piste" aria-label="Piste des paliers Set NBA"></ol>
+<p class="sx-reason" id="arn-empty" role="status" hidden></p>
+<div class="sx-steps" id="arn-steps" data-source="plan_arcade"></div>
+<details class="sx-fold" id="arn-regles" open>
+<summary>Règles du Set NBA à garder en tête</summary>
+<ul class="sx-rules">
+<li>6 paliers (150, 180, 210, 240, 280 et 300 pts) ; 4 vies par palier, une compo au-dessus du seuil suffit, 0 vie : retour au palier 1.</li>
+<li>5 joueurs NBA, sans poste ni capitaine, comme l’In-Season Champion NBA.</li>
+<li>Plafond : 16 étoiles au plus pour les 5 joueurs (demi-étoiles comprises), et au plus 4 joueurs d’une même équipe.</li>
+<li>Une carte jouée ne peut plus resservir (deux cartes d’un même joueur peuvent servir dans deux compos).</li>
+<li>Résultat connu environ 3 h après le dernier entre-deux du lot : attends-le avant de jouer le suivant.</li>
+</ul>
+</details>
+</div>
+
 <div class="sx-card sx-empty-gw" id="gw-vide" data-sport-only="FOOTBALL" data-mode-only="PRO" data-source="resume competitions joueurs" role="status" hidden>
 <div class="sx-lbl" id="gw-vide-dates"></div>
 <h2 id="gw-vide-titre"></h2>
@@ -287,13 +313,13 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 <p class="sx-note" id="gw-vide-next" hidden></p>
 </div>
 
-<div data-hide-in="FOOTBALL-SET" class="sx-banner" id="rg-banner" role="status" hidden>
+<div data-hide-in="FOOTBALL-SET NBA-SET" class="sx-banner" id="rg-banner" role="status" hidden>
 <span id="rg-banner-txt"></span>
 <span class="sx-chips" id="rg-chips"></span>
 <button class="sx-btn sx-strong" id="rg-reset">Revenir aux compos proposées</button>
 </div>
 
-<div data-hide-in="FOOTBALL-SET" class="sx-card" id="decisions" data-source="competitions compos paliers">
+<div data-hide-in="FOOTBALL-SET NBA-SET" class="sx-card" id="decisions" data-source="competitions compos paliers">
 <h2>Que faire pour chaque compétition</h2>
 <p class="sx-note" id="dec-note"></p>
 <div class="sx-dec-grid" id="dec-grid"></div>
@@ -311,17 +337,17 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 </details>
 </div>
 
-<div data-hide-in="FOOTBALL-SET" class="sx-card sx-bar" id="avant-limite" data-source="resume compos joueurs matchs">
+<div data-hide-in="FOOTBALL-SET NBA-SET" class="sx-card sx-bar" id="avant-limite" data-source="resume compos joueurs matchs">
 <h2>À vérifier avant la date limite</h2>
 <p class="sx-note" id="bar-ok" hidden>Aucun joueur à risque dans les compos proposées.</p>
 <ul class="sx-alerts" id="bar-alerts"></ul>
 </div>
 
-<div data-hide-in="FOOTBALL-SET" class="sx-sec-head">
+<div data-hide-in="FOOTBALL-SET NBA-SET" class="sx-sec-head">
 <h2>Détail des compos</h2>
 <p class="sx-note">Joueurs, cartes, matchs et remplaçants de chaque compo. Les boutons Garder et Exclure recalculent toutes les compos du sport. Pts = points Sorare attendus ; ★ = étoiles (NBA).</p>
 </div>
-<div data-hide-in="FOOTBALL-SET" id="comp-list" class="sx-grid" data-source="competitions compos cartes joueurs paliers"></div>
+<div data-hide-in="FOOTBALL-SET NBA-SET" id="comp-list" class="sx-grid" data-source="competitions compos cartes joueurs paliers"></div>
 
 <div class="sx-card" id="europe" data-sport-only="FOOTBALL" data-mode-only="PRO" data-source="plan_arcade resume matchs" hidden>
 <h2>Piste European Contenders</h2>
@@ -392,7 +418,7 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 </div>
 </details>
 
-<details data-hide-in="FOOTBALL-SET" class="sx-card" id="a-revoir" open>
+<details data-hide-in="FOOTBALL-SET NBA-SET" class="sx-card" id="a-revoir" open>
 <summary><h2>À revoir depuis hier</h2> <span class="sx-lbl" id="st-ch" data-source="changements"></span></summary>
 <p class="sx-note" id="ch-note">—</p>
 <div class="sx-wrap" style="max-height: 16rem">
@@ -596,6 +622,23 @@ details.sx-card[open] > summary { margin-bottom: var(--cds-gap-xs); }
 <h3>Compo de la gameweek</h3>
 <p>La carte « Set » de l’onglet Décider garde une compo générique sur la gameweek football (gardien, défenseur, milieu, attaquant + extra) : utile pour voir tes meilleures cartes Common, mais c’est le plan de piste qui suit les règles de l’Arcade. Pas de classement public : ni palier de récompense en essences ni gain espéré.</p>
 </div>
+<div class="sx-card sx-method" id="meth-SETNBA" data-sport-only="NBA" data-mode-only="SET" hidden>
+<h2>Le mode Set NBA</h2>
+<p>Vue Set NBA : tes cartes Common NBA du set en cours<span id="mn-set" data-source="resume" data-field="set_nba"></span>. Les cartes Limited NBA sont dans la vue Pro.</p>
+<h3>Règles de la piste</h3>
+<ul>
+<li>6 paliers aux seuils 150, 180, 210, 240, 280 et 300 pts ; la récompense d’un palier est redonnée à chaque passage.</li>
+<li>4 vies par palier : 4 compos en même temps au plus ; une seule au-dessus du seuil suffit, chaque compo sous le seuil coûte une vie, 0 vie ramène au palier 1.</li>
+<li>Compo de 5 joueurs NBA, sans poste ni capitaine ; une carte par compo, et une carte jouée ne resert plus (deux cartes d’un même joueur peuvent servir dans deux compos).</li>
+<li>Plafond, comme l’In-Season Champion NBA : somme des étoiles des 5 joueurs ≤ 16 (étoiles par demi-points ; joueur sans niveau compté 1★), et au plus 4 joueurs d’une même équipe.</li>
+<li>Bonus de collection (jusqu’à 5 %) ignoré.</li>
+</ul>
+<p>Source : aide Sorare « What is Sorare Set (NBA)? » et règles confirmées par l’utilisateur (02/11/2026).</p>
+<h3>Plan de piste</h3>
+<p>Pour chaque palier de départ possible, le plan propose des étapes : palier visé et seuil, créneau (premier entre-deux du lot), heure vers laquelle le résultat est connu (dernier entre-deux + 3 h, valeur à confirmer), compos avec leur score attendu et leur chance de dépasser le seuil. Période : la gameweek NBA en cours. <span id="mn-fin" data-source="resume" data-field="arcade_nba_fin"></span> Indique ton palier dans Régler les compos : il est mémorisé dans ce navigateur. Les stratégies (All in, Conservateur, Équilibré, Adaptatif, Gains maximum), Garder / Exclure et la recherche Joueurs à exclure / à forcer recalculent le plan dans la page.</p>
+<h3>Score attendu et chances</h3>
+<p>Même modèle de joueur que la vue NBA Pro, multiplié par la probabilité de jouer ; le score final multiplie le score attendu par le bonus de la carte et de skin. La chance de dépasser un seuil suppose un score de compo de loi normale.</p>
+</div>
 </section>
 </div>
 
@@ -693,10 +736,10 @@ paliers_vises: vises.length, paliers_atteints: vises.filter((b) => sxPalierRang(
 dash.calc('nb_changements', {
 inputs: ['changements'],
 title: 'Nombre de changements par sport',
-description: 'Lignes du tableau des changements, réparties en football (modes JPL ou SET) et NBA.',
+description: 'Lignes du tableau des changements, réparties en football et NBA (colonne sport, contrat v7 ; à défaut modes contient NBA).',
 fn: (changements) => ['FOOTBALL', 'NBA'].map((sport) => ({
 sport,
-n: changements.filter((c) => (String(c.modes).split(' ').includes('NBA') ? 'NBA' : 'FOOTBALL') === sport).length,
+n: changements.filter((c) => ((c.sport ? String(c.sport).toUpperCase() === 'NBA' : String(c.modes).split(' ').includes('NBA')) ? 'NBA' : 'FOOTBALL') === sport).length,
 })),
 });
 
@@ -790,7 +833,7 @@ td.title = r.adv_ligue === 'NBA' || r.sport === 'NBA'
 return td;
 };
 const sportOfRow = (r) => (r.sport === 'NBA' ? 'NBA' : 'FOOTBALL');
-const sportOfChange = (c) => (String(c.modes).split(' ').includes('NBA') ? 'NBA' : 'FOOTBALL');
+const sportOfChange = (c) => (has(c.sport) ? sportOfRow({ sport: String(c.sport).toUpperCase() }) : String(c.modes).split(' ').includes('NBA') ? 'NBA' : 'FOOTBALL');
 const doubt = (r) => /GTD|questionable|day|doubt/i.test((r.blessure || '') + ' ' + (r.espn_statut || ''));
 const injured = (r) => (r.blessure && !doubt(r)) || /^out/i.test(r.espn_statut || '');
 const shortComp = (name) => String(name || '').replace('Jupiler Jupiler Pro League – Limited (In-Season)', 'Jupiler In-Season').replace(/^NBA /, '').replace(/^Football /, '');
@@ -845,6 +888,16 @@ let cache = { key: '', res: null };
 // ---------- Données de base ----------
 // NBA In-Season Contender : plus jouée (décision de l'utilisateur du 25/10/2026), masquée si d'anciennes données la contiennent
 const ok = (id) => { const d = dash.data(id); if (d.status !== 'ok') return null; return SX_SUIVIE_JEUX.includes(id) && Array.isArray(d.data) ? d.data.filter(sxSuivie) : d.data; };
+// Séparation Pro / Set par les cartes (football et NBA) : PRO = cartes Limited et plus, SET = Common du set en cours.
+// Avec le jeu cartes, la vue suit les cartes (modes vide = aucune vue, contrat v7 ; anciennes collectes : modes ignorés) ; sans cartes, repli sur modes.
+const cardIdx = () => { const c = ok('cartes'); if (!c) return null; if (cardIdx.k !== c) { const m = new Map(); for (const k of c) { const e = m.get(k.slug) || { PRO: [], SET: [] }; if (k.rarete !== 'common') e.PRO.push(k); else if (yes(k.set_courant)) e.SET.push(k); m.set(k.slug, e); } cardIdx.k = c; cardIdx.m = m; } return cardIdx.m; };
+const cat = (slug, md = mode) => { const i = cardIdx(); return !i || !!(i.get(slug) || {})[md]?.length; };
+const inModeJ = (r, md = mode) => (cardIdx() ? has(r.modes) && cat(r.slug, md) : inMode(r.modes, md));
+// changements et jours n’ont que le nom : joueur unique du sport → selon ses cartes ; nom inconnu ou porté par plusieurs joueurs → null (repli)
+// Changement visible dans la vue : sport (changements.sport v7, sinon modes), modes de la vue, et cartes du joueur (slug v7, sinon nom ; nom ambigu : modes seuls)
+const chIn = (c, sp = sport, md = mode) => sportOfChange(c) === sp && ((has(c.slug) && cardIdx() ? has(c.modes) && cat(c.slug, md) : nomVue(sp, c.joueur, md)) ?? inMode(c.modes, md));
+// Homonymes : seuls comptent ceux qui ont une carte ; s’il en reste plusieurs, nom ambigu (null)
+const nomVue = (sp, nom, md = mode) => { const i = cardIdx(); if (!i) return null; const l = (ok('joueurs') || []).filter((r) => sportOfRow(r) === sp && r.joueur === nom && i.has(r.slug)); return l.length === 1 ? has(l[0].modes) && cat(l[0].slug, md) : null; };
 const jMap = () => new Map((ok('joueurs') || []).map((r) => [r.slug, r]));
 const compType = (c) => c.type || (c.sport === 'NBA' ? 'NBA' : /set/i.test(c.slug || c.competition) ? 'SET' : 'JPL');
 const compsOf = (sp, md = mode) => (ok('competitions') || []).filter((c) => sportOfRow(c) === sp && (!md || sxModeOf(c) === md)).slice().sort((a, b) => (Number(a.rang) || 0) - (Number(b.rang) || 0));
@@ -868,7 +921,7 @@ function eligibleCard(k, r, c) {
 const t = compType(c);
 if (t === 'NBA') return r.sport === 'NBA' && k.rarete === 'limited';
 if (t === 'JPL') return r.sport !== 'NBA' && k.rarete !== 'common' && String(r.modes).split(' ').includes('JPL');
-return r.sport !== 'NBA' && yes(k.set_courant);
+return r.sport !== 'NBA' && k.rarete === 'common' && yes(k.set_courant);
 }
 function passes(r, g, sp) {
 if (g.excl.includes(r.slug)) return false;
@@ -1197,7 +1250,7 @@ if (!COLS[sport].some((c) => c.k === sortK)) sortK = 'score_final';
 syncControls();
 };
 // Cadrans masqués dans une vue précise (data-hide-in, ex. FOOTBALL-SET : vue Set épurée, seulement la piste Arcade) ; all = aussi les réafficher ailleurs
-const hideVue = (all) => document.querySelectorAll('[data-hide-in]').forEach((n) => { if (n.dataset.hideIn === sport + '-' + mode) n.hidden = true; else if (all && !n.dataset.sportOnly && !n.dataset.modeOnly && n.id !== 'rg-banner' && n.id !== 'avant-limite') n.hidden = false; });
+const hideVue = (all) => document.querySelectorAll('[data-hide-in]').forEach((n) => { if (n.dataset.hideIn.split(' ').includes(sport + '-' + mode)) n.hidden = true; else if (all && !n.dataset.sportOnly && !n.dataset.modeOnly && n.id !== 'rg-banner' && n.id !== 'avant-limite') n.hidden = false; });
 const showPage = (pageId) => {
 current = pageId;
 tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.page === pageId)));
@@ -1249,7 +1302,7 @@ changed();
 };
 
 // ---------- Composant partagé « Joueurs à exclure » / « Joueurs à forcer » ----------
-// Utilisé par la vue Pro (préfixe rg) et le plan Arcade (arc) ; prêt pour le Set NBA quand il sera calculé.
+// Utilisé par la vue Pro (préfixe rg), le plan Arcade (arc) et le plan Set NBA (arn).
 // pickUI(pré, cfg) crée les champs dans #pré-pick ; cfg : idx() (index des joueurs), ex(), fo() (ajouts), cible() (1re liste changée), lblA.
 const normTxt = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 function pickUI(pre, cfg) {
@@ -1277,7 +1330,10 @@ $('#' + pre + '-pick').replaceChildren(field('ex', 'Joueurs à exclure', 'Exclur
 }
 // Index des suggestions (recalculé quand la clé change) : libellés uniques « Nom · Club [· ★] »
 const pickCache = {};
+// Version des jeux joueurs / cartes : une nouvelle donnée de mêmes tailles invalide aussi l’index
+const pickRef = () => { const j = ok('joueurs'), c = ok('cartes'); if (pickRef.j !== j || pickRef.c !== c) { pickRef.j = j; pickRef.c = c; pickRef.v = (pickRef.v || 0) + 1; } return pickRef.v; };
 function pickIdx(pre, key, rows, lbl) {
+key += '|' + pickRef();
 if (pickCache[pre]?.key === key) return pickCache[pre];
 const list = rows().sort((a, b) => String(a.joueur).localeCompare(String(b.joueur), 'fr')), byLabel = new Map();
 for (const r of list) { let l = lbl(r); while (byLabel.has(l)) l += ' '; byLabel.set(l, r.slug); }
@@ -1371,7 +1427,9 @@ if (!x) { lead.textContent = '—'; return; }
 const comps = compsOf(sport);
 const names = comps.map((c) => shortComp(c.competition));
 if (sport === 'NBA' && mode === 'SET') {
-lead.textContent = 'NBA Set : aucune carte Common NBA, rien à jouer.';
+const fin = pisteFin('arcade_nba', x);
+if (!has(x.set_nba) && !planOf('arcade_nba').length) lead.textContent = 'NBA Set : aucune carte Common NBA du set en cours dans cette collecte.';
+else lead.textContent = 'Set ' + (has(x.set_nba) ? x.set_nba + ' ' : '') + 'NBA (cartes Common) : piste de paliers à ton rythme, 5 joueurs, 16 étoiles au plus, 4 par équipe au plus' + (has(fin) ? ', période jusqu’au ' + fmtWhen(fin) : '') + '.';
 } else if (sport === 'NBA') {
 lead.textContent = `Gameweek ${gwText(x.gw_nba)} : ` + (names.length ? `${joinFr(names)}, sans capitaine et sous plafond d’étoiles.` : 'aucune compétition NBA dans les données.');
 } else if (mode === 'SET') {
@@ -1385,13 +1443,13 @@ lead.textContent = `Gameweek ${gwText(x.gw_football)} : ` + (jpl
 : (open.length ? `${joinFr(open)} seulement, ` : '') + 'pas de Jupiler Pro League cette semaine.');
 }
 const ch = ok('changements'); const st = $('#st-ch');
-st.textContent = ch ? '(' + plural(ch.filter((c) => sportOfChange(c) === sport && inMode(c.modes)).length, 'changement', 'changements') + ')' : '';
+st.textContent = ch ? '(' + plural(ch.filter((c) => chIn(c)).length, 'changement', 'changements') + ')' : '';
 }
 
 // Football : la gameweek a-t-elle de la Jupiler, et au moins un de tes joueurs avec un match ?
 function footGw() {
 const comps = compsOf('FOOTBALL', 'PRO');
-const J = (ok('joueurs') || []).filter((r) => sportOfRow(r) === 'FOOTBALL' && inMode(r.modes, 'PRO'));
+const J = (ok('joueurs') || []).filter((r) => sportOfRow(r) === 'FOOTBALL' && inModeJ(r, 'PRO'));
 const jplRows = comps.filter((c) => compType(c) === 'JPL');
 const jpl = jplRows.some((c) => Number(c.max_compos) > 0);
 return { comps, jpl, jplStatut: jplRows.map((c) => c.statut).find(Boolean) || '', loaded: !!ok('joueurs') && !!ok('competitions'), noMatch: J.length > 0 && !J.some((r) => Number(r.matchs_gw) > 0) };
@@ -1454,9 +1512,9 @@ const ageText = (ms) => { const m = Math.max(0, Math.round(ms / 6e4)); if (m < 6
 function playedSince(sp, from, to) {
 const dates = new Set();
 const inWin = (d) => { const t = toDate(d).getTime(); return t > from && t < to; };
-for (const r of ok('joueurs') || []) if (sportOfRow(r) === sp && has(r.match) && inWin(r.match)) dates.add(String(r.match).slice(0, 16) + r.adversaire);
-for (const r of ok('jours') || []) if ((r.mode === 'NBA' ? 'NBA' : 'FOOTBALL') === sp && has(r.match) && inWin(r.match)) dates.add(String(r.match).slice(0, 16) + r.adversaire);
-for (const m of ok('matchs') || []) if (sportOfRow(m) === sp && has(m.date) && inWin(m.date)) dates.add(String(m.date).slice(0, 16) + m.adversaire);
+for (const r of ok('joueurs') || []) if (sportOfRow(r) === sp && inModeJ(r) && has(r.match) && inWin(r.match)) dates.add(String(r.match).slice(0, 16) + r.adversaire);
+for (const r of ok('jours') || []) if ((r.mode === 'NBA' ? 'NBA' : 'FOOTBALL') === sp && jourMode(r.mode) === mode && has(r.match) && inWin(r.match)) dates.add(String(r.match).slice(0, 16) + r.adversaire);
+for (const m of ok('matchs') || []) if (sportOfRow(m) === sp && cat(m.slug) && has(m.date) && inWin(m.date)) dates.add(String(m.date).slice(0, 16) + m.adversaire);
 return dates.size;
 }
 function drawKpis(lineups) {
@@ -1466,18 +1524,18 @@ const sp = sport === 'NBA' ? 'NBA' : 'de football';
 // 1. Temps restant
 const cut = x ? (sport === 'NBA' ? x.limite_nba : x.limite_football) : null;
 // Football Set (Arcade) : pas de date limite, compte à rebours avant le prochain créneau du plan (palier choisi)
-const arcade = sport === 'FOOTBALL' && mode === 'SET';
+const arcade = mode === 'SET', pm = sport === 'NBA' ? 'arcade_nba' : 'arcade';
 // Football Pro : prochain créneau European Contenders (palier choisi) s'il existe ; il prend la place du compte à rebours Jupiler si celui-ci est passé, inconnu ou plus lointain
 const nextEur = sport === 'FOOTBALL' && mode === 'PRO' && x && has(x.europe_slug) ? nextCreneau('europe') : null;
 const cutMs = cut ? toDate(cut).getTime() : NaN;
 const eurFirst = !!nextEur && !(cutMs > now && cutMs <= toDate(nextEur.creneau).getTime());
-$('#k-time-l').textContent = arcade ? 'Prochain créneau Arcade' : eurFirst ? 'Prochain créneau European Contenders' : 'Temps restant';
-const nextArc = arcade ? nextCreneau('arcade') : null;
+$('#k-time-l').textContent = arcade ? 'Prochain créneau ' + PISTES[pm].nom : eurFirst ? 'Prochain créneau European Contenders' : 'Temps restant';
+const nextArc = arcade ? nextCreneau(pm) : null;
 if (eurFirst) { const ms = toDate(nextEur.creneau).getTime() - now; setKpi('k-time', countdown(ms).replace(/^dans /, ''), 'Étape ' + nextEur.etape + ' (palier ' + nextEur.palier + ') : ' + fmtWhen(nextEur.creneau) + '.' + (cutMs > now ? ' Date limite Jupiler ' + fmtWhen(cut) + '.' : ''), ms < 36e5 ? 'warn' : ''); }
 else if (arcade) {
-const fin = x && has(x.arcade_fin) ? x.arcade_fin : x ? x.gw_fin_football : null;
+const fin = x ? pisteFin(pm, x) : null;
 if (nextArc) { const ms = toDate(nextArc.creneau).getTime() - now; setKpi('k-time', countdown(ms).replace(/^dans /, ''), 'Étape ' + nextArc.etape + ' (palier ' + nextArc.palier + ') : ' + fmtWhen(nextArc.creneau) + '.', ms < 36e5 ? 'warn' : ''); }
-else setKpi('k-time', '—', 'Aucun créneau à venir dans le plan depuis le palier ' + PISTES.arcade.palier + (fin ? ' ; période Arcade jusqu’au ' + fmtWhen(fin) : '') + '.', 'mut');
+else setKpi('k-time', '—', 'Aucun créneau à venir dans le plan depuis le palier ' + PISTES[pm].palier + (has(fin) ? ' ; période ' + PISTES[pm].nom + ' jusqu’au ' + fmtWhen(fin) : '') + '.', 'mut');
 } else if (!cut) setKpi('k-time', '—', 'Date limite inconnue dans cette collecte.', '');
 else {
 const ms = toDate(cut).getTime() - now;
@@ -1510,7 +1568,7 @@ const cost = D.reduce((s, d) => s + d.cost * d.rows.length, 0);
 const allCols = !custom && known.length > 0 && known.every((d) => has(d.c.gain_net_espere));
 const net = allCols && calc && calc.gain_net != null ? Number(calc.gain_net) : known.length ? known.reduce((s, d) => s + d.net, 0) : null;
 const estimated = !allCols;
-if (net == null) setKpi('k-gain', '—', mode === 'SET' ? 'Pas de classement public en Arcade : pas de gain espéré en essences.' : n ? 'Pas de palier de récompense connu pour ces compétitions.' : 'Aucune compo, donc aucun gain espéré.', 'mut');
+if (net == null) setKpi('k-gain', '—', mode === 'SET' ? 'Pas de classement public en ' + PISTES[pm].nom + ' : pas de gain espéré en essences.' : n ? 'Pas de palier de récompense connu pour ces compétitions.' : 'Aucune compo, donc aucun gain espéré.', 'mut');
 else setKpi('k-gain', (net > 0 ? '+' : net < 0 ? '−' : '') + ess(Math.abs(net)),
 'Essences Limited espérées sur ' + plural(n, 'compo', 'compos') + (cost ? ', après ' + ess(cost) + ' d’inscription' : ', sans frais d’inscription') + '.' + (estimated ? ' Estimation de la page à partir des paliers' + (custom ? ' (compos recalculées)' : '') + '.' : ''),
 net < 0 ? 'bad' : net > 0 ? 'ok' : 'mut');
@@ -1684,7 +1742,7 @@ const CH_MINOR = new Set(['Projection en hausse', 'Projection en baisse', 'Plus 
 const chOpen = { FOOTBALL: false, NBA: false };
 function drawChanges(lineups, J) {
 const ch = ok('changements'); const tb = $('#t-ch tbody'); tb.replaceChildren();
-const rowsCh = ch ? ch.filter((c) => sportOfChange(c) === sport && inMode(c.modes)) : [];
+const rowsCh = ch ? ch.filter((c) => chIn(c)) : [];
 const inLu = new Set(lineups.flatMap((L) => L.list.flatMap((x) => x.picks.map((p) => J.get(p.slug)?.joueur || p.row?.joueur))).filter(Boolean));
 const rank = (t) => { const i = CH_ORDER.indexOf(t); return i < 0 ? CH_ORDER.length : i; };
 const sorted = rowsCh.slice().sort((a, b) => (inLu.has(b.joueur) - inLu.has(a.joueur)) || rank(a.type) - rank(b.type) || String(a.joueur).localeCompare(String(b.joueur), 'fr'));
@@ -1861,14 +1919,14 @@ list.append(card);
 });
 
 if (isNba && mode === 'PRO') { drawTimeline(lineups); drawEtoiles(); drawRole(lineups); drawBonnes(); }
-if (!isNba && mode === 'SET') drawArcade();
+if (mode === 'SET') drawPiste(isNba ? 'arcade_nba' : 'arcade');
 if (!isNba && mode === 'PRO') drawEurope();
 hideVue(false);
 }
 
 function drawBonnes() {
 const tba = $('#t-ba tbody'); tba.replaceChildren(); const L = headLabels('#t-ba');
-(ok('joueurs') || []).filter((r) => r.sport === 'NBA' && Number(r.etoiles) <= 3 && Number(r.matchs_gw) > 0 && r.gain_etoiles != null && !/^out/i.test(r.espn_statut || '')).sort((a, b) => b.gain_etoiles - a.gain_etoiles).slice(0, 12).forEach((r) => {
+(ok('joueurs') || []).filter((r) => r.sport === 'NBA' && inModeJ(r, 'PRO') && Number(r.etoiles) <= 3 && Number(r.matchs_gw) > 0 && r.gain_etoiles != null && !/^out/i.test(r.espn_statut || '')).sort((a, b) => b.gain_etoiles - a.gain_etoiles).slice(0, 12).forEach((r) => {
 const tr = el('tr'); tr.dataset.key = r.slug;
 tr.append(el('td', '', r.joueur), el('td', 'num', stars(r.etoiles)), el('td', 'num', num(r.matchs_gw)), el('td', 'num', dec(r.score_attendu)), el('td', 'num' + (r.gain_etoiles > 0 ? ' sx-ok' : ''), signed(r.gain_etoiles)), el('td', 'num', signed(r.gain_sorare)), el('td', '', r.minutes_tendance));
 mainFirst(tr, L); tba.append(tr);
@@ -1876,7 +1934,7 @@ mainFirst(tr, L); tba.append(tr);
 }
 
 function drawTimeline(lineups) {
-const M = (ok('matchs') || []).filter((m) => sportOfRow(m) === 'NBA');
+const M = (ok('matchs') || []).filter((m) => sportOfRow(m) === 'NBA' && cat(m.slug, 'PRO'));
 const t = $('#t-tl'); const head = t.querySelector('thead tr'); const tb = t.querySelector('tbody');
 head.replaceChildren(); tb.replaceChildren();
 $('#tl-empty').hidden = M.length > 0;
@@ -1914,7 +1972,7 @@ tb.append(tr);
 function drawEtoiles() {
 const d = ok('progression_l10') || []; const tb = $('#t-et tbody'); tb.replaceChildren(); const L = headLabels('#t-et');
 const J = jMap();
-const rows = d.filter((r) => r.etoiles_apres !== r.etoiles || r.ecart).filter((r) => Number(J.get(r.slug)?.matchs_gw) > 0 || r.etoiles_apres !== r.etoiles)
+const rows = d.filter((r) => (r.etoiles_apres !== r.etoiles || r.ecart) && (!J.get(r.slug) || inModeJ(J.get(r.slug), 'PRO'))).filter((r) => Number(J.get(r.slug)?.matchs_gw) > 0 || r.etoiles_apres !== r.etoiles)
 .sort((a, b) => Math.abs(b.etoiles_apres - b.etoiles) - Math.abs(a.etoiles_apres - a.etoiles) || b.etoiles - a.etoiles);
 $('#et-empty').hidden = rows.length > 0;
 for (const r of rows.slice(0, 40)) {
@@ -1930,7 +1988,7 @@ mainFirst(tr, L); tb.append(tr);
 function drawRole(lineups) {
 const tb = $('#t-role tbody'); tb.replaceChildren(); const L = headLabels('#t-role');
 const inLu = new Set(lineups.flatMap((L) => L.list.flatMap((x) => x.picks.map((p) => p.slug))));
-const rows = (ok('joueurs') || []).filter((r) => r.sport === 'NBA' && Number(r.minutes_liberees) >= 15).sort((a, b) => b.minutes_liberees - a.minutes_liberees);
+const rows = (ok('joueurs') || []).filter((r) => r.sport === 'NBA' && inModeJ(r, 'PRO') && Number(r.minutes_liberees) >= 15).sort((a, b) => b.minutes_liberees - a.minutes_liberees);
 $('#role-empty').hidden = rows.length > 0;
 for (const r of rows.slice(0, 25)) {
 const tr = el('tr'); tr.dataset.key = r.slug;
@@ -2055,10 +2113,16 @@ if (c.k === sortK) th.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'des
 tr.append(th);
 }
 }
+// Joueur mixte : carte, bonus et score final de la vue (Pro : meilleure Limited ou plus ; Set : meilleure Common du set en cours) quand joueurs.carte est de l’autre catégorie
+const carteVue = (r) => {
+const l = (cardIdx()?.get(r.slug) || {})[mode]; if (!l || !l.length || l.some((k) => k.carte_id === r.carte)) return r;
+const f = (k) => (Number(k.puissance) || 1) * (mode === 'SET' ? Number(k.skin) || 1 : 1), k = l.reduce((a, b) => (f(b) > f(a) ? b : a));
+return { ...r, carte: k.carte_id, carte_label: k.label, bonus: Math.round(((Number(k.puissance) || 1) - 1) * 100), bonus_skin: mode === 'SET' ? Math.round(((Number(k.skin) || 1) - 1) * 100) : null, score_final: has(r.score_attendu) ? Math.round(Number(r.score_attendu) * f(k) * 10) / 10 : r.score_final };
+};
 function drawJoueurs() {
 buildHead();
 const xr = (ok('resume') || [])[0] || {};
-$('#j-title').textContent = sport === 'NBA' ? 'Tes joueurs NBA (cartes Limited)' : mode === 'SET' ? 'Tes joueurs du Set ' + (xr.set || '') + ' (cartes Common)' : 'Tes joueurs Jupiler (cartes Limited et plus)';
+$('#j-title').textContent = sport === 'NBA' ? (mode === 'SET' ? 'Tes joueurs NBA du Set ' + (xr.set_nba || '') + ' (cartes Common)' : 'Tes joueurs NBA (cartes Limited)') : mode === 'SET' ? 'Tes joueurs du Set ' + (xr.set || '') + ' (cartes Common)' : 'Tes joueurs Jupiler (cartes Limited et plus)';
 $('#j-note').textContent = sport === 'NBA'
 ? 'Clique un en-tête pour trier. Forme : les 10 derniers scores. L10 et étoiles après la gameweek : estimation si le joueur joue ses matchs prévus. Survole un statut pour lire le commentaire ESPN. Heures de Bruxelles.'
 : 'Clique un en-tête pour trier. Forme : les 10 derniers scores, du plus ancien au plus récent. Heures de Bruxelles.';
@@ -2066,14 +2130,14 @@ const d = ok('joueurs'); const tb = $('#t-j tbody'); tb.replaceChildren();
 if (!d) return;
 // NBA : joueurs sans étoiles ou sans équipe (proposition 15)
 if (sport === 'NBA') {
-const N = d.filter((r) => r.sport === 'NBA' && inMode(r.modes));
+const N = d.filter((r) => r.sport === 'NBA' && inModeJ(r));
 const noStar = N.filter((r) => !has(r.etoiles)), noTeam = N.filter((r) => !has(r.club));
 $('#j-flags').textContent = noStar.length || noTeam.length ? [noStar.length ? plural(noStar.length, 'joueur', 'joueurs') + ' sans étoiles, comptés 1★ sous le plafond (' + noStar.slice(0, 5).map((r) => r.joueur).join(', ') + (noStar.length > 5 ? '…' : '') + ')' : '', noTeam.length ? plural(noTeam.length, 'joueur', 'joueurs') + ' sans équipe : introuvables chez ESPN, donc sans match ni projection (décoche « Avec un match cette gameweek » pour les voir)' : ''].filter(Boolean).join(' ; ') + '.' : '';
 }
 const q = $('#f-q').value.trim().toLowerCase();
 let rows = d.filter((r) => sportOfRow(r) === sport);
 if (sport === 'NBA') { const P = new Map((ok('progression_l10') || []).map((p) => [p.slug, p])); rows = rows.map((r) => { const p = P.get(r.slug); return p ? { ...r, l10_projete: p.l10_projete, etoiles_apres: p.etoiles_apres } : r; }); }
-rows = rows.filter((r) => inMode(r.modes));
+rows = rows.filter((r) => inModeJ(r)).map(carteVue);
 if (q) rows = rows.filter((r) => [r.joueur, r.club, r.adversaire].join(' ').toLowerCase().includes(q));
 if ($('#f-gw').checked) rows = rows.filter((r) => Number(r.matchs_gw) > 0);
 if ($('#f-inj').checked) rows = rows.filter((r) => !injured(r));
@@ -2109,7 +2173,7 @@ sel.value = modes.includes(cur) ? cur : modes[0] || '';
 const g = gwOf(sport) || {};
 // Un match compte s'il tombe dans la gameweek (jour calculé depuis l'heure du match, sinon le jour de la ligne)
 const inGw = (r) => { if (!g.debut || !g.fin) return false; const j = has(r.match) ? gwDay(sport, r.match) : String(r.jour); return j >= g.debut && j <= g.fin; };
-const rows = d.filter((x) => x.mode === sel.value);
+const rows = d.filter((x) => x.mode === sel.value && nomVue(sport, x.joueur) !== false);
 if (!modes.length) { empty.hidden = false; empty.textContent = 'Aucun match de tes joueurs ' + vueLbl() + ' dans cette collecte.'; }
 const nGw = rows.filter(inGw).length;
 const all = $('#j-all').checked || !nGw;
@@ -2305,23 +2369,28 @@ const x = (ok('resume') || [])[0] || {};
 // Set (Arcade) : nom du set et fin de la période
 $('#ms-set').textContent = has(x.set) ? ' (' + x.set + ')' : '';
 $('#ms-fin').textContent = has(x.arcade_fin) ? 'Période Arcade de cette collecte : jusqu’au ' + fmtWhen(x.arcade_fin) + '.' : '';
-const M = (ok('matchs') || []).filter((m) => sportOfRow(m) === 'NBA');
+// Set NBA : nom du set (resume.set_nba) et fin de la période
+$('#mn-set').textContent = has(x.set_nba) ? ' (' + x.set_nba + ')' : '';
+const fn = pisteFin('arcade_nba', x); $('#mn-fin').textContent = has(fn) ? 'Période de cette collecte : jusqu’au ' + fmtWhen(fn) + '.' : '';
+const M = (ok('matchs') || []).filter((m) => sportOfRow(m) === 'NBA' && cat(m.slug, 'PRO'));
 const nOdds = M.filter((m) => has(m.proba_victoire) || has(m.total)).length;
 $('#mn-cotes').textContent = x.cotes_externes === 'non' ? 'Désactivées dans cette collecte.'
 : nOdds ? `Disponibles pour ${nOdds} matchs de tes joueurs sur ${M.length} dans cette gameweek, affichées dans le calendrier.`
 : 'Pas encore fournies match par match dans cette collecte : le calendrier les affichera dès qu’elles arriveront.';
 }
 
-// ---------- Pistes de paliers : Arcade (Football Set) et European Contenders (Football Pro) ; FOOTBALL SEULEMENT ----------
+// ---------- Pistes de paliers : Arcade (Football Set), European Contenders (Football Pro) et Set NBA (arcade_nba, NBA seulement) ----------
 // Barème Arcade donné par l'utilisateur le 25/10/2026 ; les seuils sont remplacés par ceux de plan_arcade quand il les donne.
 const ARCADE_BAREME = [{ ess: 2000 }, { ess: 5000 }, { gems: 10 }, { gems: 30 }, { eur: 100, essL: 1000 }, { eur: 1000, essL: 1000 }];
 const lotTxt = (b) => [b.eur ? b.eur.toLocaleString('fr-BE') + ' €' : '', b.ess ? b.ess.toLocaleString('fr-BE') + ' essences' : '', b.essL ? b.essL.toLocaleString('fr-BE') + ' essences Limited' : '', b.gems ? b.gems + ' gems' : ''].filter(Boolean).join(' + ');
 const ARCADE_PISTE = [260, 300, 360, 400, 440, 480].map((seuil, i) => ({ palier: i + 1, seuil, lot: lotTxt(ARCADE_BAREME[i]) }));
 const EUROPE_PISTE = [350, 390, 410, 450, 470, 500].map((seuil, i) => ({ palier: i + 1, seuil, lot: '' }));
-// plan_arcade.mode : arcade (ou absent, collectes v4) / europe
+const ARN_PISTE = [150, 180, 210, 240, 280, 300].map((seuil, i) => ({ palier: i + 1, seuil, lot: '' }));
+// plan_arcade.mode : arcade (ou absent, collectes v4) / europe (football) ; arcade_nba (NBA, contrat v7)
 const PISTES = {
-arcade: { id: 'arc', key: 'sx-arcade-palier', box: '#arcade', paliers: ARCADE_PISTE, palier: 1 },
-europe: { id: 'eur', key: 'sx-europe-palier', box: '#europe', paliers: EUROPE_PISTE, palier: 1 },
+arcade: { id: 'arc', key: 'sx-arcade-palier', box: '#arcade', paliers: ARCADE_PISTE, palier: 1, sp: 'FOOTBALL', nom: 'Arcade' },
+europe: { id: 'eur', key: 'sx-europe-palier', box: '#europe', paliers: EUROPE_PISTE, palier: 1, sp: 'FOOTBALL', nom: 'European Contenders' },
+arcade_nba: { id: 'arn', key: 'sx-arcnba-palier', box: '#arcnba', paliers: ARN_PISTE, palier: 1, sp: 'NBA', nom: 'Set NBA' },
 };
 const planOf = (m) => (ok('plan_arcade') || []).filter((r) => (has(r.mode) ? String(r.mode).toLowerCase() : 'arcade') === m);
 const seuilsOf = (m) => { const s = new Map(planOf(m).filter((r) => Number(r.etape) > 0 && has(r.palier) && has(r.seuil)).map((r) => [Number(r.palier), Number(r.seuil)])); return PISTES[m].paliers.map((p) => ({ ...p, seuil: s.get(p.palier) ?? p.seuil })); };
@@ -2329,34 +2398,54 @@ const seuilsOf = (m) => { const s = new Map(planOf(m).filter((r) => Number(r.eta
 // ---------- Moteur de piste : portage de planPiste / meilleureCompoPiste / lotPiste (compos.mjs) ----------
 // Loi normale, délai de 1h50, cartes consommées, ARCADE_RECOMPTE (récompense redonnée à chaque passage), 4 vies par palier
 // (une compo ratée coûte une vie ; 0 vie = retour au palier 1). Deux cartes d'un même joueur peuvent servir dans deux compos.
-const PISTE_DELAI = 110 * 60e3, PISTE_VIES = 4, PISTE_PAR_POSTE = 6, ARCADE_RECOMPTE = true;
+const PISTE_DELAI = 110 * 60e3, NBA_CAP = 16, NBA_CLUB = 4, PISTE_VIES = 4, PISTE_PAR_POSTE = 6, ARCADE_RECOMPTE = true;
 const POSTES = ['Gardien', 'Défenseur', 'Milieu', 'Attaquant'];
 const EUR_RARETES = ['limited', 'rare', 'super_rare', 'unique'];
 const H = 3600e3;
 const MOTEUR = {
 // Set : cartes Common du set en cours, bonus de carte × skin, pas de capitaine
-arcade: { larg: [0, H, 2 * H], capt: 0, carte: (k) => k.rarete === 'common' && yes(k.set_courant), joueur: (r) => String(r.modes || '').split(' ').includes('SET'), match: () => true, valeur: (b, k) => b * (Number(k.puissance) || 1) * (Number(k.skin) || 1) },
+arcade: { larg: [0, H, 2 * H], capt: 0, delai: PISTE_DELAI, carte: (k) => k.rarete === 'common' && yes(k.set_courant), joueur: (r) => inModeJ(r, 'SET'), match: () => true, valeur: (b, k) => b * (Number(k.puissance) || 1) * (Number(k.skin) || 1) },
 // European Contenders : Limited et plus, matchs de Ligue Europa / Conference League, capitaine +50 % additif
-europe: { larg: [0, H, 2 * H, 3 * H, 6 * H], capt: 0.5, carte: (k) => EUR_RARETES.includes(k.rarete), joueur: () => true, match: (g) => /europa|conference/i.test(String(g.competition_match || '')), valeur: (b, k) => b * (Number(k.puissance) || 1) },
+europe: { larg: [0, H, 2 * H, 3 * H, 6 * H], capt: 0.5, delai: PISTE_DELAI, carte: (k) => EUR_RARETES.includes(k.rarete), joueur: () => true, match: (g) => /europa|conference/i.test(String(g.competition_match || '')), valeur: (b, k) => b * (Number(k.puissance) || 1) },
+// Set NBA : Common NBA du set en cours, 5 joueurs sans poste, ≤ 16 étoiles et ≤ 4 par équipe (règles In-Season Champion), résultat 3 h après le dernier entre-deux (contrat v7)
+arcade_nba: { larg: [0, H, 2 * H, 3 * H, 4 * H], capt: 0, delai: 3 * H, best: bestNba, carte: (k) => k.rarete === 'common' && yes(k.set_courant), joueur: (r) => inModeJ(r, 'SET'), match: () => true, valeur: (b, k) => b * (Number(k.puissance) || 1) * (Number(k.skin) || 1) },
 };
 const sdJoueur = (r, pp, value) => { const p = Math.min(1, Math.max(0.05, pp)), cv = (has(r.regularite) ? Number(r.regularite) : 40) / 100, proj = value / p; return Math.sqrt(p * (proj * cv) ** 2 + p * (1 - p) * proj ** 2); };
 // Unités = une carte × un match (jeux matchs, cartes, joueurs) dans la période de la piste
 function pisteUnits(m, excl = []) {
-const P = MOTEUR[m], x = (ok('resume') || [])[0] || {}, J = jMap();
-const t0 = toDate(m === 'europe' ? x.europe_debut : x.arcade_debut).getTime() || 0;
-const fS = m === 'europe' ? x.europe_fin : has(x.arcade_fin) ? x.arcade_fin : x.gw_fin_football;
+const P = MOTEUR[m], x = (ok('resume') || [])[0] || {}, J = jMap(), sp = PISTES[m].sp, nba = sp === 'NBA';
+const t0 = toDate(m === 'europe' ? x.europe_debut : nba ? x.arcade_nba_debut : x.arcade_debut).getTime() || 0;
+const fS = pisteFin(m, x);
 const deb = Math.max(Date.now(), t0), fin = has(fS) ? toDate(fS).getTime() : Infinity;
 const cards = new Map();
-for (const k of ok('cartes') || []) if (sportOfRow(k) === 'FOOTBALL' && P.carte(k)) { if (!cards.has(k.slug)) cards.set(k.slug, []); cards.get(k.slug).push(k); }
+for (const k of ok('cartes') || []) if (sportOfRow(k) === sp && P.carte(k)) { if (!cards.has(k.slug)) cards.set(k.slug, []); cards.get(k.slug).push(k); }
 const U = [];
 for (const g of ok('matchs') || []) {
-if (sportOfRow(g) !== 'FOOTBALL' || excl.includes(g.slug) || !has(g.date)) continue;
-const r = J.get(g.slug); if (!r || !P.joueur(r) || !POSTES.includes(r.poste) || !P.match(g)) continue;
+if (sportOfRow(g) !== sp || excl.includes(g.slug) || !has(g.date)) continue;
+const r = J.get(g.slug); if (!r || !P.joueur(r) || (!nba && !POSTES.includes(r.poste)) || !P.match(g)) continue;
 const t = toDate(g.date).getTime(), pp = Number(g.proba) / 100;
 if (!(t >= deb && t <= fin) || !(pp > 0)) continue;
-for (const k of cards.get(g.slug) || []) { const base = (Number(g.proj) || 0) * pp, value = P.valeur(base, k); U.push({ r, g, k, t, slug: g.slug, id: k.carte_id, pos: r.poste, base, value, sd: sdJoueur(r, pp, value) }); }
+for (const k of cards.get(g.slug) || []) { const base = (Number(g.proj) || 0) * pp, value = P.valeur(base, k); U.push({ r, g, k, t, slug: g.slug, id: k.carte_id, pos: nba ? '' : r.poste, st: Number(r.etoiles) || 1, club: r.club || '', base, value, sd: sdJoueur(r, pp, value) }); }
 }
 return U;
+}
+const pisteFin = (m, x) => (m === 'europe' ? x.europe_fin : m === 'arcade_nba' ? (has(x.arcade_nba_fin) ? x.arcade_nba_fin : x.gw_fin_nba) : has(x.arcade_fin) ? x.arcade_fin : x.gw_fin_football);
+// Set NBA (utilisateur 02/11) : 5 joueurs distincts sans poste ni capitaine, somme des étoiles ≤ 16 (joueur sans niveau = 1★), au plus 4 d’une même équipe.
+// Candidats : les 10 meilleures valeurs et les 6 meilleures à 2,5★ ou moins (joueurs bon marché pour le plafond), plus les forcés.
+const nbaOk = (f) => { if (f.reduce((s, u) => s + u.st, 0) > NBA_CAP + 1e-9) return false; const c = {}; return f.every((u) => !u.club || (c[u.club] = (c[u.club] || 0) + 1) <= NBA_CLUB); };
+function bestNba(units, seuil, capt, force = []) {
+const best = new Map();
+for (const u of units) { const o = best.get(u.slug); if (!o || u.value > o.value) best.set(u.slug, u); }
+const all = [...best.values()].sort((a, b) => b.value - a.value), l = [...new Set([...all.slice(0, 10), ...all.filter((u) => u.st <= 2.5).slice(0, 6)])], F = force.filter((s) => best.has(s));
+F.forEach((s) => { const u = best.get(s); if (!l.includes(u)) l.push(u); });
+const n = l.length; let top = null;
+for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) for (let c = b + 1; c < n; c++) for (let d = c + 1; d < n; d++) for (let e = d + 1; e < n; e++) {
+const f = [l[a], l[b], l[c], l[d], l[e]];
+if (!nbaOk(f) || (F.length && !F.every((s) => f.some((u) => u.slug === s)))) continue;
+const mean = f.reduce((s, u) => s + u.value, 0), sd = Math.sqrt(f.reduce((s, u) => s + u.sd ** 2, 0)), p = sxPAbove(mean, sd, seuil);
+if (!top || p > top.p + 1e-12 || (Math.abs(p - top.p) <= 1e-12 && mean > top.mean)) top = { p, mean, sd, cap: null, picks: f.map((u) => [u, '']) };
+}
+return top;
 }
 // Meilleure compo (chance de dépasser le seuil) ; un joueur une seule fois ; force = joueurs gardés (Garder)
 function bestCompo(units, seuil, capt, force = []) {
@@ -2386,11 +2475,11 @@ if (!top || p > top.p + 1e-12 || (Math.abs(p - top.p) <= 1e-12 && mean > top.mea
 return top;
 }
 // Lot : jusqu'à nMax compos sans carte commune (gloutonnes) ; pre[n − 1] = chance et heures du lot réduit à n compos
-function lotPiste(units, seuil, capt, nMax = PISTE_VIES, forces = []) {
+function lotPiste(units, seuil, P, nMax = PISTE_VIES, forces = []) {
 let rest = units; const compos = [];
 while (compos.length < nMax) {
 const ci = compos.length, autres = new Set(forces.flatMap((f, i) => (i !== ci ? f || [] : [])));
-const F = forces[ci] || [], c = bestCompo(rest.filter((u) => !autres.has(u.slug)), seuil, capt, F);
+const F = forces[ci] || [], c = (P.best || bestCompo)(rest.filter((u) => !autres.has(u.slug)), seuil, P.capt, F);
 // Joueurs forcés (Garder, Forcer) : lot refusé s'il manque l'un d'eux ; le plan cherche alors un autre créneau
 if (F.length && !(c && F.every((x) => c.picks.some(([u]) => u.slug === x)))) return null;
 if (!c) break;
@@ -2399,7 +2488,7 @@ const pris = new Set(c.picks.map(([u]) => u.id)); rest = rest.filter((u) => !pri
 }
 if (!compos.length) return null;
 const pre = []; let q = 1, a = Infinity, b = -Infinity;
-compos.forEach((c) => { q *= 1 - c.p; c.picks.forEach(([u]) => { a = Math.min(a, u.t); b = Math.max(b, u.t); }); pre.push({ p: 1 - q, creneau: a, resultat: b + PISTE_DELAI }); });
+compos.forEach((c) => { q *= 1 - c.p; c.picks.forEach(([u]) => { a = Math.min(a, u.t); b = Math.max(b, u.t); }); pre.push({ p: 1 - q, creneau: a, resultat: b + P.delai }); });
 return { compos, pre };
 }
 const cut = (L, n) => (L ? { compos: L.compos.slice(0, n), pre: L.pre.slice(0, n) } : null);
@@ -2409,7 +2498,7 @@ const valPalier = (m, k, g) => { const vg = Number(g.gem) || 0, ve = Number(g.eu
 // Plan recalculé : stratégie (point 5 des demandes du 25/10/2026), palier et vies de départ, exclusions et joueurs gardés
 function planRecalc(m, g, depart, vies0) {
 const P = MOTEUR[m], U = pisteUnits(m, g.excl), seuils = seuilsOf(m).map((p) => p.seuil), K = seuils.length;
-if (!U.length) return { steps: [], raison: 'aucun match de tes joueurs ' + (m === 'europe' ? 'Limited en Ligue Europa ou Conference League' : 'du Set') + ' dans le calendrier de cette collecte (jeu matchs)' };
+if (!U.length) return { steps: [], raison: 'aucun match de tes joueurs ' + (m === 'europe' ? 'Limited en Ligue Europa ou Conference League' : m === 'arcade_nba' ? 'NBA du Set' : 'du Set') + ' dans le calendrier de cette collecte (jeu matchs)' };
 const T = [...new Set(U.map((u) => u.t))].sort((a, b) => a - b), n = T.length;
 // resv : joueurs forcés à une étape suivante, gardés pour elle (pas placés avant)
 let resv = new Set();
@@ -2420,16 +2509,16 @@ const strat = g.strat || 'adaptatif', seuilA = Math.min(0.99, Math.max(0.05, (Nu
 const premier = (k, nb, i0, ex, fo) => {
 for (let i = i0; i < n; i++) {
 let b = null;
-P.larg.forEach((_, w) => { const L = lotPiste(dans(i, w, ex), seuils[k - 1], P.capt, nb, fo); if (L && (!b || lastP(L).p > lastP(b.L).p + 0.005)) b = { i, w, L }; });
+P.larg.forEach((_, w) => { const L = lotPiste(dans(i, w, ex), seuils[k - 1], P, nb, fo); if (L && (!b || lastP(L).p > lastP(b.L).p + 0.005)) b = { i, w, L }; });
 if (b) return b;
 }
 return null;
 };
 // Conservateur : une compo, au créneau qui maximise sa chance (le plus tôt à égalité)
-const meilleur = (k, i0, ex, fo) => { let b = null; for (let i = i0; i < n; i++) P.larg.forEach((_, w) => { const L = lotPiste(dans(i, w, ex), seuils[k - 1], P.capt, 1, fo); if (L && (!b || lastP(L).p > lastP(b.L).p + 1e-9)) b = { i, w, L }; }); return b; };
+const meilleur = (k, i0, ex, fo) => { let b = null; for (let i = i0; i < n; i++) P.larg.forEach((_, w) => { const L = lotPiste(dans(i, w, ex), seuils[k - 1], P, 1, fo); if (L && (!b || lastP(L).p > lastP(b.L).p + 1e-9)) b = { i, w, L }; }); return b; };
 // Gains maximum : programmation dynamique V(palier, vies, créneau) sur la valeur espérée (cartes consommées ignorées, comme compos.mjs)
 const memoL = new Map(), memo = new Map();
-const lotM = (i, k, w) => { const key = (i * 8 + k) * 8 + w; if (!memoL.has(key)) memoL.set(key, lotPiste(dans(i, w, new Set()), seuils[k - 1], P.capt)); return memoL.get(key); };
+const lotM = (i, k, w) => { const key = (i * 8 + k) * 8 + w; if (!memoL.has(key)) memoL.set(key, lotPiste(dans(i, w, new Set()), seuils[k - 1], P)); return memoL.get(key); };
 const V = (k, v, i) => {
 if (k > K || i >= n) return { v: 0, i: -1 };
 const key = (k * 8 + v) * 1000 + i; if (memo.has(key)) return memo.get(key);
@@ -2452,13 +2541,13 @@ if (strat === 'allin' || (strat === 'adaptatif' && k <= 2)) return premier(k, v,
 if (strat === 'equilibre') return premier(k, Math.min(2, v), i0, ex, fo);
 if (strat === 'gains') {
 const d = V(k, v, i0);
-if (d.i >= 0) { const L = lotPiste(dans(d.i, d.w, ex), seuils[k - 1], P.capt, d.nb, fo); if (L) return { i: d.i, w: d.w, L }; }
+if (d.i >= 0) { const L = lotPiste(dans(d.i, d.w, ex), seuils[k - 1], P, d.nb, fo); if (L) return { i: d.i, w: d.w, L }; }
 return premier(k, v, i0, ex, fo);
 }
 // Adaptatif (palier 3 et plus) : au premier créneau jouable, le plus petit lot dont la chance atteint le seuil
 const a = premier(k, v, i0, ex, fo); if (!a) return null;
 let b = null;
-P.larg.forEach((_, w) => { const L = lotPiste(dans(a.i, w, ex), seuils[k - 1], P.capt, v, fo); if (!L) return; const ix = L.pre.findIndex((x) => x.p >= seuilA); if (ix >= 0 && (!b || ix < b.ix || (ix === b.ix && L.pre[ix].p > b.L.pre[b.ix].p))) b = { ix, w, L }; });
+P.larg.forEach((_, w) => { const L = lotPiste(dans(a.i, w, ex), seuils[k - 1], P, v, fo); if (!L) return; const ix = L.pre.findIndex((x) => x.p >= seuilA); if (ix >= 0 && (!b || ix < b.ix || (ix === b.ix && L.pre[ix].p > b.L.pre[b.ix].p))) b = { ix, w, L }; });
 if (b) return { i: a.i, w: b.w, L: cut(b.L, b.ix + 1), seuilOk: true };
 const c = meilleur(k, i0, ex, fo); if (c) c.repli = true; return c;
 };
@@ -2493,7 +2582,7 @@ if (a) vides = vides.filter((x) => x.ci < a.L.compos.length);
 if (a && vides.length) {
 // Lot réel sans les compos vides, au même créneau ; les compos vides gardent leur place (numéro)
 const nReel = a.L.compos.length - vides.length, fc = keep.filter((_, ci) => !vides.some((x) => x.ci === ci));
-a = { ...a, nb0: a.L.compos.length, L: nReel > 0 ? lotPiste(dans(a.i, a.w, ex), seuils[k - 1], P.capt, nReel, fc) : null, L0: a.L };
+a = { ...a, nb0: a.L.compos.length, L: nReel > 0 ? lotPiste(dans(a.i, a.w, ex), seuils[k - 1], P, nReel, fc) : null, L0: a.L };
 }
 }
 if (!a) break;
@@ -2517,15 +2606,15 @@ k++; v = PISTE_VIES; i0 = j;
 // Forcés hors du plan recalculé : étape non atteinte, ou compo au-delà du lot engagé
 const warns = steps.flatMap((s) => s.warns.map((w) => ['Étape ' + s.etape, w]));
 Object.entries(g.locks).forEach(([key, l]) => { const [d, e, c] = key.split('|').map(Number), s = steps[e - 1]; if (d === depart && (!s || c > s.nb)) l.forEach((x) => warns.push(['Étape ' + e, (jMap().get(x)?.joueur || x) + ' n’est pas gardé : ' + (s ? 'le plan n’engage que ' + nC(s.nb) + ' à cette étape.' : 'le plan recalculé ' + (steps.length ? 's’arrête à l’étape ' + steps.length : 'n’a aucune étape') + '.')])); });
-return { steps, warns, raison: steps.length ? '' : 'aucune compo complète (gardien, défenseur, milieu, attaquant et un extra de champ) dans un même créneau d’ici la fin de la période' };
+return { steps, warns, raison: steps.length ? '' : 'aucune compo complète (' + (m === 'arcade_nba' ? '5 joueurs, ≤ ' + NBA_CAP + '★, ≤ ' + NBA_CLUB + ' par équipe' : 'gardien, défenseur, milieu, attaquant et un extra de champ') + ') dans un même créneau d’ici la fin de la période' };
 }
 
 // ---------- Réglages des pistes (mémorisés dans ce navigateur) ----------
 const STRATS = [['allin', 'All in', 'Toutes les vies restantes du palier en un seul lot, au premier créneau jouable : avance vite'], ['conservateur', 'Conservateur', 'Une compo à la fois, au créneau qui maximise sa chance ; la suivante après son résultat'], ['equilibre', 'Équilibré', 'Lots de 2 compos, au premier créneau jouable'], ['adaptatif', 'Adaptatif', 'Recommandé : paliers 1 et 2 en All in ; ensuite le plus petit lot dont la chance atteint le seuil, les autres vies gardées pour la suite'], ['gains', 'Gains maximum', 'Taille et moment des lots qui maximisent la valeur espérée des récompenses']];
 const stratLbl = (s) => (STRATS.find((x) => x[0] === s) || STRATS[3])[1];
 const PDEF = () => ({ strat: '', seuil: 60, excl: [], locks: {}, vies: 4, gem: '', eur: '' });
-const PR = { arcade: PDEF(), europe: PDEF() };
-try { const s = JSON.parse(localStorage.getItem('sx-pistes-v1') || 'null'); if (s) for (const m of ['arcade', 'europe']) if (s[m]) PR[m] = { ...PDEF(), ...s[m] }; } catch (e) { /* stockage indisponible */ }
+const PR = { arcade: PDEF(), europe: PDEF(), arcade_nba: PDEF() };
+try { const s = JSON.parse(localStorage.getItem('sx-pistes-v1') || 'null'); if (s) for (const m of Object.keys(PR)) if (s[m]) PR[m] = { ...PDEF(), ...s[m] }; } catch (e) { /* stockage indisponible */ }
 const savePR = () => { try { localStorage.setItem('sx-pistes-v1', JSON.stringify(PR)); } catch (e) { /* stockage indisponible */ } };
 const regle = (m) => { const g = PR[m]; return !!g.strat || g.excl.length > 0 || Object.values(g.locks).some((l) => l.length) || Number(g.vies) < PISTE_VIES; };
 const pisteCache = new Map();
@@ -2562,55 +2651,59 @@ bKo.addEventListener('click', () => setP(1));
 iS.addEventListener('change', (e) => { const v = Math.round(Number(e.target.value)); g().seuil = v >= 10 && v <= 95 ? v : 60; if (!g().strat) g().strat = 'adaptatif'; refresh(m); });
 iG.addEventListener('change', (e) => { g().gem = e.target.value; refresh(m); });
 iE.addEventListener('change', (e) => { g().eur = e.target.value; refresh(m); });
-bR.addEventListener('click', () => { PR[m] = PDEF(); arcMsg.ex = arcMsg.fo = ''; refresh(m); });
+bR.addEventListener('click', () => { PR[m] = PDEF(); if (MSG[m]) MSG[m].ex = MSG[m].fo = ''; refresh(m); });
 }
-// ---------- Recherche « Joueurs à exclure » / « Joueurs à forcer » du plan Arcade (composant partagé pickUI / pickDraw) ----------
-// Suggestions : joueurs de football avec une carte Common du set en cours (MOTEUR.arcade) ; Forcer = Garder (PR.arcade.locks[palier|étape|compo])
+// ---------- Recherche « Joueurs à exclure » / « Joueurs à forcer » des plans Arcade (arc) et Set NBA (arn) (composant partagé pickUI / pickDraw) ----------
+// Suggestions : joueurs du sport de la piste avec une carte Common du set en cours (MOTEUR[m]) ; Forcer = Garder (PR[m].locks[palier|étape|compo])
 const nFo = (g) => Object.values(g.locks).reduce((n, l) => n + l.length, 0);
-const arcMsg = { ex: '', fo: '' }, ARC_SP = 'de football avec une carte Common du set en cours';
-const arcCards = (slug) => (ok('cartes') || []).filter((k) => sportOfRow(k) === 'FOOTBALL' && MOTEUR.arcade.carte(k) && (!slug || k.slug === slug));
-const arcIdx = () => { const J = jMap(), cs = arcCards(); return pickIdx('arc', J.size + '|' + cs.length, () => { const w = new Set(cs.map((k) => k.slug)); return [...J.values()].filter((r) => sportOfRow(r) === 'FOOTBALL' && w.has(r.slug) && MOTEUR.arcade.joueur(r) && POSTES.includes(r.poste)); }, (r) => r.joueur + (r.club ? ' · ' + r.club : '')); };
-// Joueur de football connu mais sans carte jouable en Arcade : refus explicite plutôt que « aucun joueur »
-const arcFind = (txt) => { const m = pickFind(arcIdx(), txt, ARC_SP); if (!m.err) return m; const r = [...jMap().values()].find((y) => sportOfRow(y) === 'FOOTBALL' && normTxt(y.joueur) === normTxt(txt)); return r ? { err: 'Refusé : ' + r.joueur + ' n’a aucune carte Common du set en cours jouable en Arcade.' } : m; };
-const arcSay = (k, t) => { arcMsg[k] = t; drawArcade(); };
-function arcEx() {
-const g = PR.arcade, q = $('#arc-ex-q'), m = arcFind(q.value); if (m.err) return arcSay('ex', m.err);
-const name = jMap().get(m.slug)?.joueur || m.slug; q.value = '';
-if (g.excl.includes(m.slug)) return arcSay('ex', name + ' est déjà exclu.');
-arcMsg.ex = name + ' est exclu de tout le plan Arcade' + (Object.values(g.locks).some((l) => l.includes(m.slug)) ? ' (il n’est plus forcé)' : '') + '.'; arcMsg.fo = '';
-exclP('arcade', m.slug);
-}
-function arcFo() {
-const g = PR.arcade, dep = String(PISTES.arcade.palier), q = $('#arc-fo-q'), e = $('#arc-fo-comp').value, c = Number($('#arc-fo-n').value) || 1;
-if (!e) return arcSay('fo', 'Aucune étape à venir dans le plan Arcade : rien à forcer.');
-const m = arcFind(q.value); if (m.err) return arcSay('fo', m.err);
-const name = jMap().get(m.slug)?.joueur || m.slug, key = dep + '|' + e + '|' + c, lieu = 'la compo ' + c + ' de l’étape ' + e;
-const where = Object.entries(g.locks).filter(([k, l]) => l.includes(m.slug) && k.split('|')[0] === dep).map(([k]) => k.split('|')), nk = arcCards(m.slug).length;
-if ((g.locks[key] || []).includes(m.slug)) { q.value = ''; return arcSay('fo', name + ' est déjà forcé dans ' + lieu + '.'); }
+const MSG = {}, PICK = {};
+for (const m of ['arcade', 'arcade_nba']) {
+const P = PISTES[m], pre = P.id, sp = P.sp, nba = sp === 'NBA', SP = (nba ? 'NBA' : 'de football') + ' avec une carte Common du set en cours', plan = 'plan ' + P.nom;
+const msg = (MSG[m] = { ex: '', fo: '' });
+const cards = (slug) => (ok('cartes') || []).filter((k) => sportOfRow(k) === sp && MOTEUR[m].carte(k) && (!slug || k.slug === slug));
+const idx = () => { const J = jMap(), cs = cards(); return pickIdx(pre, J.size + '|' + cs.length, () => { const w = new Set(cs.map((k) => k.slug)); return [...J.values()].filter((r) => sportOfRow(r) === sp && w.has(r.slug) && MOTEUR[m].joueur(r) && (nba || POSTES.includes(r.poste))); }, (r) => r.joueur + (r.club ? ' · ' + r.club : '')); };
+// Joueur connu du sport mais sans carte jouable dans la piste : refus explicite plutôt que « aucun joueur »
+const find = (txt) => { const x = pickFind(idx(), txt, SP); if (!x.err) return x; const r = [...jMap().values()].find((y) => sportOfRow(y) === sp && normTxt(y.joueur) === normTxt(txt)); return r ? { err: 'Refusé : ' + r.joueur + ' n’a aucune carte Common du set en cours jouable dans le ' + plan + '.' } : x; };
+const say = (k, t) => { msg[k] = t; drawPiste(m); };
+const ex = () => {
+const g = PR[m], q = $('#' + pre + '-ex-q'), x = find(q.value); if (x.err) return say('ex', x.err);
+const name = jMap().get(x.slug)?.joueur || x.slug; q.value = '';
+if (g.excl.includes(x.slug)) return say('ex', name + ' est déjà exclu.');
+msg.ex = name + ' est exclu de tout le ' + plan + (Object.values(g.locks).some((l) => l.includes(x.slug)) ? ' (il n’est plus forcé)' : '') + '.'; msg.fo = '';
+exclP(m, x.slug);
+};
+const fo = () => {
+const g = PR[m], dep = String(P.palier), q = $('#' + pre + '-fo-q'), e = $('#' + pre + '-fo-comp').value, c = Number($('#' + pre + '-fo-n').value) || 1;
+if (!e) return say('fo', 'Aucune étape à venir dans le ' + plan + ' : rien à forcer.');
+const x = find(q.value); if (x.err) return say('fo', x.err);
+const name = jMap().get(x.slug)?.joueur || x.slug, key = dep + '|' + e + '|' + c, lieu = 'la compo ' + c + ' de l’étape ' + e;
+const where = Object.entries(g.locks).filter(([k, l]) => l.includes(x.slug) && k.split('|')[0] === dep).map(([k]) => k.split('|')), nk = cards(x.slug).length;
+if ((g.locks[key] || []).includes(x.slug)) { q.value = ''; return say('fo', name + ' est déjà forcé dans ' + lieu + '.'); }
 const same = where.find((w) => w[1] === e);
-if (same) return arcSay('fo', 'Refusé : ' + name + ' est déjà forcé dans la compo ' + same[2] + ' de l’étape ' + e + '. Un joueur n’est forcé que dans une compo par étape : retire-le d’abord de cette compo.');
-if (where.length >= nk) return arcSay('fo', 'Refusé : ' + name + ' est déjà forcé dans ' + where.map((w) => 'la compo ' + w[2] + ' de l’étape ' + w[1]).join(' et ') + ', et une carte jouée ne resservant plus, il lui faudrait une carte de plus (' + (nk > 1 ? nk + ' cartes Common' : 'une seule carte Common') + ').');
-if ((g.locks[key] || []).length >= 5) return arcSay('fo', 'Refusé : ' + lieu + ' a déjà 5 joueurs forcés.');
-// Il doit jouer pendant le créneau de l'étape (du premier coup d'envoi à la dernière heure possible du lot)
-const steps = stepsOf('arcade').steps, st = steps.find((x) => String(x.etape) === e), us = pisteUnits('arcade').filter((u) => u.slug === m.slug).sort((a, b) => a.t - b.t);
-const dans = (x) => us.some((u) => u.t >= x.creneau && u.t <= Math.max(x.resultat - PISTE_DELAI, x.creneau + 2 * H));
-if (st && Number.isFinite(st.creneau) && !dans(st)) { const alt = steps.filter(dans).map((x) => x.etape); return arcSay('fo', 'Refusé : ' + name + ' ne joue pas pendant le créneau de l’étape ' + e + ' (' + fmtDate(isoOf(st.creneau)) + ')' + (us.length ? ' ; son prochain match : ' + fmtDate(us[0].g.date) + (alt.length ? ', choisis l’étape ' + alt.join(' ou ') : '') : ' ; aucun match d’ici la fin de la période Arcade') + '.'); }
-const wasEx = g.excl.includes(m.slug);
-g.excl = g.excl.filter((x) => x !== m.slug); g.locks[key] = [...(g.locks[key] || []), m.slug]; q.value = '';
-arcMsg.fo = name + ' est forcé dans ' + lieu + (wasEx ? ' (il n’est plus exclu)' : '') + '.'; arcMsg.ex = '';
-refresh('arcade');
-}
-pickUI('arc', { idx: arcIdx, ex: arcEx, fo: arcFo, cible: () => drawArcade(), lblA: 'Étape du plan' });
-function arcPickDraw(S) {
-const g = PR.arcade, P = arcIdx(), dep = PISTES.arcade.palier, now = Date.now(), nm = (x) => jMap().get(x)?.joueur || x;
+if (same) return say('fo', 'Refusé : ' + name + ' est déjà forcé dans la compo ' + same[2] + ' de l’étape ' + e + '. Un joueur n’est forcé que dans une compo par étape : retire-le d’abord de cette compo.');
+if (where.length >= nk) return say('fo', 'Refusé : ' + name + ' est déjà forcé dans ' + where.map((w) => 'la compo ' + w[2] + ' de l’étape ' + w[1]).join(' et ') + ', et une carte jouée ne resservant plus, il lui faudrait une carte de plus (' + (nk > 1 ? nk + ' cartes Common' : 'une seule carte Common') + ').');
+if ((g.locks[key] || []).length >= 5) return say('fo', 'Refusé : ' + lieu + ' a déjà 5 joueurs forcés.');
+// Il doit jouer pendant le créneau de l'étape (du premier match à la dernière heure possible du lot)
+const steps = stepsOf(m).steps, st = steps.find((y) => String(y.etape) === e), us = pisteUnits(m).filter((u) => u.slug === x.slug).sort((a, b) => a.t - b.t), M = MOTEUR[m];
+const dans = (y) => us.some((u) => u.t >= y.creneau && u.t <= Math.max(y.resultat - M.delai, y.creneau + Math.max(...M.larg)));
+if (st && Number.isFinite(st.creneau) && !dans(st)) { const alt = steps.filter(dans).map((y) => y.etape); return say('fo', 'Refusé : ' + name + ' ne joue pas pendant le créneau de l’étape ' + e + ' (' + fmtDate(isoOf(st.creneau)) + ')' + (us.length ? ' ; son prochain match : ' + fmtDate(us[0].g.date) + (alt.length ? ', choisis l’étape ' + alt.join(' ou ') : '') : ' ; aucun match d’ici la fin de la période') + '.'); }
+const wasEx = g.excl.includes(x.slug);
+g.excl = g.excl.filter((y) => y !== x.slug); g.locks[key] = [...(g.locks[key] || []), x.slug]; q.value = '';
+msg.fo = name + ' est forcé dans ' + lieu + (wasEx ? ' (il n’est plus exclu)' : '') + '.'; msg.ex = '';
+refresh(m);
+};
+pickUI(pre, { idx, ex, fo, cible: () => drawPiste(m), lblA: 'Étape du plan' });
+PICK[m] = (S) => {
+const g = PR[m], I = idx(), dep = P.palier, now = Date.now(), nm = (x) => jMap().get(x)?.joueur || x;
 const st = S.steps.filter((x) => !(x.creneau <= now));
-pickDraw('arc', { idx: P,
-helpEx: P.list.length + ' joueurs de football avec une carte Common du set en cours, dans le plan ou non. Choisis un nom : il est retiré de tout le plan Arcade.',
-helpFo: st.length ? 'Choisis l’étape et la compo du plan, puis le joueur : il y entre avec sa meilleure carte libre et le plan est recalculé autour de lui (au besoin à un créneau où il joue).' : 'Aucune étape à venir dans le plan Arcade : rien à forcer.',
+pickDraw(pre, { idx: I,
+helpEx: I.list.length + ' joueurs ' + SP + ', dans le plan ou non. Choisis un nom : il est retiré de tout le ' + plan + '.',
+helpFo: st.length ? 'Choisis l’étape et la compo du plan, puis le joueur : il y entre avec sa meilleure carte libre et le plan est recalculé autour de lui (au besoin à un créneau où il joue).' : 'Aucune étape à venir dans le ' + plan + ' : rien à forcer.',
 cibles: st.map((x) => [String(x.etape), 'Étape ' + x.etape + ' · palier ' + x.palier + (Number.isFinite(x.creneau) ? ', ' + fmtDate(isoOf(x.creneau)) : ''), Math.max(1, x.nb)]),
-ex: g.excl.map((x) => [nm(x), 'Réintégrer ' + nm(x) + ' dans le plan', () => { g.excl = g.excl.filter((y) => y !== x); arcMsg.ex = ''; refresh('arcade'); }, 'Réintégrer ce joueur dans le plan']),
-fo: Object.entries(g.locks).flatMap(([k, l]) => l.map((x) => { const [d, e, c] = k.split('|'), t = 'étape ' + e + ', compo ' + c + (Number(d) !== dep ? ' (départ au palier ' + d + ')' : ''); return [nm(x) + ' · ' + t, 'Ne plus forcer ' + nm(x) + ', ' + t, () => { g.locks[k] = g.locks[k].filter((y) => y !== x); arcMsg.fo = ''; refresh('arcade'); }, 'Ne plus forcer ce joueur']; })),
-msgEx: arcMsg.ex, msgFo: arcMsg.fo, warns: S.warns || [] });
+ex: g.excl.map((x) => [nm(x), 'Réintégrer ' + nm(x) + ' dans le plan', () => { g.excl = g.excl.filter((y) => y !== x); msg.ex = ''; refresh(m); }, 'Réintégrer ce joueur dans le plan']),
+fo: Object.entries(g.locks).flatMap(([k, l]) => l.map((x) => { const [d, e, c] = k.split('|'), t = 'étape ' + e + ', compo ' + c + (Number(d) !== dep ? ' (départ au palier ' + d + ')' : ''); return [nm(x) + ' · ' + t, 'Ne plus forcer ' + nm(x) + ', ' + t, () => { g.locks[k] = g.locks[k].filter((y) => y !== x); msg.fo = ''; refresh(m); }, 'Ne plus forcer ce joueur']; })),
+msgEx: msg.ex, msgFo: msg.fo, warns: S.warns || [] });
+};
 }
 function syncTools(m, S) {
 const P = PISTES[m], g = PR[m], id = (s) => $('#' + P.id + '-' + s), st = g.strat || 'adaptatif';
@@ -2620,8 +2713,8 @@ document.querySelectorAll('#' + P.id + '-strat button').forEach((b) => b.setAttr
 id('w-seuil').hidden = st !== 'adaptatif'; id('seuil').value = String(g.seuil);
 if (m === 'arcade') { id('w-gains').hidden = st !== 'gains'; id('gem').value = g.gem; id('eur').value = g.eur; }
 const J = jMap(), chips = id('chips'); chips.replaceChildren();
-if (m === 'arcade') arcPickDraw(S); else g.excl.forEach((s) => { const b = el('button', 'sx-btn', '× ' + (J.get(s)?.joueur || s)); b.title = 'Réintégrer ce joueur dans le plan'; b.addEventListener('click', () => { g.excl = g.excl.filter((x) => x !== s); refresh(m); }); chips.append(b); });
-if (m !== 'arcade') Object.entries(g.locks).forEach(([k, l]) => l.forEach((s) => { const [d, e, c] = k.split('|'); const b = el('button', 'sx-btn', 'Gardé : ' + (J.get(s)?.joueur || s)); b.title = 'Ne plus garder (palier de départ ' + d + ', étape ' + e + ', compo ' + c + ')'; b.addEventListener('click', () => { g.locks[k] = g.locks[k].filter((x) => x !== s); refresh(m); }); chips.append(b); }));
+if (PICK[m]) PICK[m](S); else g.excl.forEach((s) => { const b = el('button', 'sx-btn', '× ' + (J.get(s)?.joueur || s)); b.title = 'Réintégrer ce joueur dans le plan'; b.addEventListener('click', () => { g.excl = g.excl.filter((x) => x !== s); refresh(m); }); chips.append(b); });
+if (!PICK[m]) Object.entries(g.locks).forEach(([k, l]) => l.forEach((s) => { const [d, e, c] = k.split('|'); const b = el('button', 'sx-btn', 'Gardé : ' + (J.get(s)?.joueur || s)); b.title = 'Ne plus garder (palier de départ ' + d + ', étape ' + e + ', compo ' + c + ')'; b.addEventListener('click', () => { g.locks[k] = g.locks[k].filter((x) => x !== s); refresh(m); }); chips.append(b); }));
 id('reset').hidden = !regle(m);
 id('etat').textContent = S.src === 'calc'
 ? (S.auto ? 'Pas de plan dans la collecte depuis ce palier : plan calculé dans la page, ' : 'Plan recalculé dans la page : ') + 'stratégie ' + stratLbl(st) + (st === 'adaptatif' ? ' (seuil ' + g.seuil + ' %)' : '') + ', palier ' + P.palier + ', ' + plural(Number(g.vies), 'vie', 'vies') + (g.excl.length ? ', ' + plural(g.excl.length, 'joueur exclu', 'joueurs exclus') : '') + (nFo(g) ? ', ' + plural(nFo(g), 'joueur forcé', 'joueurs forcés') : '') + '.'
@@ -2631,6 +2724,9 @@ id('etat').textContent = S.src === 'calc'
 // Étapes affichées : plan recalculé si un réglage est fait, sinon plan_arcade (données), converti au même format
 const isoOf = (t) => new Date(t).toISOString().slice(0, 16);
 const RE_J = /^(Gardien|Défenseur|Milieu|Attaquant|Extra)\s+(.+?)\s+\((.*),\s*([^,()]*)\)\s+(-?[\d.,]+)(\s*\(capitaine\))?$/i;
+// Set NBA : « Nom (équipe, heure, N★) score », sans poste ; ramené au format de RE_J (slot vide)
+const RE_N = /^(.+?)\s+\((.*?),\s*(\d{1,2}h\d\d)(?:,\s*[\d.,]+\s*★)?\)\s+(-?[\d.,]+)$/;
+const reNba = (s) => { const x = RE_N.exec(s); return x ? [s, '', x[1], x[2], x[3], x[4], ''] : null; };
 function stepsOf(m) {
 const P = PISTES[m], g = PR[m];
 let msg = '';
@@ -2641,13 +2737,13 @@ if (res.steps.length || pisteUnits(m).length) return { src: 'calc', ...res };
 msg = 'Recalcul impossible : ' + res.raison + '.';
 }
 const rows = planOf(m).filter((r) => Number(r.depart) === P.palier && Number(r.etape) > 0);
-const U = pisteUnits(m), J = [...jMap().values()].filter((r) => sportOfRow(r) === 'FOOTBALL');
-const cards = (ok('cartes') || []).filter((k) => sportOfRow(k) === 'FOOTBALL' && MOTEUR[m].carte(k));
+const U = pisteUnits(m), J = [...jMap().values()].filter((r) => sportOfRow(r) === P.sp), nba = P.sp === 'NBA';
+const cards = (ok('cartes') || []).filter((k) => sportOfRow(k) === P.sp && MOTEUR[m].carte(k));
 const steps = [...new Set(rows.map((r) => Number(r.etape)))].sort((a, b) => a - b).map((k) => {
 const lot = rows.filter((y) => Number(y.etape) === k).sort((a, b) => Number(a.compo) - Number(b.compo)), r0 = lot[0];
 const compos = lot.map((r) => {
 const picks = String(r.joueurs || '').split(';').map((s) => s.trim()).filter(Boolean).map((s) => {
-const x = RE_J.exec(s); if (!x) return { slot: '', name: s.replace(/\s*\(capitaine\)/i, ''), value: null, cap: /\(capitaine\)/i.test(s) };
+const x = nba ? reNba(s) : RE_J.exec(s); if (!x) return { slot: '', name: s.replace(/\s*\(capitaine\)/i, ''), value: null, cap: /\(capitaine\)/i.test(s) };
 const jr = J.find((y) => y.joueur === x[2] && (!x[3] || !y.club || y.club === x[3])) || J.find((y) => y.joueur === x[2]);
 const us = jr ? U.filter((u) => u.slug === jr.slug) : [];
 const u = us.find((y) => hmBxl(y.g.date) === x[4].trim()) || us[0];
@@ -2672,9 +2768,13 @@ const drawArcade = () => drawPiste('arcade');
 const drawEurope = () => drawPiste('europe');
 const stepIdx = new Map();
 function drawPiste(m) {
-const P = PISTES[m], id = (s) => $('#' + P.id + '-' + s), eur = m === 'europe';
+const P = PISTES[m], id = (s) => $('#' + P.id + '-' + s), eur = m === 'europe', nba = m === 'arcade_nba';
 const box = $(P.box); if (box.hidden) return;
-const x = (ok('resume') || [])[0] || {};
+const x = (ok('resume') || [])[0] || {}, tt = id('titre'), sn = nba ? x.set_nba : x.set;
+// Nom du set lu dans resume (set : football, set_nba : NBA), jamais écrit en dur
+if (tt) tt.textContent = 'Plan de piste ' + (nba ? 'Set ' + (has(sn) ? sn + ' ' : '') + 'NBA' : 'Arcade' + (has(sn) ? ' · set ' + sn : ''));
+const per = id('periode');
+if (per && !eur) { const d = x.arcade_nba_debut, f = pisteFin(m, x); per.hidden = !has(d) && !has(f); per.textContent = per.hidden ? '' : 'Période (gameweek NBA) : ' + (has(d) ? 'du ' + fmtWhen(d) : '') + (has(f) ? ' au ' + fmtWhen(f) : '') + '.'; }
 const steps = id('steps'); steps.replaceChildren();
 const empty = id('empty'); empty.hidden = true;
 if (eur) {
@@ -2703,7 +2803,7 @@ li.append(el('span', 'sx-lbl', 'Palier ' + p.palier + (p.palier === P.palier ? '
 if (!eur) li.append(el('span', '', p.lot));
 ol.append(li);
 }
-const fin = eur ? x.europe_fin : has(x.arcade_fin) ? x.arcade_fin : x.gw_fin_football;
+const fin = pisteFin(m, x);
 const say = (t) => { empty.hidden = false; empty.textContent = t; };
 if (S.src === 'calc' && !S.steps.length) return say('Aucune compo possible depuis le palier ' + P.palier + ' : ' + S.raison + '.');
 // Ligne d'information (etape 0) : aucune compo possible, raison dans conseil
@@ -2711,9 +2811,9 @@ const info = plan.find((r) => Number(r.etape) === 0);
 if (S.src === 'data' && !S.steps.length) {
 if (info) return say('Aucune compo possible' + (has(info.conseil) ? ' : ' + String(info.conseil).replace(/[\s.]*$/, '') + '.' : '.'));
 if (!plan.length) {
-const gf = (gwOf('FOOTBALL') || {}).fin;
+const gf = (gwOf(P.sp) || {}).fin;
 return say(eur ? 'Aucun plan European Contenders dans cette collecte' + (has(fin) ? ' (période jusqu’au ' + fmtWhen(fin) + ')' : '') + '.'
-: 'Aucun de tes joueurs du Set ne joue d’ici la fin de la période Arcade' + (fin ? ', le ' + fmtWhen(fin) : gf ? ', le ' + fmtWDM(gf) : '') + ' : pas de plan à proposer.' + (ok('plan_arcade') ? '' : ' (Le plan arrivera avec une prochaine collecte.)'));
+: 'Aucun de tes joueurs ' + (nba ? 'NBA ' : '') + 'du Set ne joue d’ici la fin de la période ' + P.nom + (fin ? ', le ' + fmtWhen(fin) : gf ? ', le ' + fmtWDM(gf) : '') + ' : pas de plan à proposer.' + (ok('plan_arcade') ? '' : ' (Le plan arrivera avec une prochaine collecte.)'));
 }
 return say('Pas de plan depuis le palier ' + P.palier + ' dans cette collecte.');
 }
@@ -2725,7 +2825,7 @@ for (const s of S.steps) steps.append(stepCard(m, s, s.etape === enCours, s.cren
 }
 // Une étape : chiffres (compos engagées, vies, chance), conseil, conduite en cas d'échec, puis les compos comme en NBA Pro
 function stepCard(m, s, on, past, U, src) {
-const P = PISTES[m], g = PR[m];
+const P = PISTES[m], g = PR[m], nba = m === 'arcade_nba', st = (p) => (p.u ? p.u.st : Number((p.r || {}).etoiles) || 1), clubOf = (p) => (p.u ? p.u.club : (p.r || {}).club || '');
 const art = el('article', 'sx-step' + (on ? ' sx-on' : past ? ' sx-past' : ''));
 art.setAttribute('aria-label', 'Étape ' + s.etape + (on ? ', en cours' : ''));
 if (on) art.setAttribute('aria-current', 'step');
@@ -2775,8 +2875,8 @@ else if (c) {
 const lotIds = new Set(s.compos.flatMap((y) => y.picks.map((p) => (p.u ? p.u.id : p[0] ? p[0].id : '')))), slugs = new Set();
 const picks = c.picks.map((p) => (Array.isArray(p) ? { slot: p[1], name: p[0].r.joueur, r: p[0].r, u: p[0], k: p[0].k, g: p[0].g, value: p[0].value + (p[0] === c.cap ? p[0].base * s.capt : 0), cap: p[0] === c.cap } : p));
 picks.forEach((p) => p.r && p.r.slug && slugs.add(p.r.slug));
-const tEnd = s.resultat - PISTE_DELAI;
-const labels = ['Poste', 'Joueur et carte', 'Match', 'Adv. att. / déf.', 'Attendu (pts)', 'Bonus', 'Final (pts)', 'Remplaçant', ''];
+const tEnd = s.resultat - MOTEUR[m].delai;
+const labels = [nba ? '#' : 'Poste', 'Joueur et carte', 'Match', 'Adv. att. / déf.', 'Attendu (pts)', 'Bonus', 'Final (pts)', 'Remplaçant', ''];
 const t = el('table', 'sx-table sx-cards'), hr = el('tr');
 labels.forEach((lb, i) => { const th = el('th', [4, 5, 6].includes(i) ? 'num' : ''); th.append(el('span', '', lb)); hr.append(th); });
 const th = el('thead'); th.append(hr); t.append(th);
@@ -2786,31 +2886,32 @@ const r = p.r || {}, gm = p.g || {}, slug = r.slug, locked = !!slug && (g.locks[
 const tr = el('tr', locked ? 'sx-locked' : '');
 const name = el('td'); name.append(el('span', p.cap ? 'sx-cap' : '', p.name || r.joueur || ''));
 if (p.cap) name.append(' ', pill('Capitaine', 'sx-ok'));
-const is = r.suspension ? [r.suspension, 'sx-bad'] : r.blessure && !doubt(r) ? ['Blessé : ' + r.blessure, 'sx-bad'] : doubt(r) ? ['Incertain : ' + r.blessure, 'sx-warn'] : has(gm.proba) && Number(gm.proba) < 60 ? ['Titulaire à ' + gm.proba + ' %', 'sx-warn'] : null;
+const is = r.suspension ? [r.suspension, 'sx-bad'] : r.blessure && !doubt(r) ? ['Blessé : ' + r.blessure, 'sx-bad'] : doubt(r) ? ['Incertain : ' + r.blessure, 'sx-warn'] : has(gm.proba) && Number(gm.proba) < 60 ? [(nba ? 'Joue à ' : 'Titulaire à ') + gm.proba + ' %', 'sx-warn'] : null;
 if (is) name.append(' ', pill(is[0], is[1]));
-name.append(el('span', 'sx-sub', p.k ? p.k.label || '' : ''));
+name.append(el('span', 'sx-sub', (p.k ? p.k.label || '' : '') + (nba ? (p.k ? ' · ' : '') + stars(st(p)) : '')));
 const mt = el('td'); mt.append(el('div', '', gm.adversaire || ''), el('div', 'sx-mut', gm.date ? fmtDate(gm.date) : ''));
-const bonus = p.k ? Math.round(((Number(p.k.puissance) || 1) * (m === 'arcade' ? Number(p.k.skin) || 1 : 1) - 1) * 100) : null;
-// Remplaçant : meilleure carte libre du même poste (extra : joueur de champ) dans le créneau du lot
-const sub = Number.isFinite(s.creneau) ? U.filter((u) => u.t >= s.creneau && u.t <= tEnd && !lotIds.has(u.id) && !slugs.has(u.slug) && (p.slot === 'Extra' ? u.pos !== 'Gardien' : u.pos === p.slot)).sort((a, b) => b.value - a.value)[0] : null;
+const bonus = p.k ? Math.round(((Number(p.k.puissance) || 1) * (m !== 'europe' ? Number(p.k.skin) || 1 : 1) - 1) * 100) : null;
+// Remplaçant : meilleure carte libre du même poste (extra : joueur de champ) dans le créneau du lot ; Set NBA : tout joueur qui garde la compo sous 16★ et 4 par équipe
+const autres = picks.filter((q) => q !== p).map((q) => ({ st: st(q), club: clubOf(q) })), sousCap = (u) => nbaOk([...autres, u]);
+const sub = Number.isFinite(s.creneau) ? U.filter((u) => u.t >= s.creneau && u.t <= tEnd && !lotIds.has(u.id) && !slugs.has(u.slug) && (nba ? sousCap(u) : p.slot === 'Extra' ? u.pos !== 'Gardien' : u.pos === p.slot)).sort((a, b) => b.value - a.value)[0] : null;
 const sw = el('td');
 if (sub) { sw.append(el('span', '', sub.r.joueur), el('span', 'sx-sub', signed(sub.value - (p.u ? p.u.value : p.value || 0)) + ' pt')); sw.title = sub.k.label + ' · ' + fmtDate(sub.g.date); } else sw.append(el('span', 'sx-mut', 'aucun'));
 const acts = el('td'), bx = el('div', 'sx-acts');
 if (slug) {
 const bl = el('button', 'sx-btn', 'Garder'); bl.setAttribute('aria-pressed', String(locked)); bl.title = 'Garder ce joueur dans cette compo quand le plan est recalculé';
 bl.addEventListener('click', () => { const l = g.locks[lockKey] || []; g.locks[lockKey] = locked ? l.filter((y) => y !== slug) : [...l, slug].slice(-5); refresh(m); });
-const be = el('button', 'sx-btn', 'Exclure'); be.title = 'Retirer ce joueur de tout le plan ' + (m === 'europe' ? 'European Contenders' : 'Arcade');
+const be = el('button', 'sx-btn', 'Exclure'); be.title = 'Retirer ce joueur de tout le plan ' + P.nom;
 be.addEventListener('click', () => exclP(m, slug));
 bx.append(bl, be);
 }
 acts.append(bx);
-tr.append(el('td', '', p.slot), name, mt, advCell({ ...r, adv_attaque_rang: gm.adv_attaque_rang ?? r.adv_attaque_rang, adv_defense_rang: gm.adv_defense_rang ?? r.adv_defense_rang, adv_nb_equipes: gm.adv_nb_equipes ?? r.adv_nb_equipes, sport: 'FOOTBALL', adv_ligue: '' }, true),
+tr.append(el('td', '', nba ? String(picks.indexOf(p) + 1) : p.slot), name, mt, advCell({ ...r, adv_attaque_rang: gm.adv_attaque_rang ?? r.adv_attaque_rang, adv_defense_rang: gm.adv_defense_rang ?? r.adv_defense_rang, adv_nb_equipes: gm.adv_nb_equipes ?? r.adv_nb_equipes, sport: P.sp, adv_ligue: nba ? 'NBA' : '' }, !nba),
 el('td', 'num', p.u ? dec(p.u.base) : ''), el('td', 'num', bonus ? '+' + bonus + ' %' : ''), el('td', 'num', dec(p.value)), sw, acts);
 name.classList.add('sx-c-main'); acts.classList.add('sx-c-wide');
 labelRow(tr, labels); tb.append(tr);
 }
 const ft = el('tr'), td = el('td', 'sx-mut sx-c-main'); td.colSpan = labels.length;
-td.textContent = 'Score attendu de la compo : ' + (c.mean != null ? dec(c.mean) + ' pts' : '—') + (c.p != null ? ' · chance de dépasser ' + dec(s.seuil, 0) + ' pts : ' + pct(c.p) : '');
+td.textContent = 'Score attendu de la compo : ' + (c.mean != null ? dec(c.mean) + ' pts' : '—') + (c.p != null ? ' · chance de dépasser ' + dec(s.seuil, 0) + ' pts : ' + pct(c.p) : '') + (nba && picks.length ? ' · Étoiles : ' + stars(picks.reduce((t, q) => t + st(q), 0)) + ' sur ' + NBA_CAP : '');
 ft.append(td); tb.append(ft); t.append(tb);
 const wrap = el('div', 'sx-wrap'); wrap.append(t); blk.append(wrap);
 }
@@ -2818,11 +2919,11 @@ const wrap = el('div', 'sx-wrap'); wrap.append(t); blk.append(wrap);
 if (on) art.append(blk); else { const det = el('details', 'sx-fold'); det.append(el('summary', '', 'Voir les ' + nC(n)), blk); if (stepIdx.has(key)) det.open = true; art.append(det); }
 return art;
 }
-// Vue sans rien à montrer (ex. NBA Set : aucune carte Common NBA) : un seul message clair à la place des onglets
+// Vue sans rien à montrer (ex. Set sans carte Common du set en cours) : un seul message clair à la place des onglets
 function modeVide() {
 if (!ok('competitions') || !ok('joueurs')) return false;
-if (compsOf(sport).length) return false;
-return !(ok('joueurs') || []).some((r) => sportOfRow(r) === sport && inMode(r.modes));
+if (compsOf(sport).length || (mode === 'SET' && planOf(sport === 'NBA' ? 'arcade_nba' : 'arcade').length)) return false;
+return !(ok('joueurs') || []).some((r) => sportOfRow(r) === sport && inModeJ(r));
 }
 function drawModeVide(vide) {
 $('#mode-vide').hidden = !vide; $('#kpis').hidden = vide; $('.sx-tabs').hidden = vide;
@@ -2831,8 +2932,8 @@ if (!vide) return;
 const x = (ok('resume') || [])[0] || {};
 $('#mode-vide-lbl').textContent = (sport === 'NBA' ? 'NBA' : 'Football') + ' · ' + modeLbl() + (x.maj ? ' · collecte du ' + fmtWhen(x.maj) : '');
 if (sport === 'NBA' && mode === 'SET') {
-$('#mode-vide-titre').textContent = 'Aucune carte Common NBA';
-$('#mode-vide-txt').textContent = 'Tu n’as aucune carte Common NBA : rien à inscrire en Set NBA, et aucun joueur à suivre. Ce mode n’est pas calculé. Tes compétitions NBA (Classic, In-Season, Rooms) sont dans la vue Pro. La recherche Joueurs à exclure / à forcer apparaîtra ici quand ce mode sera calculé.';
+$('#mode-vide-titre').textContent = 'Aucune carte Common NBA du set en cours';
+$('#mode-vide-txt').textContent = 'Cette collecte ne contient ni joueur ni plan du Set NBA' + (has(x.set_nba) ? ' (' + x.set_nba + ')' : '') + ' : rien à inscrire. Tes compétitions NBA (Classic, In-Season, Rooms) sont dans la vue Pro.';
 } else if (mode === 'SET') {
 $('#mode-vide-titre').textContent = 'Aucune carte Common du set en cours';
 $('#mode-vide-txt').textContent = 'Cette collecte ne contient ni compétition ni joueur du Set : rien à inscrire en Arcade. Tes cartes Limited sont dans la vue Pro.';
@@ -2863,8 +2964,8 @@ const hm = /^(football|nba)(?:-(pro|set))?(?:-([a-z]+))?$/.exec(h);
 if (hm) { sport = hm[1] === 'nba' ? 'NBA' : 'FOOTBALL'; if (hm[2]) mode = hm[2].toUpperCase(); if (hm[3] && PAGES[hm[3]]) page = PAGES[hm[3]]; }
 applySport();
 if (page) showPage(page);
-dash.onData(() => { cache.key = ''; pisteCache.clear(); draw(); });
+dash.onData(() => { cache.key = ''; pisteCache.clear(); cardIdx.k = pickRef.j = null; draw(); });
 // Le compte à rebours avance chaque minute (et celui du plan Arcade)
-setInterval(() => { if (modeVide()) return; drawKpis(lineupsFor(sport)); if (current === 'p-compos' && sport === 'FOOTBALL') drawPiste(mode === 'SET' ? 'arcade' : 'europe'); }, 60000);
+setInterval(() => { if (modeVide()) return; drawKpis(lineupsFor(sport)); if (current === 'p-compos') { if (mode === 'SET') drawPiste(sport === 'NBA' ? 'arcade_nba' : 'arcade'); else if (sport === 'FOOTBALL') drawEurope(); } }, 60000);
 })();
 </script>

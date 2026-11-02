@@ -1,15 +1,16 @@
 // Compositions Sorare pour Elpredatooor : sections 8 a 12 de l'ancien core.mjs
 // (compos, meilleurs par jour, changements, cartes et calendrier NBA pour le dashboard).
 // calculeCompos(contexte de collecte.mjs, rows de modele.mjs, prev, now) -> { lineups, compRows, jours, changes, cartes, matchs, plan_arcade }
-// planPiste(rows, gabarit, opts) : plan de piste football (contrat v5, colonne mode) ; planArcade (Set, cartes Common) et
-// planEurope (Pro European Contenders, cartes Limited et plus, Ligue Europa / Conference League) en sont deux reglages.
+// planPiste(rows, gabarit, opts) : plan de piste (contrat v5, colonne mode) ; planArcade (Set football, cartes Common),
+// planEurope (Pro European Contenders, cartes Limited et plus, Ligue Europa / Conference League) et planArcadeNba (Set NBA,
+// cartes Common NBA du set en cours, contrat v7) en sont trois reglages.
 // evalueRentabilite(compRows, lineups, paliers, rows) : apres les paliers (core.mjs), colonnes v3 de competitions et choix
 // NBA entre In-Season en priorite 1 et l'option sans In-Season (modifie compRows et lineups en place).
 
 import { POS, round, day, cardLabel } from "./collecte.mjs";
 import { jourDuMatch } from "./modele.mjs";
 
-export function calculeCompos({ comps, currentSet, setName, fixtures, advRank, europe }, rows, prev, now = new Date()) {
+export function calculeCompos({ comps, currentSet, setName, currentSetNBA, fixtures, advRank, europe }, rows, prev, now = new Date()) {
   // ---------- 8. Compositions ----------
   const used = new Set();
   const order = [...comps].sort((a, b) => rank(a) - rank(b));
@@ -25,7 +26,8 @@ export function calculeCompos({ comps, currentSet, setName, fixtures, advRank, e
   if (nbaOrder.some(estInSeasonNba)) OPTION_B.set(compRows, affecteCompetitions(nbaOrder, rows, new Set(), (c) => (estInSeasonNba(c) ? NON_RECOMMANDE : null)));
   // Mode Set (cartes Common du set en cours) : regles non publiques -> compo generique G/D/M/A + extra
   {
-    const pool = rows.filter((r) => r._inSet).flatMap((r) => r._cards.filter((k) => k.rarity === "common" && k.set === currentSet && !used.has(k.slug)).map((card) => ({ r, card, value: r.score_attendu * card.power * card.skinBonus })));
+    // FOOTBALL seulement : depuis le set Divination (02/11/2026), le slug du set peut etre le meme pour les Common NBA
+    const pool = rows.filter((r) => r._inSet && r.sport !== "NBA").flatMap((r) => r._cards.filter((k) => k.rarity === "common" && k.set === currentSet && !used.has(k.slug)).map((card) => ({ r, card, value: r.score_attendu * card.power * card.skinBonus })));
     // meme regle que ci-dessus (proposition 2) : pas de compo Set si aucun joueur ne joue dans la gameweek ou si elle vaut 0
     const jouent = pool.some((x) => x.r.matchs_gw > 0);
     const sol0 = jouent ? optimise({ sport: "FOOTBALL", capitaine: 0 }, pool) : null;
@@ -41,10 +43,12 @@ export function calculeCompos({ comps, currentSet, setName, fixtures, advRank, e
   // ---------- 9. Meilleurs joueurs par jour (modes Pro quotidiens) ----------
   const jours = [];
   const byDay = new Map();
-  for (const r of rows) for (const g of r._games.slice(0, 4)) {
+  // Modes (contrat v7, separation Pro / Set du 02/11/2026) : NBA et Jupiler = joueurs Pro (_isJPL, modes NBA de modele.mjs :
+  // au moins une carte Limited ou plus rare) ; Set <nom> = football, joueurs du Set (_inSet). Modes non exclusifs : un joueur
+  // football mixte figure dans Jupiler ET dans Set. Pas de mode Set NBA. Avant : un seul mode par joueur (Jupiler avant Set).
+  const modesJours = (r) => r.sport === "NBA" ? (/\bNBA\b/.test(r.modes || "") ? ["NBA"] : []) : [r._isJPL ? "Jupiler" : null, r._inSet ? "Set " + setName : null].filter(Boolean);
+  for (const r of rows) for (const mode of modesJours(r)) for (const g of r._games.slice(0, 4)) {
     if (g.pPlay <= 0) continue;
-    const mode = r.sport === "NBA" ? "NBA" : r._isJPL ? "Jupiler" : r._inSet ? "Set " + setName : null;
-    if (!mode) continue;
     // NBA : jour = soiree americaine (heure de New York, UTC − 5), comme matchs.jour (section 12) ; correctif du 25/10/2026
     // (un match a 01h00 UTC le 26/10 se joue le 25/10 au soir aux Etats-Unis). Football : date UTC, inchange.
     const k = mode + "|" + (r.sport === "NBA" ? day(new Date(g.t - 5 * 3600e3).toISOString()) : day(g.date));
@@ -65,15 +69,28 @@ export function calculeCompos({ comps, currentSet, setName, fixtures, advRank, e
   const cartes = [];
   for (const r of rows) for (const k of r._cards) {
     const nba = r.sport === "NBA";
-    const ok = nba ? k.rarity === "limited" : (r._isJPL && k.rarity !== "common") || (r._inSet && k.rarity === "common" && k.set === currentSet);
+    // NBA (contrat v7) : Limited (Pro) et Common du set NBA en cours (Set NBA, set_courant = vrai) ; les Common d'un autre set sont ignorees
+    const setNba = nba && k.rarity === "common" && !!currentSetNBA && k.set === currentSetNBA;
+    const ok = nba ? k.rarity === "limited" || setNba : (r._isJPL && k.rarity !== "common") || (r._inSet && k.rarity === "common" && k.set === currentSet);
     if (!ok) continue;
-    cartes.push({ sport: nba ? "NBA" : "Football", slug: r.slug, joueur: r.joueur, carte_id: k.slug, label: cardLabel(k), rarete: k.rarity, saison: k.season, puissance: k.power, skin: k.skinBonus, in_season: k.inSeason, set_courant: k.rarity === "common" && k.set === currentSet });
+    cartes.push({ sport: nba ? "NBA" : "Football", slug: r.slug, joueur: r.joueur, carte_id: k.slug, label: cardLabel(k), rarete: k.rarity, saison: k.season, puissance: k.power, skin: k.skinBonus, in_season: k.inSeason, set_courant: nba ? setNba : k.rarity === "common" && k.set === currentSet });
   }
   // ---------- 12. Calendrier : NBA (matchs de la gameweek) et football Set (periode Arcade, contrat v4) ----------
   const matchs = [];
   for (const r of rows.filter((x) => x.sport === "NBA")) for (const g of r._games.filter((x) => x.inWindow)) {
     const ar = advRank(g.adversaire, "NBA");
     matchs.push({ sport: "NBA", slug: r.slug, joueur: r.joueur, date: g.date.slice(0, 16), jour: day(new Date(g.t - 5 * 3600e3).toISOString()), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: g.b2b, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null, competition_match: "" });
+  }
+  // NBA Set (contrat v7) : joueurs avec une Common du set NBA, matchs de la periode Set NBA (gameweek NBA EN COURS,
+  // fixtures.LIVE_NBA) absents ci-dessus (la gameweek a venir peut etre une autre). Une seule ligne par slug + date.
+  const fenN = fenetreArcadeNba(fixtures, now);
+  {
+    const deja = new Set(matchs.map((x) => x.slug + "|" + x.date));
+    for (const r of rows.filter((x) => x.sport === "NBA" && (x._cards || []).some((k) => PISTE_ARCADE_NBA.carte(k, { currentSetNBA })))) for (const g of r._games.filter((x) => x.t >= fenN.debut && x.t <= fenN.fin)) {
+      const date = g.date.slice(0, 16); if (deja.has(r.slug + "|" + date)) continue; deja.add(r.slug + "|" + date);
+      const ar = advRank(g.adversaire, "NBA");
+      matchs.push({ sport: "NBA", slug: r.slug, joueur: r.joueur, date, jour: day(new Date(g.t - 5 * 3600e3).toISOString()), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: g.b2b, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null, competition_match: "" });
+    }
   }
   // Football (contrat v4) : joueurs du Set, matchs dont le coup d'envoi tombe entre now et la fin de la periode Arcade
   // (gameweek EN COURS, fixtures.LIVE_FOOTBALL de collecte.mjs ; repli : gameweek a venir). jour = date a Bruxelles.
@@ -93,8 +110,9 @@ export function calculeCompos({ comps, currentSet, setName, fixtures, advRank, e
       matchs.push({ sport: "Football", slug: r.slug, joueur: r.joueur, date, jour: jourDuMatch(g.t, false), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: null, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null, competition_match: g.competition || "" });
     }
   }
-  // ---------- 12 bis. Plans de piste football : Arcade (Set, contrat v4) puis European Contenders (Pro, contrat v5) ----------
-  const plan_arcade = planArcade(rows, { currentSet, debut: fen.debut, fin: fen.fin }).concat(eu ? planEurope(rows, eu) : []);
+  // ---------- 12 bis. Plans de piste : Arcade (Set football, contrat v4), European Contenders (Pro football, contrat v5),
+  // puis Set NBA (contrat v7, lignes NBA : mode arcade_nba) ----------
+  const plan_arcade = planArcade(rows, { currentSet, debut: fen.debut, fin: fen.fin }).concat(eu ? planEurope(rows, eu) : [], planArcadeNba(rows, { currentSetNBA, debut: fenN.debut, fin: fenN.fin }));
   return { lineups, compRows, jours, changes, cartes, matchs, plan_arcade };
 }
 
@@ -103,6 +121,14 @@ export function calculeCompos({ comps, currentSet, setName, fixtures, advRank, e
 // en cours, enCours: false et collecte.mjs y met deja la fenetre de la gameweek a venir) ; repli : fixtures.FOOTBALL.
 export function fenetreArcade(fixtures, now) {
   const f = fixtures?.LIVE_FOOTBALL?.endDate ? fixtures.LIVE_FOOTBALL : fixtures?.FOOTBALL || {};
+  const t0 = new Date(now).getTime();
+  return { debut: Math.max(t0, Date.parse(f.startDate) || t0), fin: Date.parse(f.endDate) || t0 };
+}
+
+// Periode Set NBA (contrat v7, resume.arcade_nba_debut / arcade_nba_fin) : de now a la fin de la gameweek NBA EN COURS
+// (fixtures.LIVE_NBA, agent donnees) ; repli : gameweek NBA a venir (fixtures.NBA). NBA SEULEMENT.
+export function fenetreArcadeNba(fixtures, now) {
+  const f = fixtures?.LIVE_NBA?.endDate ? fixtures.LIVE_NBA : fixtures?.NBA || {};
   const t0 = new Date(now).getTime();
   return { debut: Math.max(t0, Date.parse(f.startDate) || t0), fin: Date.parse(f.endDate) || t0 };
 }
@@ -118,8 +144,9 @@ export function fenetreEurope(e, now) {
   return { debut: Math.max(t0, Date.parse(e.debut ?? e.startDate) || t0), fin, competitions: Array.isArray(e.competitions) && e.competitions.length ? e.competitions : EUROPE_COMPETITIONS, capitaine: Number(e.capitaine) > 0 ? Number(e.capitaine) : EUROPE_CAPITAINE };
 }
 
-// ---------- Pistes football : Arcade (Set) et European Contenders (Pro) ; FOOTBALL SEULEMENT ----------
-// Un seul planificateur (planPiste), parametre par un gabarit de piste (PISTE_ARCADE, PISTE_EUROPE) : mode, seuils, cartes
+// ---------- Pistes : Arcade (Set football), European Contenders (Pro football), Set NBA ----------
+// Un seul planificateur (planPiste), parametre par un gabarit de piste (PISTE_ARCADE, PISTE_EUROPE : football ;
+// PISTE_ARCADE_NBA : NBA, gabarit.sport = "NBA" ; un gabarit ne prend que les joueurs de son sport) : mode, seuils, cartes
 // admises, matchs admis, capitaine, valeur d'une carte, largeurs de creneau. Sortie : jeu plan_arcade (contrat v5, colonne mode).
 //
 // Arcade. Regles (utilisateur 25/10/2026 + aide Sorare « What is Arcade? ») : 6 paliers aux seuils ci-dessous ; a chaque palier,
@@ -176,10 +203,73 @@ export const PISTE_EUROPE = { mode: "europe", seuils: EUROPE_SEUILS, capitaine: 
   match: (g, o) => (o.competitions || EUROPE_COMPETITIONS).some((c) => cleCompetition(c) === cleCompetition(g.competition)),
   valeur: (base, card) => base * puissanceSansRarete(card) };
 
+// ---------- Set NBA (contrat v7) ; NBA SEULEMENT, aucune regle football modifiee ----------
+// Regles : utilisateur 02/11/2026 + aide Sorare « What is Sorare Set (NBA)? ». 6 paliers aux seuils ci-dessous (180 a 300 lus
+// sur la piste de l'utilisateur, 150 donne par lui) ; 4 vies (ARCADE_VIES) ; un succes fait monter, 4 echecs ramenent au
+// palier 1 ; recompense redonnee a chaque passage (ARCADE_RECOMPTE) ; compo de 5 joueurs NBA SANS poste ; une carte par
+// compo, une carte jouee ne resert plus (3 cartes Doncic distinctes = 3 compos possibles) ; plafond et equipes comme l'In-Season
+// Champion NBA (correction de l'utilisateur du 02/11/2026 : pas de MVP, pas de plafond L10) : somme des etoiles des 5 joueurs
+// <= 16 (joueurs.etoiles par demi-points, etoilesCap des compos Pro : sans niveau = 1★), au plus 4 joueurs d'une meme equipe ;
+// pas de capitaine ; valeur = score attendu du match × puissance × skin (comme l'Arcade football) ; bonus de collection ignore.
+export const ARCADE_NBA_SEUILS = [150, 180, 210, 240, 280, 300]; // utilisateur 02/11/2026
+export const ARCADE_NBA_ETOILES = 16; // somme des etoiles <= 16 (utilisateur 02/11/2026, regle de l'In-Season Champion NBA)
+export const ARCADE_NBA_PAR_EQUIPE = 4; // au plus 4 joueurs d'une meme equipe (utilisateur 02/11/2026, comme l'In-Season Champion)
+// Resultat connu 3 h apres le dernier entre-deux du lot (un match NBA dure ~2h30) : valeur par defaut du stratege, A FAIRE
+// CONFIRMER par l'utilisateur (consigne de l'orchestrateur du 02/11/2026)
+export const ARCADE_NBA_DELAI = 3 * 3600e3;
+// Choix du stratege : une soiree NBA s'etale sur ~3h30 (19h00 a 22h30 heure de New York) ; creneaux de 0 a 4 h
+export const ARCADE_NBA_LARGEURS = [0, 3600e3, 2 * 3600e3, 3 * 3600e3, 4 * 3600e3];
+const NBA_CAND = 24, NBA_PAR_NIVEAU = 5, NBA_FINALISTES = 6; // recherche d'une compo Set NBA (choix du stratege)
+const etoilesTxt = (e) => String(e).replace(".", ",") + "★";
+export const PISTE_ARCADE_NBA = { mode: "arcade_nba", sport: "NBA", seuils: ARCADE_NBA_SEUILS, capitaine: 0, largeurs: ARCADE_NBA_LARGEURS, delai: ARCADE_NBA_DELAI, horizon: "la gameweek NBA", expliquer: false,
+  carte: (card, o) => card.rarity === "common" && !!o.currentSetNBA && card.set === o.currentSetNBA, joueur: () => true, match: () => true,
+  valeur: (base, card) => base * card.power * card.skinBonus,
+  cherche: (units, seuil) => meilleureCompoNba(units, seuil),
+  fmt: (u, c) => `${u.r.joueur} (${u.r.club}, ${quandNba(u.g.t)}, ${etoilesTxt(etoilesCap(u))}) ${String(round(u.value)).replace(".", ",")}` };
+
 const heureBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" }).format(new Date(t)).replace(":", "h"); } catch { return new Date(t).toISOString().slice(11, 16).replace(":", "h"); } };
 const jourBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", weekday: "long" }).format(new Date(t)); } catch { return ""; } };
 const dateBx = (t) => { try { return new Intl.DateTimeFormat("fr-BE", { timeZone: "Europe/Brussels", day: "numeric", month: "numeric" }).format(new Date(t)); } catch { return new Date(t).toISOString().slice(5, 10); } };
 const quand = (t, ref) => (jourDuMatch(t, false) === jourDuMatch(ref, false) ? heureBx(t) : jourBx(t) + " " + heureBx(t));
+let refNba = 0; const quandNba = (t) => quand(t, refNba); // heure de Bruxelles, comme le football (reference = debut du plan)
+
+// Meilleure compo Set NBA (NBA seulement) parmi les unites { r, g, card, value, base, sd } ; un joueur une seule fois.
+// Contraintes de l'In-Season Champion : somme des etoiles <= ARCADE_NBA_ETOILES (etoilesCap, comme optimise()), au plus
+// ARCADE_NBA_PAR_EQUIPE joueurs par equipe (r._clubSlug). Candidats (comme optimise() sous plafond d'etoiles) : les meilleures
+// valeurs et les meilleurs de chaque niveau d'etoiles ; recherche par separation et evaluation sur la moyenne, puis, parmi les
+// meilleures moyennes, la plus forte chance de depasser le seuil.
+function meilleureCompoNba(units, seuil) {
+  const best = new Map();
+  for (const u of units) { const o = best.get(u.r.slug); if (!o || u.value > o.value) best.set(u.r.slug, u); }
+  const l = [...best.values()].sort((a, b) => b.value - a.value);
+  if (l.length < 5) return null;
+  const parNiveau = new Map();
+  for (const u of l) { const k = etoilesCap(u); if (!parNiveau.has(k)) parNiveau.set(k, []); if (parNiveau.get(k).length < NBA_PAR_NIVEAU) parNiveau.get(k).push(u); }
+  const cand = [...new Set([...l.slice(0, NBA_CAND), ...[...parNiveau.values()].flat()])].sort((a, b) => b.value - a.value);
+  const fin = []; // NBA_FINALISTES meilleures moyennes
+  const garde = (mean, five) => { if (fin.length >= NBA_FINALISTES && mean <= fin[fin.length - 1].mean) return; fin.push({ mean, five }); fin.sort((a, b) => b.mean - a.mean); if (fin.length > NBA_FINALISTES) fin.pop(); };
+  const pris = [], equipes = new Map();
+  const dfs = (from, reste, somme) => {
+    if (pris.length === 5) { garde(somme, pris.slice()); return; }
+    const k = 5 - pris.length;
+    for (let i = from; i <= cand.length - k; i++) {
+      let borne = somme; for (let j = i; j < i + k; j++) borne += cand[j].value; // cand trie par valeur decroissante
+      if (fin.length >= NBA_FINALISTES && borne <= fin[fin.length - 1].mean) return;
+      const x = cand[i], e = etoilesCap(x), q = x.r._clubSlug || x.r.club || x.r.slug;
+      if (e > reste + 1e-9 || (equipes.get(q) || 0) >= ARCADE_NBA_PAR_EQUIPE) continue;
+      pris.push(x); equipes.set(q, (equipes.get(q) || 0) + 1);
+      dfs(i + 1, reste - e, somme + x.value);
+      pris.pop(); equipes.set(q, equipes.get(q) - 1);
+    }
+  };
+  dfs(0, ARCADE_NBA_ETOILES, 0);
+  let top = null;
+  for (const { mean, five } of fin) {
+    const sd = Math.sqrt(five.reduce((t, u) => t + u.sd ** 2, 0)), p = pAbove(mean, sd, seuil);
+    if (!top || p > top.p + 1e-12 || (Math.abs(p - top.p) <= 1e-12 && mean > top.mean)) top = { p, mean, sd, cap: null, picks: five.map((u) => [u, ""]) };
+  }
+  return top;
+}
 
 // Meilleure compo (chance de depasser le seuil) parmi les unites { r, g, card, value, base, sd } ; un joueur une seule fois.
 // capt > 0 : chaque joueur de la compo est essaye comme capitaine (bonus additif : + base × capt ; ecart-type × (1 + capt /
@@ -212,10 +302,10 @@ function meilleureCompoPiste(units, seuil, capt = 0) {
   return top;
 }
 // Lot : jusqu'a 4 compos sans carte commune, composees de facon gloutonne (meilleure chance d'abord)
-function lotPiste(units, seuil, capt) {
+function lotPiste(units, seuil, capt, P = {}) {
   let rest = units; const compos = [];
   while (compos.length < ARCADE_VIES) {
-    const c = meilleureCompoPiste(rest, seuil, capt);
+    const c = P.cherche ? P.cherche(rest, seuil) : meilleureCompoPiste(rest, seuil, capt);
     if (!c) break;
     compos.push(c);
     const pris = new Set(c.picks.map(([u]) => u.card.slug));
@@ -223,7 +313,7 @@ function lotPiste(units, seuil, capt) {
   }
   if (!compos.length) return null;
   const ts = compos.flatMap((c) => c.picks.map(([u]) => u.g.t));
-  return { compos, p: 1 - compos.reduce((q, c) => q * (1 - c.p), 1), creneau: Math.min(...ts), resultat: Math.max(...ts) + ARCADE_DELAI };
+  return { compos, p: 1 - compos.reduce((q, c) => q * (1 - c.p), 1), creneau: Math.min(...ts), resultat: Math.max(...ts) + (P.delai ?? ARCADE_DELAI) };
 }
 
 // Pourquoi aucune compo n'est possible (piste qui l'explique : European Contenders). Fonde sur r._pos (joueurs.poste).
@@ -249,7 +339,7 @@ export function planPiste(rows, P, opts) {
   const SEUILS = P.seuils, LARG = P.largeurs, capt = (P.capitaine || 0) / 100;
   const units = [];
   for (const r of rows) {
-    if (r.sport === "NBA" || !P.joueur(r)) continue;
+    if ((r.sport === "NBA") !== (P.sport === "NBA") || !P.joueur(r)) continue; // un gabarit = un sport
     const cards = (r._cards || []).filter((k) => P.carte(k, opts));
     for (const g of r._games || []) {
       if (!(g.t >= debut && g.t <= fin) || !(g.pPlay > 0) || !P.match(g, opts)) continue;
@@ -265,7 +355,7 @@ export function planPiste(rows, P, opts) {
   const n = T.length, K = SEUILS.length;
   const dansCreneau = (i, w, exclus) => units.filter((u) => u.g.t >= T[i] && u.g.t <= T[i] + LARG[w] && !exclus.has(u.card.slug));
   const memoLot = new Map();
-  const lot = (i, k, w) => { const key = (i * 8 + k) * 8 + w; if (!memoLot.has(key)) memoLot.set(key, lotPiste(dansCreneau(i, w, new Set()), SEUILS[k - 1], capt)); return memoLot.get(key); };
+  const lot = (i, k, w) => { const key = (i * 8 + k) * 8 + w; if (!memoLot.has(key)) memoLot.set(key, lotPiste(dansCreneau(i, w, new Set()), SEUILS[k - 1], capt, P)); return memoLot.get(key); };
   const suivant = (t) => { let j = 0; while (j < n && T[j] < t) j++; return j; };
   const memo = new Map();
   // V(k, b, i) -> { v, i (creneau joue ou -1), w (largeur), j } ; b = plus haut palier deja franchi (pour ARCADE_RECOMPTE)
@@ -286,7 +376,8 @@ export function planPiste(rows, P, opts) {
   };
   for (let i = n - 1; i >= 0; i--) for (let k = K; k >= 1; k--) for (let b = 0; b <= K; b++) V(k, b, i); // memo sans recursion profonde
   const plan = [];
-  const fmtJ = (c) => ([u, poste]) => `${poste} ${u.r.joueur} (${u.r.club}, ${quand(u.g.t, debut)}) ${String(round(u.value + (u === c.cap ? u.base * capt : 0))).replace(".", ",")}${u === c.cap ? " (capitaine)" : ""}`;
+  refNba = debut;
+  const fmtJ = (c) => ([u, poste]) => P.fmt ? P.fmt(u, c) : `${poste} ${u.r.joueur} (${u.r.club}, ${quand(u.g.t, debut)}) ${String(round(u.value + (u === c.cap ? u.base * capt : 0))).replace(".", ",")}${u === c.cap ? " (capitaine)" : ""}`;
   const pc = (p) => (p >= 0.995 ? "> 99 %" : p < 0.005 ? "< 1 %" : Math.round(p * 100) + " %");
   for (let depart = 1; depart <= K; depart++) {
     // chemin des reussites : depart, depart + 1, ... ; chaque conseil dit quoi faire en cas d'echec (retour au palier 1)
@@ -294,7 +385,7 @@ export function planPiste(rows, P, opts) {
     const esp = V(depart, b, 0).v;
     while (k <= K && i < n) {
       const d = V(k, b, i); if (d.i < 0) break;
-      const L = lotPiste(dansCreneau(d.i, d.w, exclus), SEUILS[k - 1], capt);
+      const L = lotPiste(dansCreneau(d.i, d.w, exclus), SEUILS[k - 1], capt, P);
       if (!L) break;
       etape++;
       const j = suivant(L.resultat);
@@ -322,6 +413,8 @@ export function planPiste(rows, P, opts) {
 }
 // Arcade (Set) : signature d'avant, resultat identique (plus la colonne mode = "arcade")
 export function planArcade(rows, { currentSet, debut, fin, recompte = ARCADE_RECOMPTE }) { return planPiste(rows, PISTE_ARCADE, { currentSet, debut, fin, recompte }); }
+// Set NBA (contrat v7, mode arcade_nba) : cartes Common NBA du set en cours (contexte.currentSetNBA de collecte.mjs)
+export function planArcadeNba(rows, { currentSetNBA, debut, fin, recompte = ARCADE_RECOMPTE }) { return planPiste(rows, PISTE_ARCADE_NBA, { currentSetNBA, debut, fin, recompte }); }
 // European Contenders (Pro) : competitions = noms autorises lus par collecte.mjs (repli EUROPE_COMPETITIONS)
 export function planEurope(rows, { debut, fin, competitions = EUROPE_COMPETITIONS, capitaine = EUROPE_CAPITAINE, recompte = ARCADE_RECOMPTE }) { return planPiste(rows, { ...PISTE_EUROPE, capitaine }, { debut, fin, competitions, recompte }); }
 
@@ -423,16 +516,19 @@ export function calculeChangements(rows, prev, fixtures) {
     const f = fixtures?.[sport === "NBA" ? "NBA" : "FOOTBALL"]; const t = tMatch(m);
     return !!f && t >= Date.parse(f.startDate) && t <= Date.parse(f.endDate);
   };
+  // contrat v7 : colonnes sport et slug ; modes v7 (modele.mjs) ; aucune ligne pour un joueur aux modes vides (Common d'un
+  // ancien set seulement : dans aucune vue)
+  const ligne = (r, type, detail) => ({ joueur: r.joueur, slug: r.slug, sport: r.sport === "NBA" ? "NBA" : "FOOTBALL", modes: r.modes, type, detail });
   for (const r of rows) {
-    const o = old.get(r.slug); if (!o) continue;
-    if (r.blessure && !o.blessure) changes.push({ joueur: r.joueur, modes: r.modes, type: "Nouvelle blessure", detail: r.blessure });
-    if (!r.blessure && o.blessure) changes.push({ joueur: r.joueur, modes: r.modes, type: "Retour de blessure", detail: o.blessure });
-    if (r.suspension && !o.suspension) changes.push({ joueur: r.joueur, modes: r.modes, type: "Suspension", detail: r.suspension });
-    if (r.statut && o.statut && r.statut !== o.statut) changes.push({ joueur: r.joueur, modes: r.modes, type: "Statut modifié", detail: o.statut + " → " + r.statut });
+    const o = old.get(r.slug); if (!o || !String(r.modes || "").trim()) continue;
+    if (r.blessure && !o.blessure) changes.push(ligne(r, "Nouvelle blessure", r.blessure));
+    if (!r.blessure && o.blessure) changes.push(ligne(r, "Retour de blessure", o.blessure));
+    if (r.suspension && !o.suspension) changes.push(ligne(r, "Suspension", r.suspension));
+    if (r.statut && o.statut && r.statut !== o.statut) changes.push(ligne(r, "Statut modifié", o.statut + " → " + r.statut));
     if (!joue(r) || !joue(o)) continue;
     const memeGw = dansGw(r.sport, o.match) && dansGw(r.sport, r.match);
     const [a, b, quoi] = memeGw ? [o.score_attendu, r.score_attendu, ""] : [o.proj_match, r.proj_match, "par match, nouvelle gameweek : "];
-    if (a != null && b != null && Math.abs(b - a) >= 10) changes.push({ joueur: r.joueur, modes: r.modes, type: b > a ? "Projection en hausse" : "Projection en baisse", detail: quoi + a + " → " + b });
+    if (a != null && b != null && Math.abs(b - a) >= 10) changes.push(ligne(r, b > a ? "Projection en hausse" : "Projection en baisse", quoi + a + " → " + b));
   }
   return changes;
 }

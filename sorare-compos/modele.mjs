@@ -8,9 +8,10 @@ const STARS = { GOAT: 5, STAR_PLUS: 4.5, STAR: 4, IMPACT_PLUS: 3.5, IMPACT: 3, R
 const STATUS_P = { STARTER: 0.9, REGULAR: 0.75, SUPER_SUBSTITUTE: 0.5, SUBSTITUTE: 0.35, RESERVE: 0.1, NOT_PLAYING: 0, RETIRED: 0 };
 // Esperance du maximum de n tirages d'une loi normale centree reduite
 const EMAX = [0, 0, 0.564, 0.846, 1.029, 1.163, 1.267];
+const RARETES_PRO = ["limited", "rare", "super_rare", "unique"]; // cartes Pro (contrat v7 : modes NBA / JPL)
 const FLOOR = { GOAT: 50, STAR_PLUS: 45, STAR: 40, IMPACT_PLUS: 35, IMPACT: 30, ROSTER_PLUS: 25, ROSTER: 20, DNP_PLUS: 15, DNP: 0 };
 
-export function calculeJoueurs({ fixtures, relevant, espnData, odds, advRank, isJPL, inSet, w }, now) {
+export function calculeJoueurs({ fixtures, relevant, espnData, odds, advRank, isJPL, inSet, w, currentSet, currentSetNBA }, now) {
   const t0 = now.getTime();
   const winF = { start: Date.parse(fixtures.FOOTBALL.startDate), end: Date.parse(fixtures.FOOTBALL.endDate) };
   const winN = { start: Date.parse(fixtures.NBA.startDate), end: Date.parse(fixtures.NBA.endDate) };
@@ -87,8 +88,22 @@ export function calculeJoueurs({ fixtures, relevant, espnData, odds, advRank, is
     }
     const first = (nba ? gw.find((g) => g.pPlay > 0) : (isJPL(p) ? jplGames.find((x) => x.inWindow) : null) || gw[0]) || games[0];
     for (const g of games.filter((x) => x.pPlay > 0.5 && x.t < t0 + 3 * 86400e3)) newSamples.push({ slug: p.slug, sport: p.sport, date: day(g.date), sorare: g.sorare, form: round(form), pPlay: g.pPlay, actual: null });
-    const best = bestCard(p.cards, nba ? null : isJPL(p) ? "limited" : "common");
-    const modes = [nba ? "NBA" : null, isJPL(p) ? "JPL" : null, inSet(p) ? "SET" : null].filter(Boolean);
+    // Carte affichee (joueurs.carte, score_final). NBA : la meilleure Limited (competitions Pro) ; depuis le set Divination
+    // (02/11/2026, contrat v7) un joueur NBA peut avoir des Common du Set NBA, jamais jouees en Classic / Contender / Rooms /
+    // In-Season ; joueur NBA sans Limited : sa meilleure Common du set NBA en cours. Avant : meilleure carte toutes raretes
+    // (que des Limited). Football : Jupiler -> Limited ; sinon Common du set football EN COURS (02/11/2026 : les Common d'un
+    // set termine, HyperGlitch, ne comptent plus ; avant : toute Common).
+    // Modes (contrat v7, separation Pro / Set du 02/11/2026, les deux sports) : NBA = au moins une carte NBA Limited ou plus
+    // rare ; JPL = club de Jupiler Pro League ET au moins une carte Limited ou plus rare ; SET = au moins une Common du set en
+    // cours de son sport (inSet de collecte.mjs). Common seulement -> ni NBA ni JPL ; Common d'un ancien set seulement -> modes
+    // vide (aucune vue). Avant : NBA pour tout joueur NBA, JPL d'apres le seul club (un joueur JPL a Common seulement etait « JPL SET »).
+    // _isJPL / _inSet (compos Pro / Set) suivent la meme definition. Le match retenu pour le score (isJPL : match de First
+    // Division A) reste fonde sur le club, comme avant.
+    const pro = p.cards.some((c) => RARETES_PRO.includes(c.rarity));
+    const modeNBA = nba && pro, modeJPL = !nba && isJPL(p) && pro, modeSET = !!inSet(p);
+    const commune = (set) => (c) => c.rarity === "common" && !!set && c.set === set;
+    const best = bestCard(p.cards, nba ? [(c) => c.rarity === "limited", commune(currentSetNBA)] : modeJPL ? [(c) => c.rarity === "limited", (c) => RARETES_PRO.includes(c.rarity)] : [commune(currentSet), (c) => c.rarity === "common"]);
+    const modes = [modeNBA ? "NBA" : null, modeJPL ? "JPL" : null, modeSET ? "SET" : null].filter(Boolean);
     rows.push({
       joueur: p.name, slug: p.slug, sport: p.sport, modes: modes.join(" "), club, poste: POS[d.position] || (nba ? "NBA" : d.position || ""),
       etoiles: nba ? STARS[d.gameplayTier] ?? null : null,
@@ -117,7 +132,7 @@ export function calculeJoueurs({ fixtures, relevant, espnData, odds, advRank, is
       proj_match: (() => { const l = (nba ? gw.filter((g) => g.pPlay > 0) : [first].filter(Boolean)); return l.length ? round(mean(l.map((g) => g.proj))) : round(form); })(),
       matchs_probables: nba ? gw.filter((g) => g.pPlay >= 0.5).length : null,
       coequipiers_absents: es?.absents || "", minutes_liberees: es?.minLib ?? null,
-      _cards: p.cards, _games: games, _isJPL: isJPL(p), _inSet: inSet(p), _cv: cv ?? 0.5, _tier: d.gameplayTier, _clubSlug: clubSlug, _l15: d.l15 || 0, _pos: d.position,
+      _cards: p.cards, _games: games, _isJPL: modeJPL, _inSet: modeSET, _cv: cv ?? 0.5, _tier: d.gameplayTier, _clubSlug: clubSlug, _l15: d.l15 || 0, _pos: d.position,
     });
   }
   return { rows, newSamples };
@@ -135,4 +150,5 @@ export function jourDuMatch(t, nba) {
 // Absent ce jour-la si une date de retour (AAAA-MM-JJ) est annoncee et que le jour du match ne la depasse pas
 export const absentLeJour = (jourMatch, retour) => !!retour && jourMatch <= retour;
 
-function bestCard(list, rarity) { const l = list.filter((c) => !rarity || c.rarity === rarity); return (l.length ? l : list).slice().sort((a, b) => b.power * b.skinBonus - a.power * a.skinBonus)[0] || null; }
+// filtres : essayes dans l'ordre, le premier qui garde au moins une carte l'emporte ; aucun : toutes les cartes
+function bestCard(list, filtres = []) { const l = filtres.map((f) => list.filter(f)).find((x) => x.length) || list; return l.slice().sort((a, b) => b.power * b.skinBonus - a.power * a.skinBonus)[0] || null; }

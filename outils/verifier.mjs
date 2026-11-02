@@ -1,4 +1,4 @@
-// Vérification des jeux de données Sorare : contrat (docs/contrat-donnees.md v5) et règles des compos.
+// Vérification des jeux de données Sorare : contrat (docs/contrat-donnees.md v7) et règles des compos.
 // Usage : node outils/verifier.mjs <dossier>   (le dossier contient joueurs.json|csv, compos.json|csv, ...)
 // Code de sortie : 0 = OK ou remarques seulement, 1 = au moins une erreur bloquante.
 import { readFile, access } from "node:fs/promises";
@@ -27,12 +27,13 @@ const COLS = {
   plan_arcade: ["depart", "etape", "palier", "seuil", "creneau", "resultat_vers", "compo", "joueurs", "score_attendu", "proba_compo", "proba_palier", "conseil"],
 };
 // Colonnes v3 à v5 contrôlées seulement si présentes (collectes antérieures, ou stratège pas encore livré) : remarque si absentes
-// v4 : resume.arcade_* ; v6 : resume.maj_football / maj_nba ; v5 : resume.europe_*, matchs.competition_match, plan_arcade.mode (absent des collectes v4 : vaut arcade)
+// v7 : changements.sport / slug ; v4 : resume.arcade_* ; v6 : resume.maj_football / maj_nba ; v7 : resume.set_nba / arcade_nba_* ; v5 : resume.europe_*, matchs.competition_match, plan_arcade.mode (absent des collectes v4 : vaut arcade)
 const COLS_V3 = {
   competitions: ["cout_inscription", "gains_esperes", "gain_net_espere", "autres_recompenses", "rentable", "recommandation", "alternative"],
-  resume: ["gw_debut_football", "gw_fin_football", "gw_debut_nba", "gw_fin_nba", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin", "maj_football", "maj_nba"],
+  resume: ["gw_debut_football", "gw_fin_football", "gw_debut_nba", "gw_fin_nba", "arcade_debut", "arcade_fin", "europe_slug", "europe_debut", "europe_fin", "maj_football", "maj_nba", "set_nba", "arcade_nba_debut", "arcade_nba_fin"],
   matchs: ["competition_match"],
   plan_arcade: ["mode"],
+  changements: ["sport", "slug"], // v7
 };
 // v5 : compétitions European Contenders (« UEFA Europa League » = « Europa League », « UEFA Conference League » = « Europa Conference League »)
 const cleCompetition = (nom) => { const n = String(nom || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\buefa\b/g, "").replace(/\s+/g, " ").trim(); return /conference/.test(n) ? "conference-league" : /europa league/.test(n) ? "europa-league" : n; };
@@ -296,12 +297,43 @@ for (const b of data.bilan || []) {
   if (String(b.joueurs || "").split(" ; ").filter(Boolean).length !== 5) warn(sport, `bilan : ${b.competition} compo ${b.numero} : ${String(b.joueurs || "").split(" ; ").filter(Boolean).length} joueurs dans le détail (attendu 5)`);
 }
 
-// ---------- plan_arcade (v4, mode v5) ----------
+// ---------- plan_arcade (v4, mode v5, arcade_nba v7) ----------
+// arcade_nba (v7) : lignes NBA, 5 joueurs « Nom (équipe, heure, N★) score » sans poste, seuils 150/180/210/240/280/300,
+// règles de l'In-Season Champion (correction de l'utilisateur du 02/11/2026 : pas de MVP, pas de plafond L10) : somme des
+// étoiles ≤ 16 (joueurs.etoiles retrouvé par le nom, à défaut le N★ de la ligne ; sans niveau = 1★ comme compos.mjs) et au plus
+// 4 joueurs d'une même équipe. Non contrôlable ici : une carte par compo et carte jouée une seule fois (pas d'identifiant de carte).
+const SEUILS_ARCADE_NBA = [150, 180, 210, 240, 280, 300], PLAFOND_ETOILES_NBA = 16, MAX_EQUIPE_NBA = 4;
+const POSTES_FOOT = /^(Gardien|Défenseur|Milieu|Attaquant|Extra)\s/;
+const etoilesParNom = new Map(), nomsDoubles = new Set();
+for (const r of joueurs) if (r.sport === "NBA") { if (etoilesParNom.has(r.joueur)) nomsDoubles.add(r.joueur); etoilesParNom.set(r.joueur, empty(r.etoiles) ? 1 : num(r.etoiles)); }
+let plafondNonControle = 0;
 for (const p of data.plan_arcade || []) {
   const mode = empty(p.mode) ? "arcade" : String(p.mode); // collectes v4 : pas de colonne mode -> arcade
-  if (!["arcade", "europe"].includes(mode)) err("FOOTBALL", `plan_arcade : mode « ${p.mode} » inconnu (attendu arcade ou europe)`);
+  if (!["arcade", "europe", "arcade_nba"].includes(mode)) { err("F+N", `plan_arcade : mode « ${p.mode} » inconnu (attendu arcade, europe ou arcade_nba)`); continue; }
   if (mode === "europe" && empty(res0.europe_slug)) warn("FOOTBALL", `plan_arcade : plan europe (départ ${p.depart}, étape ${p.etape}) alors que resume.europe_slug est vide`);
+  if (mode !== "arcade_nba") continue;
+  const ou = `plan_arcade NBA (départ ${p.depart}, étape ${p.etape}, compo ${p.compo})`;
+  if (Number(p.etape) === 0) continue; // ligne d'information (aucune compo possible)
+  const pal = Number(p.palier);
+  if (!(pal >= 1 && pal <= 6)) err("NBA", `${ou} : palier ${p.palier} hors 1 à 6`);
+  else if (Math.abs(Number(p.seuil) - SEUILS_ARCADE_NBA[pal - 1]) > 1e-9) err("NBA", `${ou} : seuil ${p.seuil} au palier ${pal} (attendu ${SEUILS_ARCADE_NBA[pal - 1]})`);
+  if (!(Number(p.compo) >= 1 && Number(p.compo) <= 4)) err("NBA", `${ou} : compo ${p.compo} hors 1 à 4`);
+  if (!empty(res0.arcade_nba_debut) && !empty(res0.arcade_nba_fin) && !empty(p.creneau) && (Date.parse(p.creneau) < Date.parse(res0.arcade_nba_debut) - 86400e3 || Date.parse(p.creneau) > Date.parse(res0.arcade_nba_fin))) err("NBA", `${ou} : créneau ${p.creneau} hors de la gameweek NBA (${res0.arcade_nba_debut} → ${res0.arcade_nba_fin})`);
+  const elems = String(p.joueurs || "").split(" ; ").map((x) => x.trim()).filter(Boolean);
+  if (elems.length !== 5) err("NBA", `${ou} : ${elems.length} joueurs (attendu 5)`);
+  if (elems.some((x) => /\(MVP\)/.test(x))) err("NBA", `${ou} : « (MVP) » dans « ${p.joueurs} » (plus de MVP depuis le 02/11/2026)`);
+  if (elems.some((x) => POSTES_FOOT.test(x))) err("NBA", `${ou} : poste football dans « ${p.joueurs} » (pas de poste en NBA)`);
+  // « Nom (équipe, heure, N★) score »
+  const lus = elems.map((x) => { const m = /^(.+?) \((.+), [^,()]+, (\d+(?:[.,]5)?)★\) -?[\d.,]+$/.exec(x); return m ? { nom: m[1].trim(), equipe: m[2].trim(), e: Number(m[3].replace(",", ".")) } : null; });
+  if (lus.some((x) => !x)) { err("NBA", `${ou} : format « Nom (équipe, heure, N★) score » attendu : « ${p.joueurs} »`); continue; }
+  for (const x of lus) { const e = nomsDoubles.has(x.nom) ? null : etoilesParNom.get(x.nom); if (e == null) plafondNonControle++; else if (Math.abs(e - x.e) > 1e-9) warn("NBA", `${ou} : ${x.nom} affiché ${fr(x.e)}★, ${fr(e)}★ dans joueurs`); }
+  const somme = lus.reduce((t, x) => t + ((nomsDoubles.has(x.nom) ? null : etoilesParNom.get(x.nom)) ?? x.e), 0);
+  if (somme > PLAFOND_ETOILES_NBA + 1e-9) err("NBA", `${ou} : somme des étoiles ${fr(somme)} > ${PLAFOND_ETOILES_NBA}`);
+  const parEquipe = new Map(); for (const x of lus) parEquipe.set(x.equipe, (parEquipe.get(x.equipe) || 0) + 1);
+  for (const [eq, n] of parEquipe) if (n > MAX_EQUIPE_NBA) err("NBA", `${ou} : ${n} joueurs de ${eq} (max ${MAX_EQUIPE_NBA} par équipe)`);
 }
+if (has("resume", "set_nba") && empty(res0.set_nba) && (data.plan_arcade || []).some((p) => p.mode === "arcade_nba" && Number(p.etape) > 0)) warn("NBA", "plan_arcade : plan Set NBA alors que resume.set_nba est vide");
+if (plafondNonControle) warn("NBA", `plan_arcade NBA : étoiles lues sur la ligne pour ${plafondNonControle} joueurs (introuvables dans joueurs ou nom en double)`);
 
 // ---------- jours, changements, calibration, resume ----------
 for (const r of data.jours || []) {
@@ -311,7 +343,44 @@ for (const r of data.jours || []) {
 const validTypes = ["Nouvelle blessure", "Retour de blessure", "Suspension", "Statut modifié", "Projection en hausse", "Projection en baisse"];
 for (const r of data.changements || []) {
   if (!validTypes.includes(r.type)) err("F+N", `changements : type inconnu « ${r.type} »`);
-  if (String(r.modes).split(" ").includes("NBA") && ["Suspension", "Statut modifié"].includes(r.type)) warn("NBA", `changements : ${r.type} pour ${r.joueur} (type football)`);
+  const spCh = !empty(r.sport) ? String(r.sport) : String(r.modes).split(" ").includes("NBA") ? "NBA" : "FOOTBALL";
+  if (spCh === "NBA" && ["Suspension", "Statut modifié"].includes(r.type)) warn("NBA", `changements : ${r.type} pour ${r.joueur} (type football)`);
+  // v7 : sport et slug ; sport = joueurs.sport ; modes = joueurs.modes ; jamais de ligne pour un joueur aux modes vides
+  if (has("changements", "sport")) {
+    if (!["FOOTBALL", "NBA"].includes(r.sport)) err("F+N", `changements : sport « ${r.sport} » invalide pour ${r.joueur}`);
+    const j = joueurBySlug.get(r.slug);
+    if (!j) warn(spCh, `changements : ${r.joueur} (slug « ${r.slug} ») absent de joueurs`);
+    else {
+      if (j.sport !== r.sport) err(spCh, `changements : ${r.joueur} a le sport ${r.sport}, ${j.sport} dans joueurs`);
+      if (String(j.modes || "") !== String(r.modes || "")) err(spCh, `changements : modes « ${r.modes} » de ${r.joueur} ≠ joueurs.modes « ${j.modes} »`);
+    }
+    if (empty(String(r.modes || "").trim())) err(spCh, `changements : ligne pour ${r.joueur} dont les modes sont vides (dans aucune vue)`);
+  }
+}
+// v7 (séparation Pro / Set, 02/11/2026) : cohérence modes / cartes / vues, contrôlée si la collecte est v7 (resume.set_nba présent).
+// NBA ou JPL -> au moins une carte non Common dans cartes ; SET -> au moins une carte set_courant ; et réciproquement (une carte
+// Limited+ dans cartes sans NBA / JPL, une Common du set en cours sans SET) ; jours, compos et plans selon les modes.
+if (has("resume", "set_nba")) {
+  const modesV7 = (j) => String(j?.modes || "").split(" ").filter(Boolean);
+  const parJoueur = new Map(); for (const k of cartes) { if (!parJoueur.has(k.slug)) parJoueur.set(k.slug, []); parJoueur.get(k.slug).push(k); }
+  const vrai = (v) => v === true || v === "true" || v === "True";
+  for (const j of joueurs) {
+    const m = modesV7(j), ks = parJoueur.get(j.slug) || [], sp = sportOf(j.sport);
+    const pro = ks.some((k) => k.rarete !== "common"), setC = ks.some((k) => k.rarete === "common" && vrai(k.set_courant));
+    if (m.includes("NBA") && j.sport !== "NBA") err(sp, `joueurs : ${j.joueur} (football) a le mode NBA`);
+    if (m.includes("JPL") && j.sport === "NBA") err(sp, `joueurs : ${j.joueur} (NBA) a le mode JPL`);
+    if ((m.includes("NBA") || m.includes("JPL")) && !pro) warn(sp, `joueurs : ${j.joueur} a le mode Pro « ${j.modes} » sans carte Limited ou plus dans cartes`);
+    if (!m.includes("NBA") && !m.includes("JPL") && pro) err(sp, `joueurs : ${j.joueur} a une carte Limited ou plus dans cartes sans mode Pro (« ${j.modes} »)`);
+    if (m.includes("SET") && !setC) err(sp, `joueurs : ${j.joueur} a le mode SET sans Common du set en cours dans cartes`);
+    if (!m.includes("SET") && setC) err(sp, `joueurs : ${j.joueur} a une Common du set en cours sans le mode SET`);
+  }
+  const parNom = new Map(); for (const j of joueurs) parNom.set(j.joueur, j);
+  for (const x of data.jours || []) { const j = parNom.get(x.joueur); if (!j) continue; const m = modesV7(j);
+    const ok = x.mode === "NBA" ? m.includes("NBA") : x.mode === "Jupiler" ? m.includes("JPL") : /^Set /.test(x.mode) ? m.includes("SET") && j.sport === "FOOTBALL" : true;
+    if (!ok) err(sportOf(j.sport), `jours : ${x.joueur} dans « ${x.mode} » sans le mode correspondant (« ${j.modes} »)`); }
+  for (const l of data.compos || []) { const j = joueurBySlug.get(l.slug) || parNom.get(l.joueur); if (!j) continue; const m = modesV7(j);
+    const set = /\bSet\b/.test(l.competition);
+    if (set ? !m.includes("SET") : !(m.includes("NBA") || m.includes("JPL"))) err(sportOf(j.sport), `compos : ${l.joueur} dans ${l.competition} sans le mode ${set ? "SET" : "Pro"} (« ${j.modes} »)`); }
 }
 for (const r of data.calibration || []) if (!["FOOTBALL", "NBA"].includes(r.sport)) err("F+N", `calibration : sport « ${r.sport} » invalide au ${r.date}`);
 if (data.resume && data.resume.length !== 1) err("F+N", `resume : ${data.resume.length} lignes (attendu 1)`);
@@ -330,6 +399,9 @@ if (res) {
   if (!empty(res.europe_slug) && !/-special-weekly-european-contenders-division-1$/.test(String(res.europe_slug))) err("FOOTBALL", `resume : europe_slug « ${res.europe_slug} » n'est pas un leaderboard European Contenders Limited`);
   if (!empty(res.europe_debut) && !empty(res.europe_fin) && !(Date.parse(res.europe_debut) < Date.parse(res.europe_fin))) err("FOOTBALL", `resume : europe_debut (${res.europe_debut}) n'est pas avant europe_fin (${res.europe_fin})`);
   if (!empty(res.arcade_debut) && !empty(res.arcade_fin) && !(Date.parse(res.arcade_debut) < Date.parse(res.arcade_fin))) err("FOOTBALL", `resume : arcade_debut (${res.arcade_debut}) n'est pas avant arcade_fin (${res.arcade_fin})`);
+  // v7 : fenêtre Set NBA ; set_nba vide alors que des cartes Common NBA sont marquées set_courant
+  if (!empty(res.arcade_nba_debut) && !empty(res.arcade_nba_fin) && !(Date.parse(res.arcade_nba_debut) < Date.parse(res.arcade_nba_fin))) err("NBA", `resume : arcade_nba_debut (${res.arcade_nba_debut}) n'est pas avant arcade_nba_fin (${res.arcade_nba_fin})`);
+  if (has("resume", "set_nba") && empty(res.set_nba) && cartes.some((k) => k.sport === "NBA" && k.rarete === "common" && bool(k.set_courant))) err("NBA", "resume : set_nba vide alors que des cartes Common NBA sont du set en cours");
 }
 
 // ---------- Rapport ----------
