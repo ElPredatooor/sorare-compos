@@ -1,0 +1,63 @@
+# Copié par outils/prepare-depot.sh vers .github/workflows/test-ecriture-nba.yml du dépôt public.
+# Test d'écriture CONTRÔLÉ, Set NBA seulement (demandé et autorisé par l'utilisateur le 03/11/2026) : renvoie UNE compo READY
+# strictement identique (une seule écriture, voir le script), puis la relit et compare. Script : outils/test-ecriture-nba.mjs.
+# Lancement MANUEL seulement (aucun cron), en présence de l'utilisateur, avec la confirmation exacte « RENVOYER-A-L-IDENTIQUE ».
+# Journal public : comptes et états seulement ; noms et cartes uniquement dans l'artifact (7 jours). Aucun commit, aucun déploiement.
+name: "Nuit NBA : test d'écriture (manuel)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Écrire exactement RENVOYER-A-L-IDENTIQUE pour renvoyer une compo Set NBA à l'identique"
+        required: true
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-ecriture-nba
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Vérifier la confirmation
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          if [ "$CONFIRMATION" != "RENVOYER-A-L-IDENTIQUE" ]; then echo "::error::Confirmation absente ou incorrecte : rien n'est lancé."; exit 1; fi
+          echo "Confirmation reçue."
+
+      - name: Masquer le jeton dans les journaux
+        env:
+          SORARE_JWT: ${{ secrets.SORARE_JWT }}
+        run: |
+          if [ -n "$SORARE_JWT" ]; then echo "::add-mask::$SORARE_JWT"; echo "Jeton présent (masqué)."; else echo "::error::Jeton SORARE_JWT absent."; exit 1; fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Renvoyer une compo à l'identique et la relire
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          SORARE_API_KEY: ${{ secrets.SORARE_API_KEY }}
+          SORARE_JWT: ${{ secrets.SORARE_JWT }}
+          JWT_AUD: elpredatooor-nuit
+          SORTIE: test-ecriture-nba
+        run: node outils/test-ecriture-nba.mjs
+
+      - name: Joindre le compte rendu
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-ecriture-nba
+          path: test-ecriture-nba/
+          retention-days: 7
+          if-no-files-found: warn

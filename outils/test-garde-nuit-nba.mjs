@@ -93,6 +93,70 @@ const r3 = await executer({ env: { SORARE_JWT: SECRET, DUREE_MINUTES: "10", INTE
   fetchFn: async () => { throw new Error("réseau coupé"); }, ...horlogeSimulee("2026-11-02T23:30:00Z"), sortieConsole: () => {}, signaux: false });
 ok(r3.releves === 3 && fs.existsSync(path.join(S3, "rapport.md")), "réseau en panne : 3 relevés quand même, compte rendu écrit");
 
+// 4. Nuit simulée avec plan : vague 1 validée à 03h45 UTC (étape 2 CLAIMABLE), plan du palier 3 à 2 compos :
+//    A (un Out -> remplacé ; le meilleur candidat dépasserait 16★) et B (un match déjà commencé à 03h40 -> refusée).
+const D4 = path.join(tmp, "data4"); fs.mkdirSync(D4);
+const ecris4 = (n, v) => fs.writeFileSync(path.join(D4, n + ".json"), JSON.stringify(v));
+const J4 = { a1: ["Anton Un", "Boston Celtics", 3], a2: ["Arno Deux", "Miami Heat", 3], a3: ["Axel Absent", "Chicago Bulls", 3], a4: ["Aldo Quatre", "Utah Jazz", 3],
+  a5: ["Abel Cinq", "Denver Nuggets", 4], r1: ["Remi Remplacant", "Phoenix Suns", 3], r2: ["Raoul Tropcher", "Brooklyn Nets", 4],
+  b1: ["Basile Tot", "Orlando Magic", 3], b2: ["Boris Deux", "Atlanta Hawks", 3], b3: ["Bart Trois", "Detroit Pistons", 3], b4: ["Bob Quatre", "Indiana Pacers", 3], b5: ["Ben Cinq", "Sacramento Kings", 3],
+  v1: ["Victor Vague", "Toronto Raptors", 3] };
+const M4 = { a1: "04:10", a2: "04:10", a3: "04:10", a4: "04:10", a5: "04:10", r1: "04:30", r2: "04:30", b1: "03:40", b2: "04:10", b3: "04:10", b4: "04:10", b5: "04:10", v1: "01:00" };
+ecris4("cartes", Object.entries(J4).map(([s, [n]]) => carte(s, n)));
+ecris4("joueurs", Object.entries(J4).map(([s, [n, club, e]]) => ({ sport: "NBA", slug: s, joueur: n, club, etoiles: e })));
+ecris4("matchs", Object.entries(M4).map(([s, hm]) => ({ sport: "NBA", slug: s, date: "2026-11-04T" + hm, proj: s === "r2" ? 50 : s === "r1" ? 30 : 40, proba: 100 })));
+ecris4("resume", [{ maj_nba: "2026-11-03T05:00:00Z", arcade_nba_debut: "2026-11-03T00:00:00Z", arcade_nba_fin: "2026-11-06T06:00:00Z" }]);
+const h4 = horlogeSimulee("2026-11-04T03:30:00Z");
+const appJ = (s) => app(s, J4[s][0], J4[s][1], J4[s][2], "2026-11-04T01:00:00Z");
+const plateau4 = () => { const valide = h4.horloge().getTime() >= Date.parse("2026-11-04T03:45:00Z"); return { id: "board1", title: "Divination", endDate: null, steps: [
+  { id: "s1", level: 1, target: 150, state: "CLAIMED", myLineups: [] },
+  { id: "s2", level: 2, target: 180, state: valide ? "CLAIMABLE" : "LIVE", myLineups: [{ __typename: "TaskLineup", id: "V1", aasmState: valide ? "SUCCESSFUL" : "READY", draft: false, cancelledAt: null, updatable: false,
+    taskAppearances: [appJ("v1")] }] },
+  { id: "s3", level: 3, target: 210, state: "LOCKED", myLineups: [] }] }; };
+const corps4 = [];
+const fetch4 = async (url, opts = {}) => {
+  if (url.includes("espn.com")) return reponse({ injuries: [{ displayName: "Chicago Bulls", injuries: [{ athlete: { displayName: "Axel Absent" }, status: "Out", details: {} }] }] });
+  corps4.push(opts.body);
+  const { query } = JSON.parse(opts.body);
+  if (query.includes("GardePlateau")) return reponse({ data: { currentUser: { slug: "elpredatooor", setBoard: plateau4() } } });
+  if (query.includes("GardeBanc")) return reponse({ data: { currentUser: { step: { myFilteredBench: { pageInfo: { hasNextPage: false, endCursor: null },
+    nodes: Object.keys(J4).filter((s) => s !== "v1").map((s) => ({ __typename: "ComposeTeamBenchCard", starCost: J4[s][2], anyPlayer: { slug: s, displayName: J4[s][0] }, anyCard: { slug: s + "-c" } })) } } } } });
+  return reponse({ errors: [{ message: "requête inconnue" }] });
+};
+const PLAN = { nuit: "2026-11-03", cree: "2026-11-03T20:00:00Z", paliers: { "3": { cible: 210, pas_avant: "2026-11-04T03:30:00Z", compos: [
+  { nom: "A", cartes: ["a1-c", "a2-c", "a3-c", "a4-c", "a5-c"], projection: 200, chance: 0.42, premier_match: "2026-11-04T04:10:00Z" },
+  { nom: "B", cartes: ["b1-c", "b2-c", "b3-c", "b4-c", "b5-c"], projection: 195, chance: 38, premier_match: "2026-11-04T03:40:00Z" }] } } };
+const { chiffrerPlan } = await import("./nuit-nba-commun.mjs");
+const CLE4 = "cle-de-test-secrete-4";
+const planChiffre = chiffrerPlan(JSON.stringify(PLAN), CLE4);
+ok(planChiffre.startsWith("plan1:") && !planChiffre.includes("a1-c") && !planChiffre.includes("Anton"), "plan chiffré : aucun cardSlug ni nom lisible dans la variable");
+const S4 = path.join(tmp, "sortie4"); const console4 = [];
+const r4 = await executer({ env: { SORARE_JWT: SECRET, SORARE_API_KEY: CLE4, PLAN_NUIT_NBA: planChiffre, DUREE_MINUTES: "30", INTERVALLE_MINUTES: "5", DONNEES: D4, SORTIE: S4,
+  GITHUB_STEP_SUMMARY: path.join(tmp, "resume4.md") }, fetchFn: fetch4, ...h4, sortieConsole: (l) => console4.push(l), signaux: false });
+const rap4 = fs.readFileSync(path.join(S4, "rapport.md"), "utf8"), jour4 = fs.readFileSync(path.join(S4, "journal.txt"), "utf8"), res4 = fs.readFileSync(path.join(tmp, "resume4.md"), "utf8");
+const rec = r4.recoltes.get(2);
+ok(r4.planEtat === "chiffré" && r4.recoltes.size === 1 && rec?.heure === "2026-11-04T03:45:00.000Z", `récolte simulée du niveau 2 notée une fois, à 03h45 UTC (${r4.planEtat}, ${r4.recoltes.size}, ${rec?.heure})`);
+ok((jour4.match(/Récolte simulée/g) || []).length === 1 && /aurait récolté le niveau 2 ; palier 3 : 1 compos du plan auraient été alignées, 1 refusées/.test(jour4), "journal : une seule ligne de récolte, avec les comptes");
+const A = rec?.alignements.find((x) => x.nom === "A"), B = rec?.alignements.find((x) => x.nom === "B");
+ok(A?.ok && A.remplacements?.length === 1 && A.remplacements[0].out === "Axel Absent" && A.remplacements[0].entrant === "Remi Remplacant",
+  "compo A : joueur Out remplacé par le meilleur candidat valable (le 4★ à 50 dépasserait 16★)");
+ok(A?.minutesAvant === 25 && A.cartesFinales.includes("Remi Remplacant") && !A.cartesFinales.includes("Axel Absent"), `compo A : 25 min avant le premier match (${A?.minutesAvant})`);
+ok(B && !B.ok && /match déjà commencé/.test(B.raison), "compo B refusée : match déjà commencé");
+ok(/aurait récolté le niveau 2/.test(rap4) && /Aurait aligné la compo A\*\* à 04h45/.test(rap4) && /Compo B refusée/.test(rap4) && /banc de l'étape 2/.test(rap4) && /chance 42 %/.test(rap4),
+  "compte rendu : récolte, compo A alignée à 04h45 Bruxelles (chance 42 %), compo B refusée, banc de l'étape 2");
+const noms4 = Object.values(J4).flatMap(([n]) => n.split(" "));
+ok(!noms4.some((n) => jour4.includes(n) || res4.includes(n) || console4.join("\n").includes(n)) && !/-c\b/.test(jour4 + res4), "journal, console et résumé GitHub sans nom ni cardSlug");
+ok(/récoltes simulées : niveau 2 ; compos du plan : 1 auraient été alignées, 1 refusées/.test(res4), "résumé GitHub : récolte et comptes du plan");
+ok(corps4.every((b) => /^\s*query\b/.test(JSON.parse(b).query)), `${corps4.length} requêtes Sorare, toutes en lecture (query)`);
+// Plan illisible / absent : récolte notée quand même
+for (const [val, attendu] of [["plan1:AAAA", "illisible"], ["", "absent"], ["{pas du json", "illisible"]]) {
+  const h = horlogeSimulee("2026-11-04T03:50:00Z"); Object.assign(h4, h);
+  const S = path.join(tmp, "sortie4-" + attendu + val.length);
+  const r = await executer({ env: { SORARE_JWT: SECRET, SORARE_API_KEY: CLE4, PLAN_NUIT_NBA: val, DUREE_MINUTES: "0", DONNEES: D4, SORTIE: S }, fetchFn: fetch4, ...h, sortieConsole: () => {}, signaux: false });
+  const j = fs.readFileSync(path.join(S, "journal.txt"), "utf8");
+  ok(r.planEtat === attendu && r.recoltes.get(2)?.planAbsent === "plan " + attendu && new RegExp("Plan de nuit : " + attendu).test(j), `plan « ${val || "(vide)"} » : ${attendu}, récolte notée sans alignement`);
+}
+
 if (!process.env.GARDER) fs.rmSync(tmp, { recursive: true, force: true });
 console.log(ko ? `${ko} ECHEC(S)` : "OK");
 process.exit(ko ? 1 : 0);

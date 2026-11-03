@@ -4,18 +4,23 @@
 // LECTURE SEULE : uniquement des requêtes `query` (le client de nuit-nba-commun.mjs refuse tout le reste). Rien n'est modifié sur Sorare.
 // Dépôt public : le journal et le résumé GitHub ne montrent que des comptes ; les noms de joueurs ne vont que dans
 // le compte rendu joint en artifact (SORTIE/rapport.md, SORTIE/evenements.jsonl).
+// Récolte et palier suivant (03/11/2026, mode essai aussi) : quand une étape de la piste passe CLAIMABLE, la garde note
+// « aurait récolté le niveau N » (une fois), puis vérifie les compos du palier N+1 du plan de nuit (PLAN_NUIT_NBA, préparé
+// avant la nuit par outils/plan-nuit-nba.mjs, chiffré : voir nuit-nba-commun.mjs) : cartes libres, aucun match commencé,
+// remplacement d'un Out (choisirRemplacements), plafonds ; elle note « aurait aligné la compo A » ou la raison du refus.
 //
 // Variables d'environnement :
 //   SORARE_API_KEY, SORARE_JWT (audience JWT_AUD, défaut elpredatooor-nuit), DUREE_MINUTES (défaut 355), INTERVALLE_MINUTES (défaut 5),
-//   DONNEES (collecte du dépôt, défaut data/latest), SORTIE (défaut garde-nuit-nba).
+//   DONNEES (collecte du dépôt, défaut data/latest), SORTIE (défaut garde-nuit-nba), PLAN_NUIT_NBA (plan de nuit, facultatif).
 // Coût par relevé : 1 appel ESPN + 1 appel Sorare (plateau Set avec compos et cartes). En plus, seulement quand une compo
 // encore modifiable contient un Out : le banc Common de l'étape (1 appel par page de 50 cartes, ≈ 7 pour 306 cartes),
-// gardé 15 min. Nuit type (72 relevés) : ≈ 72 à 150 appels Sorare en 6 h, loin de la limite de 1 000 par 10 minutes.
+// gardé 15 min ; à chaque récolte simulée, le banc de l'étape récoltable (≈ 7 appels). Nuit type (72 relevés) : ≈ 72 à 150 appels Sorare en 6 h, loin de la limite de 1 000 par 10 minutes.
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { choisirRemplacements, candidatsDepuisCollecte, lireCollecte, versMs } from "../sorare-compos/garde-nba.mjs";
-import { USER_SLUG, heures, heureBxl, heureCourte, attendre, creerMasque, creerReseau, creerClientSorare, pname, blessuresEspn } from "./nuit-nba-commun.mjs";
+import { ARCADE_NBA_ETOILES, ARCADE_NBA_PAR_EQUIPE } from "../sorare-compos/compos.mjs";
+import { USER_SLUG, heures, heureBxl, heureCourte, attendre, creerMasque, creerReseau, creerClientSorare, pname, blessuresEspn, lirePlan } from "./nuit-nba-commun.mjs";
 
 // Plateau Set NBA : étapes, compos, cartes (champs vérifiés dans le schéma public du 02/11/2026).
 const APPARITION = (leger) => `taskAppearances{ locked starCost anyCard{ slug rarityTyped }
@@ -60,6 +65,7 @@ export async function executer({ env = process.env, fetchFn = globalThis.fetch, 
   const nomJoueur = new Map(); // playerSlug -> nom (rapport seulement)
   for (const k of collecte.cartes) if (k.sport === "NBA" && k.joueur) nomJoueur.set(k.slug, k.joueur);
   for (const j of joueurs.values()) if (j.joueur) nomJoueur.set(j.slug, j.joueur);
+  const carteCollecte = new Map(collecte.cartes.filter((k) => k.sport === "NBA" && k.carte_id).map((k) => [k.carte_id, k])); // cardSlug -> carte
   const prochainMatchCollecte = (slug, now) => collecte.matchs.filter((m) => m.sport === "NBA" && m.slug === slug && versMs(m.date) > now - 6 * 3600e3)
     .map((m) => versMs(m.date)).sort((a, b) => a - b)[0];
 
@@ -72,8 +78,19 @@ export async function executer({ env = process.env, fetchFn = globalThis.fetch, 
   const decisionsEnCours = new Map(); // lineupId -> [cardSlug entrants]
   const totaux = { remplacements: new Set(), impossibles: new Set(), signalements: new Set() }; // décisions distinctes de la nuit
 
+  // ---------- Plan de nuit (palier suivant) ----------
+  const planLu = lirePlan(env.PLAN_NUIT_NBA, apiKey);
+  const plan = planLu.plan;
+  const nbComposPlan = plan ? Object.values(plan.paliers).reduce((n, p) => n + (Array.isArray(p?.compos) ? p.compos.length : 0), 0) : 0;
+  const planNote = planLu.etat === "absent" ? "absent (variable PLAN_NUIT_NBA vide) : récolte notée, aucun alignement vérifié"
+    : planLu.etat === "illisible" ? `illisible (${planLu.erreur}) : récolte notée, aucun alignement vérifié`
+    : `lu (${planLu.etat}${planLu.etat === "en clair" ? " : visible dans l'en-tête du journal public, le chiffrer" : ""}), nuit ${plan.nuit || "?"}, `
+      + `paliers ${Object.keys(plan.paliers).join(", ") || "aucun"}, ${nbComposPlan} compos`;
+  const recoltes = new Map(); // niveau -> { niveau, cible, heure, bxl, premierReleve, suivant, banc, alignements: [] }
+
   ecrire(`Garde de nuit Set NBA (MODE ESSAI, lecture seule) : début ${heureCourte(debut)}, durée ${DUREE} min, intervalle ${INTERVALLE} min.`);
   ecrire(`Candidats : ${collecteNote.replace(/\(.*\)/, "").trim()}.`);
+  ecrire(`Plan de nuit : ${planNote}.`);
   if (!apiKey) ecrire("Clé API Sorare absente.");
   if (!jwt) ecrire("JETON ABSENT : SORARE_JWT non fourni, les compos Set NBA sont illisibles (ESPN seul).");
 
@@ -119,6 +136,78 @@ export async function executer({ env = process.env, fetchFn = globalThis.fetch, 
     }
   }
 
+  // Palier suivant du plan, juste après une récolte simulée du niveau N (mode essai : rien n'est posé).
+  // L'étape N+1 reste LOCKED tant que N n'est pas récoltée : la disponibilité se lit sur le banc de l'étape N (Common non utilisées).
+  async function alignerPalierSuivant(r, step, plateau, { now, cartesParCompo, candidats, fen }) {
+    const n1 = String(Number(step.level) + 1);
+    const suivant = (plateau.steps || []).find((x) => String(x.level) === n1);
+    r.suivant = suivant ? { niveau: suivant.level, cible: suivant.target, etat: suivant.state } : null;
+    if (!plan) { r.planAbsent = `plan ${planLu.etat}`; return; }
+    const pal = plan.paliers[n1];
+    if (!suivant) { r.planAbsent = `pas d'étape ${n1} sur la piste (dernier palier ?)`; return; }
+    if (!pal || !Array.isArray(pal.compos) || !pal.compos.length) { r.planAbsent = `pas de palier ${n1} dans le plan`; return; }
+    r.cibleNote = pal.cible != null && suivant.target != null && Number(pal.cible) !== Number(suivant.target) ? `cible du plan ${pal.cible} ≠ cible de la piste ${suivant.target}` : null;
+    r.pasAvant = pal.pas_avant || null;
+    let banc = null;
+    if (jetonEtat === "accepté") { const b = await lireBanc(step.id, now); banc = b.cartes || null; }
+    r.banc = banc ? `vérifiée sur le banc de l'étape ${step.level} (${banc.size} Common non utilisées ; l'étape ${n1} est encore verrouillée en mode essai)` : "NON vérifiée (banc illisible ou jeton absent)";
+    const utilisees = new Set([...cartesParCompo.values()].flat());
+    const prisesPlan = new Set();
+    let places = 4 - (suivant.myLineups || []).filter((l) => l.id && !l.cancelledAt).length;
+    const cands = banc ? candidats.filter((k) => banc.has(k.cardSlug)).map((k) => ({ ...k, etoiles: banc.get(k.cardSlug).starCost ?? k.etoiles })) : candidats;
+    const pasAvantMs = versMs(pal.pas_avant);
+    const matchDe = (slug) => {
+      const ts = collecte.matchs.filter((m) => m.sport === "NBA" && m.slug === slug).map((m) => versMs(m.date)).filter(Number.isFinite).sort((a, b) => a - b);
+      return (Number.isFinite(pasAvantMs) ? ts.find((t) => t >= pasAvantMs - 60e3) : undefined) ?? ts.find((t) => t > now - 6 * 3600e3);
+    };
+    for (const co of pal.compos) {
+      const a = { nom: co?.nom ?? "?", projection: co?.projection ?? null, chance: co?.chance ?? null, cartes: [], ok: false };
+      r.alignements.push(a);
+      const refus = (raison) => { a.raison = raison; };
+      const cartes = Array.isArray(co?.cartes) ? co.cartes : [];
+      if (cartes.length !== 5 || new Set(cartes).size !== 5) { refus("compo du plan invalide (5 cartes distinctes attendues)"); continue; }
+      if (places <= 0) { refus("plus de place sur le palier (4 compos au plus)"); continue; }
+      const lignes = cartes.map((cs) => {
+        const k = carteCollecte.get(cs), slug = k?.slug || banc?.get(cs)?.playerSlug, j = joueurs.get(slug), t = slug ? matchDe(slug) : undefined;
+        return { cardSlug: cs, playerSlug: slug, equipe: j?.club || "?", etoiles: banc?.get(cs)?.starCost ?? j?.etoiles ?? 1, debutMatch: Number.isFinite(t) ? new Date(t).toISOString() : null };
+      });
+      a.cartes = lignes.map((l) => ({ joueur: l.playerSlug ? nom(l.playerSlug) : l.cardSlug, carte: l.cardSlug, match: l.debutMatch }));
+      const inconnues = lignes.filter((l) => !l.playerSlug);
+      if (inconnues.length) { refus(`${inconnues.length} carte(s) inconnue(s) (ni dans la collecte ni sur le banc)`); continue; }
+      const prises = lignes.filter((l) => utilisees.has(l.cardSlug) || prisesPlan.has(l.cardSlug));
+      if (prises.length) { refus(`carte déjà prise : ${prises.map((l) => nom(l.playerSlug)).join(", ")} (compo posée ou jouée sur la piste, ou compo précédente du plan)`); continue; }
+      const horsBanc = banc ? lignes.filter((l) => !banc.has(l.cardSlug)) : [];
+      if (horsBanc.length) { refus(`carte absente du banc : ${horsBanc.map((l) => nom(l.playerSlug)).join(", ")} (déjà utilisée ou indisponible)`); continue; }
+      const sansMatch = lignes.filter((l) => !l.debutMatch);
+      if (sansMatch.length) { refus(`match introuvable dans la collecte pour ${sansMatch.map((l) => nom(l.playerSlug)).join(", ")}`); continue; }
+      const premierPlan = versMs(co.premier_match);
+      const premier = Math.min(...lignes.map((l) => versMs(l.debutMatch)), Number.isFinite(premierPlan) ? premierPlan : Infinity);
+      if (premier <= now) { refus(`match déjà commencé (${heureBxl(premier)} Bruxelles) : compo verrouillée avant d'être posée`); continue; }
+      // Un remplaçant ne prend pas une carte réservée par une autre compo du plan (tous paliers)
+      const reservees = new Set(Object.values(plan.paliers).flatMap((p) => (p?.compos || []).filter((x) => x !== co).flatMap((x) => x?.cartes || [])));
+      const res = choisirRemplacements({ compo: lignes, autresCartesUtilisees: new Set([...utilisees, ...prisesPlan, ...reservees]), candidats: cands, statuts, maintenant: now, fenetre: fen });
+      const slugsTexte = new Set([...lignes.map((l) => l.playerSlug), ...cands.map((k) => k.playerSlug)]);
+      a.signalements = res.signalements.map((x) => `${nom(x.joueur)} « ${x.statut} »`);
+      if (res.impossible.length) { refus(`joueur Out sans remplaçant : ${res.impossible.map((i) => avecNoms(i.raison, slugsTexte)).join(" ")}`); continue; }
+      let finale = lignes.slice();
+      a.remplacements = res.remplacements.map((x) => {
+        const sortant = lignes.find((l) => l.cardSlug === x.sortant), ent = cands.find((k) => k.cardSlug === x.entrant) || {};
+        finale = finale.filter((l) => l.cardSlug !== x.sortant).concat({ cardSlug: ent.cardSlug, playerSlug: ent.playerSlug, equipe: ent.equipe, etoiles: ent.etoiles ?? 1, debutMatch: ent.debutMatch });
+        return { out: nom(sortant?.playerSlug), entrant: nom(ent.playerSlug), carte: ent.cardSlug, projection: x.projectionEntrant, match: ent.debutMatch, raison: avecNoms(x.raison, slugsTexte) };
+      });
+      const etoiles = finale.reduce((s, l) => s + (Number(l.etoiles) || 1), 0);
+      const parEquipe = new Map(); for (const l of finale) parEquipe.set(l.equipe, (parEquipe.get(l.equipe) || 0) + 1);
+      const tropEquipe = [...parEquipe].filter(([e, n]) => e !== "?" && n > ARCADE_NBA_PAR_EQUIPE);
+      if (etoiles > ARCADE_NBA_ETOILES + 1e-9) { refus(`plafond d'étoiles dépassé (${etoiles}★ > ${ARCADE_NBA_ETOILES}★)`); continue; }
+      if (tropEquipe.length) { refus(`plus de ${ARCADE_NBA_PAR_EQUIPE} joueurs de ${tropEquipe.map(([e]) => e).join(", ")}`); continue; }
+      const premierFinal = Math.min(...finale.map((l) => versMs(l.debutMatch)).filter(Number.isFinite));
+      Object.assign(a, { ok: true, etoiles, premierMatch: new Date(premierFinal).toISOString(), minutesAvant: Math.round((premierFinal - now) / 60e3),
+        cartesFinales: finale.map((l) => nom(l.playerSlug)) });
+      for (const l of finale) prisesPlan.add(l.cardSlug);
+      places--;
+    }
+  }
+
   function noter(c, evt) {
     c.evenements.push(evt);
     fs.appendFileSync(F_EVT, masque(JSON.stringify({ compo: c.label, ...evt })) + "\n");
@@ -127,7 +216,7 @@ export async function executer({ env = process.env, fetchFn = globalThis.fetch, 
   async function unReleve() {
     const d = horloge(), now = d.getTime(); releves++;
     const h = heures(d);
-    const compte = { compos: 0, out: 0, remplacements: 0, impossibles: 0, verrouillees: 0, signalements: 0 };
+    const compte = { compos: 0, out: 0, remplacements: 0, impossibles: 0, verrouillees: 0, signalements: 0, recoltes: 0, alignees: 0, refusees: 0 };
 
     // 1. ESPN (en direct ; en cas d'erreur, on garde les statuts précédents)
     let inj = null;
@@ -184,6 +273,7 @@ export async function executer({ env = process.env, fetchFn = globalThis.fetch, 
       if (inj) {
         statuts = new Map();
         const slugs = new Set([...suivies.flatMap((x) => x.compo.map((c) => c.playerSlug)), ...candidats.map((c) => c.playerSlug)]);
+        if (plan) for (const p of Object.values(plan.paliers)) for (const co of p?.compos || []) for (const cs of co?.cartes || []) { const k = carteCollecte.get(cs); if (k) slugs.add(k.slug); }
         for (const s of slugs) { const i = inj.get(pname(nom(s))); if (i?.statut) statuts.set(s, i.statut); }
       }
       const fen = fenetre.debut || fenetre.fin ? fenetre : null;
@@ -242,6 +332,15 @@ export async function executer({ env = process.env, fetchFn = globalThis.fetch, 
           for (const k of cles) totaux[k[0] === "R" ? "remplacements" : k[0] === "I" ? "impossibles" : "signalements"].add(`${x.id}|${k}`);
         }
       }
+      // Récolte simulée : une étape passe CLAIMABLE -> « aurait récolté », puis vérification du palier suivant du plan (une fois par niveau)
+      for (const s of plateau.steps || []) if (s.state === "CLAIMABLE" && !recoltes.has(s.level)) {
+        const r = { niveau: s.level, cible: s.target, heure: d.toISOString(), bxl: h.bxl, premierReleve: releves === 1, alignements: [] };
+        recoltes.set(s.level, r); compte.recoltes++;
+        await alignerPalierSuivant(r, s, plateau, { now, cartesParCompo, candidats, fen });
+        fs.appendFileSync(F_EVT, masque(JSON.stringify({ recolte: r })) + "\n");
+        compte.alignees += r.alignements.filter((a) => a.ok).length; compte.refusees += r.alignements.filter((a) => !a.ok).length;
+      }
+
       // Compos suivies qui ne sont plus « READY » dans une étape suivie (jouées, annulées, étape passée)
       for (const [id, c] of compos) if (!c.disparue && !suivies.some((x) => x.id === id)) {
         c.disparue = true; decisionsEnCours.delete(id);
@@ -252,6 +351,9 @@ export async function executer({ env = process.env, fetchFn = globalThis.fetch, 
     ecrire(`Relevé ${releves} (${h.bxl.slice(-8)} Bruxelles) : jeton ${jetonEtat}, ESPN ${inj ? "ok" : "indisponible"}, ${compte.compos} compos suivies, `
       + `${compte.out} Out détectés, ${compte.remplacements} remplacements proposés, ${compte.impossibles} impossibles faute de candidat, `
       + `${compte.verrouillees} impossibles (compo verrouillée), ${compte.signalements} signalements (Doubtful / Questionable / Day-To-Day).`);
+    for (const r of recoltes.values()) if (r.heure === d.toISOString())
+      ecrire(`  Récolte simulée : la garde aurait récolté le niveau ${r.niveau}${r.premierReleve ? " (déjà récoltable au premier relevé)" : ""} ; palier ${Number(r.niveau) + 1} : `
+        + (r.planAbsent ? r.planAbsent : `${r.alignements.filter((a) => a.ok).length} compos du plan auraient été alignées, ${r.alignements.filter((a) => !a.ok).length} refusées.`));
     ecrireRapport(false);
   }
 
@@ -298,6 +400,27 @@ export async function executer({ env = process.env, fetchFn = globalThis.fetch, 
       if (!premiers.size && !jamais.size) L.push("- Signalements seulement : aucune action.");
       L.push("");
     }
+    // Récolte et palier suivant (plan de nuit)
+    const pct = (c) => (c == null || c === "" ? "?" : `${Math.round(Number(c) <= 1 ? Number(c) * 100 : Number(c))} %`);
+    L.push("## Récolte et palier suivant (plan de nuit)", "", `- Plan : ${planNote}.`);
+    if (!recoltes.size) L.push(jetonEtat === "accepté" ? "- Aucune étape n'est devenue récoltable (CLAIMABLE) pendant la garde." : "- Piste illisible : récolte non surveillée.");
+    for (const r of recoltes.values()) {
+      const hh = r.bxl.slice(-8, -3).replace(":", "h");
+      L.push(`- **${hh}** : la garde aurait récolté le niveau ${r.niveau} (cible ${r.cible ?? "?"})${r.premierReleve ? " ; étape déjà récoltable au premier relevé" : ""}.`);
+      if (r.suivant) L.push(`  Palier suivant : niveau ${r.suivant.niveau} (cible ${r.suivant.cible ?? "?"}, état lu ${r.suivant.etat}).`);
+      if (r.planAbsent) { L.push(`  Aucun alignement vérifié : ${r.planAbsent}.`); continue; }
+      if (r.cibleNote) L.push(`  Attention : ${r.cibleNote}.`);
+      L.push(`  Disponibilité des cartes : ${r.banc}. Matchs du plan à partir de ${r.pasAvant ? heureBxl(r.pasAvant) : "?"} (Bruxelles).`);
+      for (const a of r.alignements) {
+        if (a.ok) {
+          L.push(`  - **Aurait aligné la compo ${a.nom}** à ${hh} (5 cartes : ${a.cartesFinales.join(", ")} ; ${a.etoiles}★ ; projection du plan ${a.projection ?? "?"}, chance ${pct(a.chance)}) : `
+            + `premier match à ${heureBxl(a.premierMatch)}, soit ${a.minutesAvant} min de marge.`);
+          for (const x of a.remplacements || []) L.push(`    Remplacement : ${x.out} (Out) → ${x.entrant} (projection ${x.projection}, match ${heureBxl(x.match)}). ${x.raison}`);
+        } else L.push(`  - **Compo ${a.nom} refusée** : ${a.raison}. (Cartes du plan : ${a.cartes.map((c) => c.joueur).join(", ") || "?"}.)`);
+        if (a.signalements?.length) L.push(`    Signalements laissés dans la compo : ${a.signalements.join(", ")}.`);
+      }
+    }
+    L.push("");
     fs.writeFileSync(F_RAPPORT, masque(L.join("\n") + "\n"));
     if (final && env.GITHUB_STEP_SUMMARY) {
       const nbOut = new Set([...compos.values()].flatMap((c) => c.evenements.flatMap((e) => [...(e.remplacements || []), ...(e.impossible || [])].map((x) => x.outCarte)))).size;
@@ -305,6 +428,9 @@ export async function executer({ env = process.env, fetchFn = globalThis.fetch, 
         `- ${releves} relevés, ${erreurs} erreurs ; jeton ${jetonEtat} ; ${compteur.appels} appels Sorare, ${appelsEspn} ESPN.`,
         `- ${compos.size} compos suivies ; ${nbOut} joueurs Out détectés ; décisions notées : ${totaux.remplacements.size} remplacements proposés, `
         + `${totaux.impossibles.size} impossibles, ${totaux.signalements.size} signalements.`,
+        `- Plan de nuit : ${planLu.etat} ; récoltes simulées : ${recoltes.size ? [...recoltes.keys()].map((n) => "niveau " + n).join(", ") : "aucune"} ; `
+        + `compos du plan : ${[...recoltes.values()].reduce((n, r) => n + r.alignements.filter((a) => a.ok).length, 0)} auraient été alignées, `
+        + `${[...recoltes.values()].reduce((n, r) => n + r.alignements.filter((a) => !a.ok).length, 0)} refusées.`,
         "- Détail avec les noms : artifact « garde-nuit-nba » (rapport.md).", ""].join("\n")));
     }
   }
@@ -324,7 +450,7 @@ export async function executer({ env = process.env, fetchFn = globalThis.fetch, 
   ecrire(`Fin : ${releves} relevés, ${compos.size} compos suivies, ${totaux.remplacements.size} remplacements proposés, ${totaux.impossibles.size} impossibles, `
     + `${totaux.signalements.size} signalements ; ${compteur.appels} appels Sorare, ${appelsEspn} appels ESPN.`);
   ecrireRapport(true);
-  return { releves, compos, totaux, jetonEtat, appelsSorare: compteur.appels, appelsEspn, sortie: SORTIE };
+  return { releves, compos, totaux, recoltes, planEtat: planLu.etat, jetonEtat, appelsSorare: compteur.appels, appelsEspn, sortie: SORTIE };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await executer();

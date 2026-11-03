@@ -3,6 +3,8 @@
 # repère les joueurs Out chez ESPN et note ce que la garde AURAIT remplacé (règle : sorare-compos/garde-nba.mjs).
 # Rien n'est modifié sur Sorare (aucune requête d'écriture dans le script), aucun commit, aucun déploiement.
 # Journal et résumé publics : des comptes seulement. Noms de joueurs : uniquement dans l'artifact (rapport.md, 7 jours).
+# Récolte et palier suivant (mode essai) : plan de nuit lu dans la variable de dépôt PLAN_NUIT_NBA. Une variable s'affiche en clair
+# dans l'en-tête « env » de l'étape (journal public) : la ranger CHIFFRÉE (« plan1:… », outils/nuit-nba-commun.mjs chiffrer-plan).
 name: "Nuit NBA : garde (mode essai)"
 
 on:
@@ -51,6 +53,7 @@ jobs:
           SORARE_API_KEY: ${{ secrets.SORARE_API_KEY }}
           SORARE_JWT: ${{ secrets.SORARE_JWT }}
           JWT_AUD: elpredatooor-nuit
+          PLAN_NUIT_NBA: ${{ vars.PLAN_NUIT_NBA }}
           DUREE_MINUTES: ${{ inputs.duree_minutes || '355' }}
           INTERVALLE_MINUTES: ${{ inputs.intervalle_minutes || '5' }}
           DONNEES: data/latest
