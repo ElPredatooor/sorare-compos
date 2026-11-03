@@ -16,10 +16,7 @@ on:
         description: "Intervalle entre deux relevés (minutes)"
         required: false
         default: "5"
-  schedule:
-    # 23h45 UTC le 2 novembre = 00h45 à Bruxelles dans la nuit du 2 au 3/11/2026 (à retirer après cette nuit :
-    # sinon le cron se redéclenche chaque 2 novembre)
-    - cron: "45 23 2 11 *"
+  # Programmation de la nuit du 2 au 3/11/2026 retirée le 03/11 (lancement manuel seulement).
 
 permissions:
   contents: read
