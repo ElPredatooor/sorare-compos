@@ -16,7 +16,10 @@ on:
         description: "Intervalle entre deux relevés (minutes)"
         required: false
         default: "5"
-  # Programmation de la nuit du 2 au 3/11/2026 retirée le 03/11 (lancement manuel seulement).
+  schedule:
+    # Chaque nuit, mode essai (décision de l'utilisateur du 03/11/2026). 21h30 UTC = 22h30 à Bruxelles en hiver (23h30 en été) ;
+    # GitHub démarre souvent ~30 min en retard : la garde couvre alors ≈ 23h00 → 04h55, avant les matchs de 04h00-04h30.
+    - cron: "30 21 * * *"
 
 permissions:
   contents: read
@@ -53,6 +56,22 @@ jobs:
           DONNEES: data/latest
           SORTIE: garde-nuit-nba
         run: node outils/garde-nuit-nba.mjs
+
+      # Alerte par e-mail (échec du job) si le jeton est absent, refusé, ou expire dans moins de 7 jours. N'affiche jamais le jeton.
+      - name: Vérifier le jeton Sorare
+        if: always()
+        env:
+          SORARE_JWT: ${{ secrets.SORARE_JWT }}
+        run: |
+          if grep -q -E "JETON (ABSENT|REFUSÉ)" garde-nuit-nba/journal.txt 2>/dev/null; then
+            echo "::error::Jeton Sorare absent ou refusé : la garde n'a pas pu lire les compos. Recréer SORARE_JWT (docs/rapports/automatisation-nuit-nba.md)."; exit 1
+          fi
+          exp=$(node -e 'try{const p=JSON.parse(Buffer.from((process.env.SORARE_JWT||"").split(".")[1]||"","base64url"));console.log(p.exp||"")}catch{console.log("")}')
+          if [ -n "$exp" ]; then
+            jours=$(( (exp - $(date +%s)) / 86400 ))
+            echo "Jeton Sorare : expire le $(date -u -d @$exp +%d/%m/%Y) (dans $jours jours)."
+            if [ "$jours" -lt 7 ]; then echo "::error::Le jeton Sorare expire dans $jours jours : le recréer et remplacer le secret SORARE_JWT."; exit 1; fi
+          fi
 
       - name: Joindre le compte rendu
         if: always()
