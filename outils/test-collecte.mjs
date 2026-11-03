@@ -252,7 +252,7 @@ function verifiePlanNba(plan, infos, copies, quoi) {
     ok(somme <= 16 + 1e-9, `${quoi} : plafond dépassé (${somme} étoiles > 16) : ${x.joueurs}`);
     const eq = new Map(); for (const j of js) eq.set(infos.get(j.nom)?.equipe, (eq.get(infos.get(j.nom)?.equipe) || 0) + 1);
     ok(Math.max(...eq.values()) <= 4, `${quoi} : plus de 4 joueurs d'une même équipe : ${x.joueurs}`);
-    ok(Date.parse(x.resultat_vers + "Z") - Date.parse(x.creneau + "Z") >= 3 * H, `${quoi} : résultat moins de 3 h après le premier entre-deux`);
+    ok(Date.parse(x.resultat_vers + "Z") - Date.parse(x.creneau + "Z") >= 160 * 60e3, `${quoi} : résultat moins de 2 h 40 après le premier entre-deux`);
     const lot = plan.filter((y) => y.depart === x.depart && y.etape === x.etape);
     ok(lot.length <= 4 && Math.abs(1 - lot.reduce((q, y) => q * (1 - y.proba_compo / 100), 1) - x.proba_palier / 100) < 0.01, `${quoi} : lot de plus de 4 compos ou proba_palier incohérente`);
   }

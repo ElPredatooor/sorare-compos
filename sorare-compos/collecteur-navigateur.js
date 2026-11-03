@@ -1430,9 +1430,9 @@ const PISTE_EUROPE = { mode: "europe", seuils: EUROPE_SEUILS, capitaine: EUROPE_
 const ARCADE_NBA_SEUILS = [150, 180, 210, 240, 280, 300]; // utilisateur 02/11/2026
 const ARCADE_NBA_ETOILES = 16; // somme des etoiles <= 16 (utilisateur 02/11/2026, regle de l'In-Season Champion NBA)
 const ARCADE_NBA_PAR_EQUIPE = 4; // au plus 4 joueurs d'une meme equipe (utilisateur 02/11/2026, comme l'In-Season Champion)
-// Resultat connu 3 h apres le dernier entre-deux du lot (un match NBA dure ~2h30) : valeur par defaut du stratege, A FAIRE
-// CONFIRMER par l'utilisateur (consigne de l'orchestrateur du 02/11/2026)
-const ARCADE_NBA_DELAI = 3 * 3600e3;
+// Resultat connu 2 h 40 apres le dernier entre-deux du lot : observe la nuit du 2 au 3/11/2026 (validation ~5 min apres la fin
+// du dernier match ; POR@DEN 03h00 -> 05h37, MIA@LAL 04h00 -> 06h42), demande de l'utilisateur du 03/11/2026 (ancienne valeur : 3 h)
+const ARCADE_NBA_DELAI = 160 * 60e3;
 // Choix du stratege : une soiree NBA s'etale sur ~3h30 (19h00 a 22h30 heure de New York) ; creneaux de 0 a 4 h
 const ARCADE_NBA_LARGEURS = [0, 3600e3, 2 * 3600e3, 3 * 3600e3, 4 * 3600e3];
 const NBA_CAND = 24, NBA_PAR_NIVEAU = 5, NBA_FINALISTES = 6; // recherche d'une compo Set NBA (choix du stratege)
