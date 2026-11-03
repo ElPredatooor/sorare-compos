@@ -835,6 +835,8 @@ export async function collecteMissions({ gq, cards, byPlayer, currentSet, curren
           const e = await effectif(club); if (!e) { complet = false; continue; }
           for (const j of e.players) {
             if (possedes.has(j.slug)) continue;
+            // Entraineurs exclus (Player.position = "Coach", verifie le 03/11 sur arsenal-london) et noeuds sans poste joueur
+            if (!j.position || /coach|manager/i.test(String(j.position))) continue;
             if (cr.nationalite && j.country?.code !== cr.nationalite) continue;
             if (cr.poste && j.position !== cr.poste) continue;
             if (Array.isArray(cr.joueurs) && cr.joueurs.length && !cr.joueurs.includes(j.slug)) continue;

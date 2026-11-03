@@ -120,7 +120,7 @@ async function fetchSimule(url, opts = {}) {
   else if (query.includes("team(slug")) { // v9 : effectif d'un club (missions, joueurs manquants) ; club inconnu -> NOT_FOUND
     if (v.s === "club-inconnu") { const e = { errors: [{ message: "Not found", extensions: { code: "NOT_FOUND" } }] }; return { ok: true, status: 200, text: async () => JSON.stringify(e), json: async () => e }; }
     const proprio = v.s.replace(/^club-/, "");
-    data = { team: { slug: v.s, name: "Club " + proprio, anyActivePlayers: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [{ slug: proprio, displayName: proprio, country: { code: "de" }, position: "Forward" }, { slug: "recrue-" + proprio, displayName: "Recrue " + proprio, country: { code: "de" }, position: "Defender" }] } } };
+    data = { team: { slug: v.s, name: "Club " + proprio, anyActivePlayers: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [{ slug: proprio, displayName: proprio, country: { code: "de" }, position: "Forward" }, { slug: "recrue-" + proprio, displayName: "Recrue " + proprio, country: { code: "de" }, position: "Defender" }, { slug: "coach-" + proprio, displayName: "Coach " + proprio, country: { code: "de" }, position: "Coach" }, { slug: "staff-" + proprio, displayName: "Staff " + proprio, country: { code: "de" }, position: null }] } } };
   }
   else if (query.includes("so5Fixtures(")) data = { so5: { so5Fixtures: { nodes: [{ slug: "x-ouverte", aasmState: "opened" }, { slug: CLOSED[v.sport], aasmState: "closed", startDate: iso(NOW.getTime() - 6 * J), endDate: iso(NOW.getTime() - 2 * J) }] } } };
   else if (query.includes("so5Fixture(slug")) data = { so5: { so5Fixture: { so5Leaderboards: closedBoards(v.s) } } };
@@ -786,6 +786,7 @@ for (const r of f.joueurs) {
   ok(m("Football", "gk").progression_calculee === 1, "missions : poste Goalkeeper mal compté");
   const big = m("Football", "big");
   ok(big.progression === 1 && big.progression_calculee === 2 && big.nb_joueurs_manquants === 2 && big.joueurs_manquants === "Recrue chabot (Club chabot) ; Recrue schick (Club schick)" && big.lu_le === "2026-11-01", "missions : joueurs manquants des clubs " + JSON.stringify(big));
+  ok(!/Coach |Staff /.test(big.joueurs_manquants || ""), "missions : entraîneur ou nœud sans poste dans joueurs_manquants " + big.joueurs_manquants);
   ok(m("Football", "inconnu").joueurs_manquants === null && m("Football", "inconnu").nb_joueurs_manquants === null, "missions : club inconnu devrait donner joueurs_manquants null");
   ok(appelsMissions === 3, "missions : " + appelsMissions + " appels pour 3 clubs (attendu 3 : un par club, sans reprise sur NOT_FOUND)");
   ok(m("NBA", "joueurs").progression === 8 && m("NBA", "joueurs").set === "divination", "missions : Joueurs NBA mal comptés " + JSON.stringify(m("NBA", "joueurs")));
