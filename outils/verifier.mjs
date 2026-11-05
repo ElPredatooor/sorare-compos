@@ -260,7 +260,10 @@ for (const m of data.matchs || []) {
     clesMatchs.add(k);
     if (!jf || jf.sport !== "FOOTBALL") { err("FOOTBALL", `matchs : ${m.joueur} (${m.slug}) absent de joueurs ou pas footballeur`); continue; }
     const europeen = !empty(m.competition_match) && COMPETITIONS_EUROPE.has(cleCompetition(m.competition_match));
-    if (europeen) {
+    // Joueur du Set : tous ses matchs de la fenêtre Arcade sont écrits, coupes européennes comprises (cas vu le 04/11/2026,
+    // Set Divination + journée européenne) ; les règles European Contenders ne s'appliquent qu'aux autres joueurs.
+    const duSet = String(jf.modes || "").includes("SET");
+    if (europeen && !duSet) {
       // v5 : joueur avec une carte Limited ou plus rare, match dans la période European Contenders
       if (cartes.length && !cartes.some((c) => c.slug === m.slug && c.sport === "Football" && ["limited", "rare", "super_rare", "unique"].includes(c.rarete))) err("FOOTBALL", `matchs : ${m.joueur} a un match européen sans carte Limited ou plus rare`);
       if (empty(res0.europe_debut) || empty(res0.europe_fin)) err("FOOTBALL", `matchs : match européen de ${m.joueur} alors que resume.europe_debut / europe_fin sont vides`);
