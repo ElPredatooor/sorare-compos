@@ -158,7 +158,7 @@ Vide (CSV d'en-tête) tant qu'aucune gameweek proposée n'est terminée.
 | puissance, skin | nombre | Bonus de carte (×) et de skin (×) |
 | in_season, set_courant | booléen | v7 : `set_courant` vaut aussi pour les cartes Common NBA du set NBA en cours (`resume.set_nba`) |
 
-Précision du 18/11/2026 (sans changement de format) : football, les cartes Limited et plus d'un joueur hors Jupiler qui a un match European Contenders dans `matchs` font aussi partie de `cartes` (le vérificateur exige cette carte pour chaque match européen hors Set).
+Précision du 18/11/2026 (sans changement de format) : un joueur football retenu seulement pour European Contenders (hors Jupiler et hors Set, `modes` vide) a des lignes dans `matchs` mais aucune dans `cartes` (v7 : une carte Limited dans `cartes` exige le mode Pro). Sa carte Limited est garantie par la collecte (section 3 de `collecte.mjs`), pas lisible dans `cartes`.
 
 ## paliers (scores réels des récompenses lors de la dernière gameweek terminée ; clé : `competition` + `rang`)
 | Colonne | Type | Contenu |

@@ -265,7 +265,8 @@ for (const m of data.matchs || []) {
     const duSet = String(jf.modes || "").includes("SET");
     if (europeen && !duSet) {
       // v5 : joueur avec une carte Limited ou plus rare, match dans la période European Contenders
-      if (cartes.length && !cartes.some((c) => c.slug === m.slug && c.sport === "Football" && ["limited", "rare", "super_rare", "unique"].includes(c.rarete))) err("FOOTBALL", `matchs : ${m.joueur} a un match européen sans carte Limited ou plus rare`);
+      // Carte Limited contrôlée seulement pour un joueur Jupiler : un joueur European Contenders seul (modes vide) n'a pas de ligne dans cartes (contrat v7, échec du 18/11/2026, Jon Aramburu)
+      if (cartes.length && String(jf.modes || "").includes("JPL") && !cartes.some((c) => c.slug === m.slug && c.sport === "Football" && ["limited", "rare", "super_rare", "unique"].includes(c.rarete))) err("FOOTBALL", `matchs : ${m.joueur} a un match européen sans carte Limited ou plus rare`);
       if (empty(res0.europe_debut) || empty(res0.europe_fin)) err("FOOTBALL", `matchs : match européen de ${m.joueur} alors que resume.europe_debut / europe_fin sont vides`);
       else if (Date.parse(m.date) < Date.parse(res0.europe_debut) - 3600e3 || Date.parse(m.date) > Date.parse(res0.europe_fin)) err("FOOTBALL", `matchs : match européen de ${m.joueur} (${m.date}) hors de la période European Contenders`);
     } else if (!String(jf.modes || "").includes("SET")) err("FOOTBALL", `matchs : ${m.joueur} n'est pas un joueur du Set` + (empty(m.competition_match) ? "" : ` (compétition « ${m.competition_match} » hors European Contenders)`));

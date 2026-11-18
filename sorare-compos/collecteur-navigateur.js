@@ -1324,9 +1324,6 @@ function calculeCompos({ comps, currentSet, setName, currentSetNBA, fixtures, ad
       const date = g.date.slice(0, 16); if (deja.has(r.slug + "|" + date)) continue; deja.add(r.slug + "|" + date);
       const ar = advRank(g.adversaire, r.sport);
       matchs.push({ sport: "Football", slug: r.slug, joueur: r.joueur, date, jour: jourDuMatch(g.t, false), adversaire: (g.home ? "vs " : "@ ") + g.adversaire, proj: round(g.proj), proba: Math.round(g.pPlay * 100), b2b: null, adv_attaque_rang: ar.adv_attaque_rang, adv_defense_rang: ar.adv_defense_rang, adv_nb_equipes: ar.adv_nb_equipes, proba_victoire: g.winOdds ?? null, total: g.total ?? null, competition_match: g.competition || "" });
-      // Joueur hors Jupiler (European Contenders seulement) : ses cartes Limited et plus entrent aussi dans `cartes` (echec du 18/11/2026, Jon Aramburu)
-      if (!r._isJPL) for (const k of r._cards) if (PISTE_EUROPE.carte(k) && !cartes.some((c) => c.carte_id === k.slug))
-        cartes.push({ sport: "Football", slug: r.slug, joueur: r.joueur, carte_id: k.slug, label: cardLabel(k), rarete: k.rarity, saison: k.season, puissance: k.power, skin: k.skinBonus, in_season: k.inSeason, set_courant: false });
     }
   }
   // ---------- 12 bis. Plans de piste : Arcade (Set football, contrat v4), European Contenders (Pro football, contrat v5),
